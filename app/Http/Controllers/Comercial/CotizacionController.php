@@ -11,8 +11,11 @@ use App\Models\Embarque;
 use App\Models\Empleado;
 use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
+use App\Models\Tarifa;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -24,8 +27,51 @@ class CotizacionController extends Controller
     public function create(): Response
     {
         return Inertia::render('Comercial/Cotizaciones/Nueva', [
-            'puertos' => PuertoAeropuerto::orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
+            'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
         ]);
+    }
+
+    public function tarifasDisponibles(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
+            'id_pol' => ['nullable', 'string'],
+            'id_pod' => ['nullable', 'string'],
+            'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
+        ]);
+
+        $hoy = Carbon::today();
+
+        $tarifas = Tarifa::with(['proveedor', 'cargosAdicionales'])
+            ->whereHas('proveedor', fn ($query) => $query->where('activo', true))
+            ->where('modo', $data['modo_transporte'])
+            ->when($data['id_pol'] ?? null, fn ($query, $pol) => $query->where('id_origen', $pol))
+            ->when($data['id_pod'] ?? null, fn ($query, $pod) => $query->where('id_destino', $pod))
+            ->when($data['tipo_servicio'] ?? null, fn ($query, $tipo) => $query->where('tipo_servicio', $tipo))
+            ->where('fecha_inicio_vigencia', '<=', $hoy)
+            ->where('fecha_fin_vigencia', '>=', $hoy)
+            ->orderBy('fecha_fin_vigencia')
+            ->get()
+            ->map(fn (Tarifa $tarifa) => [
+                'id_tarifa' => $tarifa->id_tarifa,
+                'carrier' => $tarifa->proveedor?->nombre,
+                'tipo_servicio' => $tarifa->tipo_servicio,
+                'moneda' => $tarifa->moneda,
+                'dias_transito' => $tarifa->dias_transito,
+                'costo_20' => $tarifa->costo_20,
+                'costo_40' => $tarifa->costo_40,
+                'costo_40hc' => $tarifa->costo_40hc,
+                'costo_cbm' => $tarifa->costo_cbm,
+                'costo_base' => $tarifa->costo_base,
+                'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
+                'cargos_adicionales' => $tarifa->cargosAdicionales->map(fn ($cargo) => [
+                    'concepto' => $cargo->concepto,
+                    'monto' => $cargo->monto,
+                    'moneda' => $cargo->moneda,
+                ]),
+            ]);
+
+        return response()->json($tarifas);
     }
 
     public function store(Request $request): RedirectResponse
@@ -35,7 +81,11 @@ class CotizacionController extends Controller
         $data = $request->validate([
             'id_cliente' => ['required', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
-            'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
+            'tipo_servicio' => [
+                Rule::requiredIf(fn () => $request->input('modo_transporte') === 'Maritimo'),
+                'nullable',
+                Rule::in(['FCL', 'LCL']),
+            ],
             'incoterm' => ['nullable', 'string', 'max:10'],
             'id_pol' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'id_pod' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
@@ -68,7 +118,7 @@ class CotizacionController extends Controller
                 'id_cliente' => $data['id_cliente'],
                 'id_comercial' => $comercial->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
-                'tipo_servicio' => $data['tipo_servicio'] ?? null,
+                'tipo_servicio' => $data['modo_transporte'] === 'Maritimo' ? ($data['tipo_servicio'] ?? null) : null,
                 'incoterm' => $data['incoterm'] ?? null,
                 'id_pol' => $data['id_pol'] ?? null,
                 'id_pod' => $data['id_pod'] ?? null,
@@ -149,9 +199,11 @@ class CotizacionController extends Controller
             ]),
             'total' => $cotizacion->detalle->sum('costo_total'),
             'proveedoresAgenteOrigen' => Proveedor::where('tipo', 'Agente_Origen')
+                ->where('activo', true)
                 ->orderBy('nombre')
                 ->get(['id_proveedor', 'nombre']),
             'proveedoresTransporte' => Proveedor::whereIn('tipo', $this->tiposTransportePara($cotizacion->modo_transporte))
+                ->where('activo', true)
                 ->orderBy('nombre')
                 ->get(['id_proveedor', 'nombre']),
         ]);

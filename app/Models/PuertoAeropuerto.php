@@ -20,7 +20,15 @@ class PuertoAeropuerto extends Model
         'nombre',
         'tipo',
         'pais',
+        'activo',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'activo' => 'boolean',
+        ];
+    }
 
     public function tarifasOrigen(): HasMany
     {

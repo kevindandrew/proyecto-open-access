@@ -27,7 +27,15 @@ class Proveedor extends Model
         'celular',
         'nit',
         'email',
+        'activo',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'activo' => 'boolean',
+        ];
+    }
 
     public function tarifas(): HasMany
     {

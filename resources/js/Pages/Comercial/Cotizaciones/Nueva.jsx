@@ -183,9 +183,9 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                             ...data,
                             modo_transporte: e.target.value,
                             tipo_servicio:
-                                e.target.value === 'Aereo'
-                                    ? ''
-                                    : data.tipo_servicio,
+                                e.target.value === 'Maritimo'
+                                    ? data.tipo_servicio
+                                    : '',
                             id_pol: '',
                             id_pod: '',
                         });
@@ -199,7 +199,7 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                 <CampoError mensaje={errors.modo_transporte} />
             </div>
 
-            {data.modo_transporte !== 'Aereo' && (
+            {data.modo_transporte === 'Maritimo' && (
                 <div>
                     <label className={labelClass}>Tipo de Servicio</label>
                     <select
@@ -213,9 +213,9 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                             clearErrors('tipo_servicio');
                         }}
                     >
-                        <option value="">—</option>
-                        <option value="FCL">FCL</option>
-                        <option value="LCL">LCL</option>
+                        <option value="">Selecciona FCL o LCL</option>
+                        <option value="FCL">FCL — contenedor completo</option>
+                        <option value="LCL">LCL — carga consolidada (por m³)</option>
                     </select>
                     <CampoError mensaje={errors.tipo_servicio} />
                 </div>
@@ -471,7 +471,169 @@ function PasoCarga({ data, setData, errors, clearErrors }) {
     );
 }
 
+const CAMPO_COSTO_POR_CONTENEDOR = {
+    '20 DRY': 'costo_20',
+    '40 DRY': 'costo_40',
+    '40 HC': 'costo_40hc',
+};
+
+function TarifasDisponibles({ data, onAplicar }) {
+    const [tarifas, setTarifas] = useState([]);
+    const [cargando, setCargando] = useState(false);
+    const [consultado, setConsultado] = useState(false);
+
+    useEffect(() => {
+        if (!data.id_pol || !data.id_pod) {
+            setTarifas([]);
+            setConsultado(false);
+            return;
+        }
+
+        setCargando(true);
+        setConsultado(false);
+
+        axios
+            .get(route('comercial.cotizaciones.tarifas-disponibles'), {
+                params: {
+                    modo_transporte: data.modo_transporte,
+                    id_pol: data.id_pol,
+                    id_pod: data.id_pod,
+                    tipo_servicio: data.tipo_servicio || undefined,
+                },
+            })
+            .then((response) => setTarifas(response.data))
+            .finally(() => {
+                setCargando(false);
+                setConsultado(true);
+            });
+    }, [data.modo_transporte, data.id_pol, data.id_pod, data.tipo_servicio]);
+
+    if (!data.id_pol || !data.id_pod) {
+        return null;
+    }
+
+    return (
+        <div className="mb-6 rounded-lg border border-[#71BFA6]/40 bg-[#71BFA6]/5 p-4">
+            <h3 className="text-sm font-semibold text-[#042753]">
+                Tarifas disponibles para esta ruta
+            </h3>
+            <p className="mb-3 text-xs text-[#A9ABAE]">
+                Cargadas por Gerente Operativo — usá una para completar los
+                costos automáticamente.
+            </p>
+
+            {cargando && (
+                <p className="text-sm text-[#A9ABAE]">
+                    Buscando tarifas vigentes...
+                </p>
+            )}
+
+            {!cargando && consultado && tarifas.length === 0 && (
+                <p className="text-sm text-[#A9ABAE]">
+                    No hay tarifas vigentes cargadas para esta ruta. Podés
+                    completar los costos manualmente abajo.
+                </p>
+            )}
+
+            <div className="space-y-2">
+                {tarifas.map((tarifa) => (
+                    <div
+                        key={tarifa.id_tarifa}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-3 py-2"
+                    >
+                        <div>
+                            <p className="text-sm font-medium text-[#042753]">
+                                {tarifa.carrier}
+                                {tarifa.tipo_servicio && ` · ${tarifa.tipo_servicio}`}
+                            </p>
+                            <p className="text-xs text-[#A9ABAE]">
+                                Vigente hasta {tarifa.fecha_fin_vigencia} ·{' '}
+                                {tarifa.moneda}
+                                {tarifa.cargos_adicionales.length > 0 &&
+                                    ` · +${tarifa.cargos_adicionales.length} cargo(s) adicional(es)`}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => onAplicar(tarifa)}
+                            className="flex-shrink-0 rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
+                        >
+                            Usar esta tarifa
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function PasoCostos({ data, setData, errors, clearErrors }) {
+    const aplicarTarifa = (tarifa) => {
+        const lineasNuevas = [];
+
+        if (data.tipo_servicio === 'FCL' && data.contenedores.length > 0) {
+            data.contenedores.forEach((contenedor) => {
+                const campo = CAMPO_COSTO_POR_CONTENEDOR[contenedor.tipo_contenedor];
+                const costo = campo ? tarifa[campo] : null;
+
+                if (costo) {
+                    lineasNuevas.push({
+                        descripcion: `Flete - ${contenedor.tipo_contenedor}`,
+                        tipo_tarifa_unidad: 'Per Container',
+                        costo_unitario: costo,
+                        base_calculo: contenedor.cantidad,
+                        moneda: tarifa.moneda,
+                    });
+                }
+            });
+        } else if (data.tipo_servicio === 'LCL' && tarifa.costo_cbm) {
+            lineasNuevas.push({
+                descripcion: 'Flete - Carga Consolidada (LCL)',
+                tipo_tarifa_unidad: 'Per CBM',
+                costo_unitario: tarifa.costo_cbm,
+                base_calculo: data.volumen_cbm || 1,
+                moneda: tarifa.moneda,
+            });
+        } else if (tarifa.costo_base) {
+            lineasNuevas.push({
+                descripcion: 'Flete',
+                tipo_tarifa_unidad:
+                    data.modo_transporte === 'Aereo' ? 'Per Kg' : 'Flat',
+                costo_unitario: tarifa.costo_base,
+                base_calculo:
+                    data.modo_transporte === 'Aereo'
+                        ? data.peso_kg || 1
+                        : 1,
+                moneda: tarifa.moneda,
+            });
+        }
+
+        tarifa.cargos_adicionales.forEach((cargo) => {
+            lineasNuevas.push({
+                descripcion: cargo.concepto,
+                tipo_tarifa_unidad: 'Flat',
+                costo_unitario: cargo.monto,
+                base_calculo: 1,
+                moneda: cargo.moneda,
+            });
+        });
+
+        if (lineasNuevas.length === 0) {
+            return;
+        }
+
+        setData({
+            ...data,
+            detalle: [
+                ...data.detalle.filter(
+                    (linea) => linea.descripcion || linea.costo_unitario,
+                ),
+                ...lineasNuevas,
+            ],
+        });
+        clearErrors('detalle');
+    };
+
     const agregarLinea = () => {
         setData({
             ...data,
@@ -514,6 +676,8 @@ function PasoCostos({ data, setData, errors, clearErrors }) {
 
     return (
         <div className="space-y-4">
+            <TarifasDisponibles data={data} onAplicar={aplicarTarifa} />
+
             <div>
                 <div className="mb-2 flex items-center justify-between">
                     <label className={labelClass}>
@@ -824,8 +988,7 @@ export default function Nueva({ puertos }) {
         return true;
     };
 
-    const confirmar = (e) => {
-        e.preventDefault();
+    const confirmar = () => {
         post(route('comercial.cotizaciones.store'));
     };
 
@@ -843,7 +1006,7 @@ export default function Nueva({ puertos }) {
                     </div>
                 )}
 
-                <form onSubmit={confirmar}>
+                <div>
                     {paso === 1 && (
                         <PasoCliente
                             data={data}
@@ -899,15 +1062,16 @@ export default function Nueva({ puertos }) {
                             </button>
                         ) : (
                             <button
-                                type="submit"
+                                type="button"
                                 disabled={processing}
+                                onClick={confirmar}
                                 className="rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                             >
                                 Confirmar Cotización
                             </button>
                         )}
                     </div>
-                </form>
+                </div>
             </div>
         </ComercialLayout>
     );

@@ -169,6 +169,9 @@ export default function Index({ tarifas }) {
                                 </td>
                                 <td className="px-4 py-3 text-right font-semibold text-[#042753]">
                                     {formatoMonto(t.tarifa_base)}
+                                    {t.unidad && (
+                                        <span className="ml-1 font-normal text-[#A9ABAE]">/ {t.unidad}</span>
+                                    )}
                                 </td>
                                 <td className="px-4 py-3 text-[#A9ABAE]">{t.moneda}</td>
                                 <td className="px-4 py-3">

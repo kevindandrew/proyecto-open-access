@@ -208,6 +208,23 @@ class DemoAccountsSeeder extends Seeder
             ]);
         }
 
+        $puertoArica = PuertoAeropuerto::firstOrCreate(
+            ['codigo' => 'ARI'],
+            ['nombre' => 'Arica', 'tipo' => 'Puerto', 'pais' => 'Chile'],
+        );
+
+        Tarifa::firstOrCreate(
+            ['id_proveedor' => $naviera->id_proveedor, 'modo' => 'Maritimo', 'tipo_servicio' => 'LCL', 'id_origen' => $puertoOrigen->codigo, 'id_destino' => $puertoArica->codigo],
+            [
+                'dias_transito' => 35,
+                'costo_cbm' => 95,
+                'moneda' => 'USD',
+                'tipo_tarifa' => 'Normal',
+                'fecha_inicio_vigencia' => Carbon::today()->subMonths(2),
+                'fecha_fin_vigencia' => Carbon::today()->addDays(45),
+            ],
+        );
+
         Tarifa::firstOrCreate(
             ['id_proveedor' => $navieraVencida->id_proveedor, 'modo' => 'Maritimo', 'id_origen' => $puertoOrigen->codigo, 'id_destino' => $puertoDestino->codigo],
             [

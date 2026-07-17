@@ -14,6 +14,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
         costo_20: tarifa?.costo_20 ?? '',
         costo_40: tarifa?.costo_40 ?? '',
         costo_40hc: tarifa?.costo_40hc ?? '',
+        costo_cbm: tarifa?.costo_cbm ?? '',
         costo_base: tarifa?.costo_base ?? '',
         moneda: tarifa?.moneda ?? 'USD',
         tipo_tarifa: tarifa?.tipo_tarifa ?? 'Normal',
@@ -23,6 +24,8 @@ export default function Form({ tarifa, proveedores, puertos }) {
     });
 
     const esMaritimo = data.modo === 'Maritimo';
+    const esFCL = esMaritimo && data.tipo_servicio === 'FCL';
+    const esLCL = esMaritimo && data.tipo_servicio === 'LCL';
 
     const submit = (e) => {
         e.preventDefault();
@@ -100,7 +103,16 @@ export default function Form({ tarifa, proveedores, puertos }) {
                         <select
                             className={inputClass}
                             value={data.modo}
-                            onChange={(e) => setData('modo', e.target.value)}
+                            onChange={(e) =>
+                                setData({
+                                    ...data,
+                                    modo: e.target.value,
+                                    tipo_servicio:
+                                        e.target.value === 'Maritimo'
+                                            ? data.tipo_servicio
+                                            : '',
+                                })
+                            }
                         >
                             <option value="Maritimo">Marítimo</option>
                             <option value="Aereo">Aéreo</option>
@@ -159,20 +171,27 @@ export default function Form({ tarifa, proveedores, puertos }) {
                         )}
                     </div>
 
-                    <div>
-                        <label className={labelClass}>Tipo de Servicio</label>
-                        <select
-                            className={inputClass}
-                            value={data.tipo_servicio}
-                            onChange={(e) =>
-                                setData('tipo_servicio', e.target.value)
-                            }
-                        >
-                            <option value="">—</option>
-                            <option value="FCL">FCL</option>
-                            <option value="LCL">LCL</option>
-                        </select>
-                    </div>
+                    {esMaritimo && (
+                        <div>
+                            <label className={labelClass}>Tipo de Servicio</label>
+                            <select
+                                className={inputClass}
+                                value={data.tipo_servicio}
+                                onChange={(e) =>
+                                    setData('tipo_servicio', e.target.value)
+                                }
+                            >
+                                <option value="">Selecciona FCL o LCL</option>
+                                <option value="FCL">FCL — contenedor completo</option>
+                                <option value="LCL">LCL — carga consolidada (por m³)</option>
+                            </select>
+                            {errors.tipo_servicio && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.tipo_servicio}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div>
                         <label className={labelClass}>Tipo de Tarifa</label>
@@ -211,10 +230,10 @@ export default function Form({ tarifa, proveedores, puertos }) {
                         />
                     </div>
 
-                    {esMaritimo ? (
+                    {esFCL && (
                         <>
                             <div>
-                                <label className={labelClass}>Costo 20'</label>
+                                <label className={labelClass}>Costo 20' (por contenedor)</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -227,7 +246,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             </div>
 
                             <div>
-                                <label className={labelClass}>Costo 40'</label>
+                                <label className={labelClass}>Costo 40' (por contenedor)</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -246,7 +265,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
 
                             <div>
                                 <label className={labelClass}>
-                                    Costo 40' HC
+                                    Costo 40' HC (por contenedor)
                                 </label>
                                 <input
                                     type="number"
@@ -259,9 +278,35 @@ export default function Form({ tarifa, proveedores, puertos }) {
                                 />
                             </div>
                         </>
-                    ) : (
+                    )}
+
+                    {esLCL && (
                         <div>
-                            <label className={labelClass}>Tarifa Base</label>
+                            <label className={labelClass}>Costo por m³ (carga consolidada)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                className={inputClass}
+                                value={data.costo_cbm}
+                                onChange={(e) =>
+                                    setData('costo_cbm', e.target.value)
+                                }
+                            />
+                            {errors.costo_cbm && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.costo_cbm}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {!esMaritimo && (
+                        <div>
+                            <label className={labelClass}>
+                                {data.modo === 'Aereo'
+                                    ? 'Tarifa por Kilo (USD/kg)'
+                                    : 'Tarifa Plana (por viaje)'}
+                            </label>
                             <input
                                 type="number"
                                 step="0.01"

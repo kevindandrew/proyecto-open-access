@@ -1,5 +1,6 @@
 import {
     IconoClientes,
+    IconoConfiguracionNav,
     IconoCotizacionesNav,
     IconoDashboard,
     IconoEmbarquesNav,
@@ -18,6 +19,12 @@ const navItems = [
     { label: 'Embarques', routeName: 'gerente-operativo.embarques.index', icon: IconoEmbarquesNav },
     { label: 'Personal', routeName: 'gerente-operativo.personal.index', icon: IconoPersonalNav },
     { label: 'Reportes', routeName: 'gerente-operativo.reportes.index', icon: IconoReportesNav },
+    {
+        label: 'Configuración',
+        routeName: 'gerente-operativo.configuracion.proveedores.index',
+        activePattern: 'gerente-operativo.configuracion.*',
+        icon: IconoConfiguracionNav,
+    },
 ];
 
 function iniciales(nombre) {
@@ -54,7 +61,7 @@ export default function GerenteOperativoLayout({ header, children }) {
 
                 <nav className="mt-4 space-y-1 px-3">
                     {navItems.map((item) => {
-                        const activo = route().current(item.routeName + '*');
+                        const activo = route().current(item.activePattern ?? item.routeName + '*');
                         const Icon = item.icon;
 
                         return (

@@ -24,6 +24,7 @@ class Tarifa extends Model
         'costo_20',
         'costo_40',
         'costo_40hc',
+        'costo_cbm',
         'costo_base',
         'moneda',
         'tipo_tarifa',

@@ -47,6 +47,24 @@ class TarifaController extends Controller
         ]);
     }
 
+    private function proveedoresOptions(?int $incluirId = null)
+    {
+        return Proveedor::select('id_proveedor', 'nombre', 'tipo')
+            ->where(fn ($query) => $query->where('activo', true)->when($incluirId, fn ($q, $id) => $q->orWhere('id_proveedor', $id)))
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function puertosOptions(array $incluirCodigos = [])
+    {
+        $incluirCodigos = array_values(array_filter($incluirCodigos));
+
+        return PuertoAeropuerto::select('codigo', 'nombre', 'tipo')
+            ->where(fn ($query) => $query->where('activo', true)->when($incluirCodigos, fn ($q) => $q->orWhereIn('codigo', $incluirCodigos)))
+            ->orderBy('nombre')
+            ->get();
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
@@ -77,6 +95,7 @@ class TarifaController extends Controller
                 'costo_20' => $tarifa->costo_20,
                 'costo_40' => $tarifa->costo_40,
                 'costo_40hc' => $tarifa->costo_40hc,
+                'costo_cbm' => $tarifa->costo_cbm,
                 'costo_base' => $tarifa->costo_base,
                 'moneda' => $tarifa->moneda,
                 'tipo_tarifa' => $tarifa->tipo_tarifa,
@@ -88,8 +107,8 @@ class TarifaController extends Controller
                     'monto' => $cargo->monto,
                 ]),
             ],
-            'proveedores' => $this->proveedoresOptions(),
-            'puertos' => $this->puertosOptions(),
+            'proveedores' => $this->proveedoresOptions($tarifa->id_proveedor),
+            'puertos' => $this->puertosOptions([$tarifa->id_origen, $tarifa->id_destino]),
         ]);
     }
 
@@ -123,11 +142,16 @@ class TarifaController extends Controller
             'id_origen' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'id_destino' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'modo' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
-            'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
+            'tipo_servicio' => [
+                Rule::requiredIf(fn () => $request->input('modo') === 'Maritimo'),
+                'nullable',
+                Rule::in(['FCL', 'LCL']),
+            ],
             'dias_transito' => ['nullable', 'integer', 'min:0'],
             'costo_20' => ['nullable', 'numeric'],
             'costo_40' => ['nullable', 'numeric'],
             'costo_40hc' => ['nullable', 'numeric'],
+            'costo_cbm' => ['nullable', 'numeric'],
             'costo_base' => ['nullable', 'numeric'],
             'moneda' => ['required', 'string', 'max:5'],
             'tipo_tarifa' => ['required', 'string', 'max:20'],
@@ -138,14 +162,17 @@ class TarifaController extends Controller
             'cargos_adicionales.*.monto' => ['required', 'numeric'],
         ])->after(function (Validator $validator) use ($request) {
             $modo = $request->input('modo');
+            $tipoServicio = $request->input('tipo_servicio');
 
-            if ($modo === 'Maritimo') {
+            if ($modo === 'Maritimo' && $tipoServicio === 'FCL') {
                 $tieneAlgunCosto = collect(['costo_20', 'costo_40', 'costo_40hc'])
                     ->contains(fn ($campo) => $request->filled($campo));
 
                 if (! $tieneAlgunCosto) {
                     $validator->errors()->add('costo_40', 'Cargá al menos un precio por tamaño de contenedor.');
                 }
+            } elseif ($modo === 'Maritimo' && $tipoServicio === 'LCL' && ! $request->filled('costo_cbm')) {
+                $validator->errors()->add('costo_cbm', 'El precio por metro cúbico es obligatorio para LCL.');
             } elseif (in_array($modo, ['Aereo', 'Terrestre'], true) && ! $request->filled('costo_base')) {
                 $validator->errors()->add('costo_base', 'La tarifa base es obligatoria para este modo de transporte.');
             }
@@ -153,8 +180,19 @@ class TarifaController extends Controller
 
         $validated = $validator->validate();
 
+        $modo = $validated['modo'];
+        $tipoServicio = $modo === 'Maritimo' ? $validated['tipo_servicio'] : null;
+
+        $tarifa = collect($validated)->except('cargos_adicionales')->toArray();
+        $tarifa['tipo_servicio'] = $tipoServicio;
+        $tarifa['costo_20'] = $tipoServicio === 'FCL' ? ($tarifa['costo_20'] ?? null) : null;
+        $tarifa['costo_40'] = $tipoServicio === 'FCL' ? ($tarifa['costo_40'] ?? null) : null;
+        $tarifa['costo_40hc'] = $tipoServicio === 'FCL' ? ($tarifa['costo_40hc'] ?? null) : null;
+        $tarifa['costo_cbm'] = $tipoServicio === 'LCL' ? ($tarifa['costo_cbm'] ?? null) : null;
+        $tarifa['costo_base'] = in_array($modo, ['Aereo', 'Terrestre'], true) ? ($tarifa['costo_base'] ?? null) : null;
+
         return [
-            'tarifa' => collect($validated)->except('cargos_adicionales')->toArray(),
+            'tarifa' => $tarifa,
             'cargos_adicionales' => $validated['cargos_adicionales'] ?? [],
         ];
     }
@@ -174,14 +212,15 @@ class TarifaController extends Controller
             'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
         ];
 
-        if ($tarifa->modo === 'Maritimo') {
+        if ($tarifa->modo === 'Maritimo' && $tarifa->tipo_servicio === 'FCL') {
             $filas = [];
 
             foreach (self::TALLAS_CONTENEDOR as $campo => $etiqueta) {
                 if ($tarifa->{$campo} !== null) {
                     $filas[] = [
                         ...$base,
-                        'servicio' => trim(($tarifa->tipo_servicio ?? '').' '.$etiqueta),
+                        'servicio' => "FCL {$etiqueta}",
+                        'unidad' => 'contenedor',
                         'tarifa_base' => $tarifa->{$campo},
                     ];
                 }
@@ -190,9 +229,19 @@ class TarifaController extends Controller
             return $filas;
         }
 
+        if ($tarifa->modo === 'Maritimo' && $tarifa->tipo_servicio === 'LCL') {
+            return [[
+                ...$base,
+                'servicio' => 'LCL',
+                'unidad' => 'm³',
+                'tarifa_base' => $tarifa->costo_cbm,
+            ]];
+        }
+
         return [[
             ...$base,
-            'servicio' => $tarifa->tipo_servicio ?: $tarifa->modo,
+            'servicio' => $tarifa->modo === 'Aereo' ? 'Aéreo' : 'Terrestre',
+            'unidad' => $tarifa->modo === 'Aereo' ? 'kg' : 'viaje',
             'tarifa_base' => $tarifa->costo_base,
         ]];
     }
@@ -200,19 +249,5 @@ class TarifaController extends Controller
     private function fechaEs(Carbon $fecha): string
     {
         return str_replace('.', '', $fecha->locale('es')->isoFormat('D MMM YYYY'));
-    }
-
-    private function proveedoresOptions()
-    {
-        return Proveedor::select('id_proveedor', 'nombre', 'tipo')
-            ->orderBy('nombre')
-            ->get();
-    }
-
-    private function puertosOptions()
-    {
-        return PuertoAeropuerto::select('codigo', 'nombre', 'tipo')
-            ->orderBy('nombre')
-            ->get();
     }
 }

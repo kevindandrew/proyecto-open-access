@@ -9,6 +9,8 @@ use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperati
 use App\Http\Controllers\GerenteOperativo\EmbarqueController;
 use App\Http\Controllers\GerenteOperativo\GastoDestinoController;
 use App\Http\Controllers\GerenteOperativo\PersonalController;
+use App\Http\Controllers\GerenteOperativo\ProveedorController;
+use App\Http\Controllers\GerenteOperativo\PuertoController;
 use App\Http\Controllers\GerenteOperativo\ReporteController;
 use App\Http\Controllers\GerenteOperativo\TarifaController;
 use App\Http\Controllers\GerenteOperativoController;
@@ -49,6 +51,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
         Route::post('clientes', [ClienteController::class, 'store'])->name('clientes.store');
 
         Route::get('cotizaciones/nueva', [CotizacionController::class, 'create'])->name('cotizaciones.create');
+        Route::get('cotizaciones/tarifas-disponibles', [CotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
         Route::post('cotizaciones', [CotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [CotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [CotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
@@ -93,6 +96,13 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'show'])->name('cotizaciones.show');
 
         Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
+
+        Route::prefix('configuracion')->name('configuracion.')->group(function () {
+            Route::resource('proveedores', ProveedorController::class)
+                ->parameters(['proveedores' => 'proveedor'])
+                ->except(['show']);
+            Route::resource('puertos', PuertoController::class)->except(['show']);
+        });
 
         Route::get('embarques', [EmbarqueController::class, 'index'])->name('embarques.index');
         Route::get('embarques/{embarque}', [EmbarqueController::class, 'show'])->name('embarques.show');
