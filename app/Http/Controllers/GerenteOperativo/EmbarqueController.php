@@ -4,25 +4,21 @@ namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Embarque;
+use App\Models\EmbarqueContenedor;
 use App\Models\Empleado;
+use App\Models\RoleEmpleado;
 use App\Models\SeguimientoEmbarque;
+use App\Support\SecuenciaEstadoEmbarque;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EmbarqueController extends Controller
 {
-    private const ESTADOS = [
-        'Confirmado_Origen',
-        'En_Transito',
-        'En_Aduana_Destino',
-        'Entregado',
-        'Cerrado',
-    ];
-
     private const MODOS = ['Maritimo', 'Aereo', 'Terrestre'];
 
     public function index(Request $request): Response
@@ -52,7 +48,7 @@ class EmbarqueController extends Controller
                 ->orderBy('nombre_completo')
                 ->get(['id_empleado', 'nombre_completo']),
             'modos' => self::MODOS,
-            'estados' => self::ESTADOS,
+            'estados' => SecuenciaEstadoEmbarque::ESTADOS,
         ]);
     }
 
@@ -60,6 +56,7 @@ class EmbarqueController extends Controller
     {
         $embarque->load([
             'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
+            'contenedores',
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
 
@@ -85,8 +82,16 @@ class EmbarqueController extends Controller
                 'viaje' => $embarque->viaje,
                 'pago_master' => $embarque->pago_master,
                 'estado_embarque' => $embarque->estado_embarque,
-                'siguiente_estado' => $this->siguienteEstado($embarque->estado_embarque),
+                'siguiente_estado' => SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque),
+                'id_operativo' => $embarque->id_operativo,
             ],
+            'contenedores' => $embarque->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
+                'tipo_contenedor' => $contenedor->tipo_contenedor,
+                'numero_contenedor' => $contenedor->numero_contenedor,
+                'numero_sello' => $contenedor->numero_sello,
+                'peso_kg' => $contenedor->peso_kg,
+                'volumen_cbm' => $contenedor->volumen_cbm,
+            ]),
             'seguimientos' => $embarque->seguimientos->map(fn (SeguimientoEmbarque $seguimiento) => [
                 'id_seguimiento' => $seguimiento->id_seguimiento,
                 'fecha' => $seguimiento->fecha->format('Y-m-d H:i'),
@@ -94,12 +99,62 @@ class EmbarqueController extends Controller
                 'comentario' => $seguimiento->comentario,
                 'empleado' => $seguimiento->empleadoResponsable?->nombre_completo,
             ]),
+            'operativosDisponibles' => $this->operativosPara($embarque->modo_transporte),
         ]);
+    }
+
+    public function asignarOperativo(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $rolOperativoId = RoleEmpleado::where('nombre_rol', 'Operativo')->value('id_rol');
+
+        $data = $request->validate([
+            'id_operativo' => [
+                'required',
+                'integer',
+                Rule::exists('empleados', 'id_empleado')->where(
+                    fn ($query) => $query
+                        ->where('id_rol', $rolOperativoId)
+                        ->where('especialidad_operativa', $embarque->modo_transporte)
+                        ->where('activo', true),
+                ),
+            ],
+        ]);
+
+        $anterior = $embarque->operativo?->nombre_completo;
+        $nuevo = Empleado::findOrFail($data['id_operativo'])->nombre_completo;
+
+        DB::transaction(function () use ($embarque, $data, $anterior, $nuevo) {
+            $embarque->update(['id_operativo' => $data['id_operativo']]);
+
+            $comentario = $anterior
+                ? "Operativo reasignado de {$anterior} a {$nuevo}"
+                : "Operativo asignado: {$nuevo}";
+
+            $embarque->seguimientos()->create([
+                'fecha' => now(),
+                'estado' => $embarque->estado_embarque,
+                'comentario' => $comentario,
+                'id_empleado_responsable' => Auth::user()->empleado?->id_empleado,
+            ]);
+        });
+
+        return redirect()
+            ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', "Operativo asignado: {$nuevo}.");
+    }
+
+    private function operativosPara(string $modoTransporte)
+    {
+        return Empleado::whereHas('rol', fn ($q) => $q->where('nombre_rol', 'Operativo'))
+            ->where('especialidad_operativa', $modoTransporte)
+            ->where('activo', true)
+            ->orderBy('nombre_completo')
+            ->get(['id_empleado', 'nombre_completo']);
     }
 
     public function cambiarEstado(Request $request, Embarque $embarque): RedirectResponse
     {
-        $siguiente = $this->siguienteEstado($embarque->estado_embarque);
+        $siguiente = SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque);
 
         if (! $siguiente) {
             return redirect()
@@ -125,14 +180,5 @@ class EmbarqueController extends Controller
         return redirect()
             ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
             ->with('success', "Estado actualizado a \"{$siguiente}\".");
-    }
-
-    private function siguienteEstado(string $actual): ?string
-    {
-        $index = array_search($actual, self::ESTADOS, true);
-
-        return $index !== false && isset(self::ESTADOS[$index + 1])
-            ? self::ESTADOS[$index + 1]
-            : null;
     }
 }

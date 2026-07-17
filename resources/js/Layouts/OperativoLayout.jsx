@@ -1,13 +1,9 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
-const navItems = [
-    { label: 'Dashboard', routeName: 'comercial.dashboard' },
-    { label: 'Clientes', routeName: 'comercial.clientes.index' },
-    { label: 'Embarques', routeName: 'comercial.embarques.index' },
-];
+const navItems = [{ label: 'Mis Embarques', routeName: 'operativo.dashboard' }];
 
-export default function ComercialLayout({ header, children }) {
+export default function OperativoLayout({ header, children }) {
     const { auth, flash } = usePage().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -50,7 +46,7 @@ export default function ComercialLayout({ header, children }) {
                     <p className="truncate text-sm font-semibold">
                         {auth.user.name}
                     </p>
-                    <p className="text-xs text-white/60">Comercial</p>
+                    <p className="text-xs text-white/60">Operativo</p>
                     <Link
                         href={route('logout')}
                         method="post"
@@ -94,7 +90,7 @@ export default function ComercialLayout({ header, children }) {
                             {header}
                         </h1>
                     </div>
-                    <div className="text-sm text-[#A9ABAE]">
+                    <div className="hidden text-sm text-[#A9ABAE] sm:block">
                         @{auth.user.username}
                     </div>
                 </header>

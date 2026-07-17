@@ -10,15 +10,19 @@ export default function Form({ tarifa, proveedores, puertos }) {
         id_destino: tarifa?.id_destino ?? '',
         modo: tarifa?.modo ?? 'Maritimo',
         tipo_servicio: tarifa?.tipo_servicio ?? '',
+        dias_transito: tarifa?.dias_transito ?? '',
         costo_20: tarifa?.costo_20 ?? '',
         costo_40: tarifa?.costo_40 ?? '',
         costo_40hc: tarifa?.costo_40hc ?? '',
+        costo_base: tarifa?.costo_base ?? '',
         moneda: tarifa?.moneda ?? 'USD',
         tipo_tarifa: tarifa?.tipo_tarifa ?? 'Normal',
         fecha_inicio_vigencia: tarifa?.fecha_inicio_vigencia ?? '',
         fecha_fin_vigencia: tarifa?.fecha_fin_vigencia ?? '',
         cargos_adicionales: tarifa?.cargos_adicionales ?? [],
     });
+
+    const esMaritimo = data.modo === 'Maritimo';
 
     const submit = (e) => {
         e.preventDefault();
@@ -183,40 +187,14 @@ export default function Form({ tarifa, proveedores, puertos }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Costo 20'</label>
+                        <label className={labelClass}>Días de Tránsito</label>
                         <input
                             type="number"
-                            step="0.01"
+                            min="0"
                             className={inputClass}
-                            value={data.costo_20}
+                            value={data.dias_transito}
                             onChange={(e) =>
-                                setData('costo_20', e.target.value)
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Costo 40'</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            className={inputClass}
-                            value={data.costo_40}
-                            onChange={(e) =>
-                                setData('costo_40', e.target.value)
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Costo 40' HC</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            className={inputClass}
-                            value={data.costo_40hc}
-                            onChange={(e) =>
-                                setData('costo_40hc', e.target.value)
+                                setData('dias_transito', e.target.value)
                             }
                         />
                     </div>
@@ -232,6 +210,74 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             }
                         />
                     </div>
+
+                    {esMaritimo ? (
+                        <>
+                            <div>
+                                <label className={labelClass}>Costo 20'</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    className={inputClass}
+                                    value={data.costo_20}
+                                    onChange={(e) =>
+                                        setData('costo_20', e.target.value)
+                                    }
+                                />
+                            </div>
+
+                            <div>
+                                <label className={labelClass}>Costo 40'</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    className={inputClass}
+                                    value={data.costo_40}
+                                    onChange={(e) =>
+                                        setData('costo_40', e.target.value)
+                                    }
+                                />
+                                {errors.costo_40 && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.costo_40}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className={labelClass}>
+                                    Costo 40' HC
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    className={inputClass}
+                                    value={data.costo_40hc}
+                                    onChange={(e) =>
+                                        setData('costo_40hc', e.target.value)
+                                    }
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div>
+                            <label className={labelClass}>Tarifa Base</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                className={inputClass}
+                                value={data.costo_base}
+                                onChange={(e) =>
+                                    setData('costo_base', e.target.value)
+                                }
+                            />
+                            {errors.costo_base && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.costo_base}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div>
                         <label className={labelClass}>

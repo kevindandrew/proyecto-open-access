@@ -1,5 +1,7 @@
 import { ESTADO_LABELS } from '@/constants/estados';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import PageHeader from '@/Components/PageHeader';
+import { IconoEmbarquesNav } from '@/Components/NavIcons';
 import { Head, Link, router } from '@inertiajs/react';
 
 export default function Index({ embarques, filtros, operativos, modos, estados }) {
@@ -17,6 +19,12 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
     return (
         <GerenteOperativoLayout header="Embarques">
             <Head title="Embarques" />
+
+            <PageHeader
+                icon={IconoEmbarquesNav}
+                title="Embarques"
+                subtitle="Seguimiento de embarques en curso y su estado actual"
+            />
 
             <div className="mb-4 flex flex-wrap gap-3">
                 <select
@@ -65,7 +73,7 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                 </select>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr>
@@ -101,7 +109,7 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                                         ),
                                     )
                                 }
-                                className="cursor-pointer hover:bg-[#71BFA6]/10"
+                                className="cursor-pointer transition-colors hover:bg-[#71BFA6]/10"
                             >
                                 <td className="px-4 py-3 font-medium text-[#042753]">
                                     {embarque.numero_file}
@@ -110,7 +118,11 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                                     {embarque.cliente}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {embarque.operativo ?? '—'}
+                                    {embarque.operativo ?? (
+                                        <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                                            Sin asignar
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-4 py-3">
                                     {embarque.modo_transporte}

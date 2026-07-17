@@ -1,45 +1,24 @@
 <?php
 
-namespace App\Http\Controllers\Comercial;
+namespace App\Http\Controllers\Operativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Embarque;
 use App\Models\EmbarqueContenedor;
 use App\Models\SeguimientoEmbarque;
+use App\Support\SecuenciaEstadoEmbarque;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EmbarqueController extends Controller
 {
-    public function index(Request $request): Response
-    {
-        $idComercial = Auth::user()->empleado->id_empleado;
-
-        $embarques = Embarque::with('cliente')
-            ->where('id_comercial', $idComercial)
-            ->orderByDesc('id_embarque')
-            ->get()
-            ->map(fn (Embarque $embarque) => [
-                'id_embarque' => $embarque->id_embarque,
-                'numero_file' => $embarque->numero_file,
-                'cliente' => $embarque->cliente?->razon_social,
-                'modo_transporte' => $embarque->modo_transporte,
-                'estado_embarque' => $embarque->estado_embarque,
-                'eta' => $embarque->eta?->toDateString(),
-            ]);
-
-        return Inertia::render('Comercial/Embarques/Index', [
-            'embarques' => $embarques,
-        ]);
-    }
-
     public function show(Embarque $embarque): Response
     {
-        $idComercial = Auth::user()->empleado->id_empleado;
-
-        abort_unless($embarque->id_comercial === $idComercial, 403);
+        $this->autorizar($embarque);
 
         $embarque->load([
             'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
@@ -47,7 +26,7 @@ class EmbarqueController extends Controller
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
 
-        return Inertia::render('Comercial/Embarques/Show', [
+        return Inertia::render('Operativo/Embarques/Show', [
             'embarque' => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
@@ -69,7 +48,7 @@ class EmbarqueController extends Controller
                 'viaje' => $embarque->viaje,
                 'pago_master' => $embarque->pago_master,
                 'estado_embarque' => $embarque->estado_embarque,
-                'siguiente_estado' => null,
+                'siguiente_estado' => SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque),
             ],
             'contenedores' => $embarque->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
                 'tipo_contenedor' => $contenedor->tipo_contenedor,
@@ -86,5 +65,44 @@ class EmbarqueController extends Controller
                 'empleado' => $seguimiento->empleadoResponsable?->nombre_completo,
             ]),
         ]);
+    }
+
+    public function cambiarEstado(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $this->autorizar($embarque);
+
+        $siguiente = SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque);
+
+        if (! $siguiente) {
+            return redirect()
+                ->route('operativo.embarques.show', $embarque->id_embarque)
+                ->with('error', 'Este embarque ya está cerrado, no tiene un siguiente estado.');
+        }
+
+        $data = $request->validate([
+            'comentario' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($embarque, $siguiente, $data) {
+            $embarque->update(['estado_embarque' => $siguiente]);
+
+            $embarque->seguimientos()->create([
+                'fecha' => now(),
+                'estado' => $siguiente,
+                'comentario' => $data['comentario'] ?? null,
+                'id_empleado_responsable' => Auth::user()->empleado?->id_empleado,
+            ]);
+        });
+
+        return redirect()
+            ->route('operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', "Estado actualizado a \"{$siguiente}\".");
+    }
+
+    private function autorizar(Embarque $embarque): void
+    {
+        $idOperativo = Auth::user()->empleado->id_empleado;
+
+        abort_unless($embarque->id_operativo === $idOperativo, 403);
     }
 }
