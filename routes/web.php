@@ -4,10 +4,16 @@ use App\Http\Controllers\Comercial\ClienteController;
 use App\Http\Controllers\Comercial\CotizacionController;
 use App\Http\Controllers\Comercial\EmbarqueController as ComercialEmbarqueController;
 use App\Http\Controllers\ComercialController;
+use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
+use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperativoCotizacionController;
 use App\Http\Controllers\GerenteOperativo\EmbarqueController;
 use App\Http\Controllers\GerenteOperativo\GastoDestinoController;
+use App\Http\Controllers\GerenteOperativo\PersonalController;
+use App\Http\Controllers\GerenteOperativo\ReporteController;
 use App\Http\Controllers\GerenteOperativo\TarifaController;
 use App\Http\Controllers\GerenteOperativoController;
+use App\Http\Controllers\Operativo\EmbarqueController as OperativoEmbarqueController;
+use App\Http\Controllers\OperativoController;
 use App\Http\Controllers\ProfileController;
 use App\Support\RoleRedirector;
 use Illuminate\Support\Facades\Auth;
@@ -53,8 +59,14 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
     });
 
 Route::middleware(['auth', 'verified', 'role.empleado:Operativo'])
-    ->get('/operativo', fn () => Inertia::render('Operativo/Index'))
-    ->name('operativo.dashboard');
+    ->prefix('operativo')
+    ->name('operativo.')
+    ->group(function () {
+        Route::get('/', [OperativoController::class, 'dashboard'])->name('dashboard');
+
+        Route::get('embarques/{embarque}', [OperativoEmbarqueController::class, 'show'])->name('embarques.show');
+        Route::patch('embarques/{embarque}/estado', [OperativoEmbarqueController::class, 'cambiarEstado'])->name('embarques.cambiar-estado');
+    });
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -70,9 +82,22 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
 
         Route::resource('tarifas', TarifaController::class)->except(['show']);
 
+        Route::resource('personal', PersonalController::class)
+            ->parameters(['personal' => 'empleado'])
+            ->except(['show']);
+
+        Route::resource('clientes', GerenteOperativoClienteController::class)
+            ->except(['show']);
+
+        Route::get('cotizaciones', [GerenteOperativoCotizacionController::class, 'index'])->name('cotizaciones.index');
+        Route::get('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'show'])->name('cotizaciones.show');
+
+        Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
+
         Route::get('embarques', [EmbarqueController::class, 'index'])->name('embarques.index');
         Route::get('embarques/{embarque}', [EmbarqueController::class, 'show'])->name('embarques.show');
         Route::patch('embarques/{embarque}/estado', [EmbarqueController::class, 'cambiarEstado'])->name('embarques.cambiar-estado');
+        Route::patch('embarques/{embarque}/operativo', [EmbarqueController::class, 'asignarOperativo'])->name('embarques.asignar-operativo');
         Route::get('embarques/{embarque}/gastos', [GastoDestinoController::class, 'index'])->name('embarques.gastos.index');
         Route::post('embarques/{embarque}/gastos', [GastoDestinoController::class, 'store'])->name('embarques.gastos.store');
         Route::patch('gastos/{gasto}/pagar', [GastoDestinoController::class, 'marcarPagado'])->name('gastos.pagar');

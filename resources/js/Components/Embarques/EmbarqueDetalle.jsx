@@ -1,5 +1,4 @@
 import { ESTADO_LABELS } from '@/constants/estados';
-import { Link, useForm } from '@inertiajs/react';
 
 function Campo({ label, value }) {
     return (
@@ -12,72 +11,38 @@ function Campo({ label, value }) {
     );
 }
 
-function CambiarEstado({ embarque }) {
-    const { data, setData, patch, processing, errors, reset } = useForm({
-        comentario: '',
-    });
-
-    const submit = (e) => {
-        e.preventDefault();
-
-        patch(
-            route('gerente-operativo.embarques.cambiar-estado', embarque.id_embarque),
-            { onSuccess: () => reset('comentario') },
-        );
-    };
-
-    if (!embarque.siguiente_estado) {
+function Contenedores({ contenedores }) {
+    if (contenedores.length === 0) {
         return (
             <p className="text-sm text-[#A9ABAE]">
-                Este embarque ya está{' '}
-                <span className="font-semibold text-[#042753]">Cerrado</span>,
-                no tiene un siguiente estado.
+                Sin contenedores registrados para este embarque.
             </p>
         );
     }
 
     return (
-        <form onSubmit={submit} className="space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-                <span className="rounded bg-gray-100 px-2 py-1 font-medium text-[#042753]">
-                    {ESTADO_LABELS[embarque.estado_embarque] ??
-                        embarque.estado_embarque}
-                </span>
-                <span className="text-[#A9ABAE]">→</span>
-                <span className="rounded bg-[#71BFA6]/20 px-2 py-1 font-medium text-[#042753]">
-                    {ESTADO_LABELS[embarque.siguiente_estado] ??
-                        embarque.siguiente_estado}
-                </span>
-            </div>
-
-            <div>
-                <label className="text-sm font-medium text-[#042753]">
-                    Comentario (opcional)
-                </label>
-                <textarea
-                    rows={2}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
-                    value={data.comentario}
-                    onChange={(e) => setData('comentario', e.target.value)}
-                />
-                {errors.comentario && (
-                    <p className="mt-1 text-sm text-red-600">
-                        {errors.comentario}
-                    </p>
-                )}
-            </div>
-
-            <button
-                type="submit"
-                disabled={processing}
-                className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
-            >
-                Confirmar cambio a &quot;
-                {ESTADO_LABELS[embarque.siguiente_estado] ??
-                    embarque.siguiente_estado}
-                &quot;
-            </button>
-        </form>
+        <div className="space-y-3">
+            {contenedores.map((contenedor, index) => (
+                <div
+                    key={index}
+                    className="rounded-md border border-gray-100 bg-gray-50 p-3"
+                >
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-[#042753]">
+                            {contenedor.numero_contenedor ?? 'Sin número'}
+                        </p>
+                        <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-[#042753]">
+                            {contenedor.tipo_contenedor ?? '—'}
+                        </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#A9ABAE] sm:grid-cols-3">
+                        <span>Sello: {contenedor.numero_sello ?? '—'}</span>
+                        <span>Peso: {contenedor.peso_kg ?? '—'} kg</span>
+                        <span>Vol: {contenedor.volumen_cbm ?? '—'} cbm</span>
+                    </div>
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -119,28 +84,14 @@ function HistorialSeguimiento({ seguimientos }) {
 }
 
 /**
- * Shared read-only embarque detail content, reused by both the Gerente
- * Operativo and Comercial role pages (each wraps it in its own Layout).
- * `puedeGestionar` gates the state-change form and the Liquidación de
- * Destino link, which only Gerente Operativo is allowed to use.
+ * Read-only embarque detail content, shared by Gerente Operativo, Comercial
+ * and Operativo. Each role's own page composes whatever action panels
+ * (CambiarEstado, AsignarOperativo, Liquidación link) it's allowed to use
+ * around this — this component itself never edits anything.
  */
-export default function EmbarqueDetalle({ embarque, seguimientos, puedeGestionar }) {
+export default function EmbarqueDetalle({ embarque, contenedores, seguimientos }) {
     return (
         <>
-            {puedeGestionar && (
-                <div className="mb-4 flex justify-end">
-                    <Link
-                        href={route(
-                            'gerente-operativo.embarques.gastos.index',
-                            embarque.id_embarque,
-                        )}
-                        className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90"
-                    >
-                        Liquidación de Destino
-                    </Link>
-                </div>
-            )}
-
             <div className="grid grid-cols-1 gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-3">
                 <Campo label="Cliente" value={embarque.cliente} />
                 <Campo
@@ -183,22 +134,18 @@ export default function EmbarqueDetalle({ embarque, seguimientos, puedeGestionar
                 />
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {puedeGestionar && (
-                    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 text-sm font-semibold text-[#042753]">
-                            Cambiar Estado
-                        </h3>
-                        <CambiarEstado embarque={embarque} />
-                    </div>
-                )}
+            <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-sm font-semibold text-[#042753]">
+                    Contenedores
+                </h3>
+                <Contenedores contenedores={contenedores} />
+            </div>
 
-                <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                    <h3 className="mb-4 text-sm font-semibold text-[#042753]">
-                        Historial de Seguimiento
-                    </h3>
-                    <HistorialSeguimiento seguimientos={seguimientos} />
-                </div>
+            <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-sm font-semibold text-[#042753]">
+                    Historial de Seguimiento
+                </h3>
+                <HistorialSeguimiento seguimientos={seguimientos} />
             </div>
         </>
     );

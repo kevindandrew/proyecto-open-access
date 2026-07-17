@@ -11,6 +11,7 @@ use App\Models\PuertoAeropuerto;
 use App\Models\RoleEmpleado;
 use App\Models\Tarifa;
 use App\Models\User;
+use App\Support\GeneradorUsername;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -44,14 +45,29 @@ class DemoAccountsSeeder extends Seeder
             ['nombre' => 'Shanghai Pudong', 'tipo' => 'Aeropuerto', 'pais' => 'China'],
         );
 
+        $fronteraTerrestre = PuertoAeropuerto::firstOrCreate(
+            ['codigo' => 'DESA'],
+            ['nombre' => 'Desaguadero', 'tipo' => 'Frontera', 'pais' => 'Bolivia'],
+        );
+
         $naviera = Proveedor::firstOrCreate(
             ['nombre' => 'MSC'],
             ['tipo' => 'Naviera', 'pais' => 'Suiza'],
         );
 
+        $navieraVencida = Proveedor::firstOrCreate(
+            ['nombre' => 'COSCO Shipping'],
+            ['tipo' => 'Naviera', 'pais' => 'China'],
+        );
+
         $aerolinea = Proveedor::firstOrCreate(
             ['nombre' => 'LATAM Cargo'],
             ['tipo' => 'Aerolinea', 'pais' => 'Chile'],
+        );
+
+        $transportista = Proveedor::firstOrCreate(
+            ['nombre' => 'Transportes del Altiplano'],
+            ['tipo' => 'Transportista', 'pais' => 'Bolivia'],
         );
 
         $gerenteComercial = Empleado::firstOrCreate(
@@ -80,11 +96,26 @@ class DemoAccountsSeeder extends Seeder
             ],
         );
 
+        $operativoTerrestre = Empleado::firstOrCreate(
+            ['email' => 'luis.fernandez@openaccess.bo'],
+            [
+                'nombre_completo' => 'Luis Fernandez',
+                'id_rol' => $rolOperativo->id_rol,
+                'especialidad_operativa' => 'Terrestre',
+                'id_jefe' => $gerenteOperativo->id_empleado,
+                'activo' => true,
+            ],
+        );
+
+        // A propósito no se crea ningún operativo con especialidad Aereo, para
+        // poder probar el mensaje de "no hay operativos con esa especialidad".
+
         $demoUsers = [
             ['nombre' => 'Carlos Mendoza', 'empleado' => $gerenteComercial],
             ['nombre' => 'Maria Quispe', 'empleado' => $comercial],
             ['nombre' => 'Jorge Mamani', 'empleado' => $gerenteOperativo],
             ['nombre' => 'Ana Rocha', 'empleado' => $operativo],
+            ['nombre' => 'Luis Fernandez', 'empleado' => $operativoTerrestre],
         ];
 
         foreach ($demoUsers as $demo) {
@@ -92,6 +123,7 @@ class DemoAccountsSeeder extends Seeder
                 ['email' => $demo['empleado']->email],
                 [
                     'name' => $demo['nombre'],
+                    'username' => GeneradorUsername::generar($demo['nombre']),
                     'password' => bcrypt('password'),
                     'empleado_id' => $demo['empleado']->id_empleado,
                     'email_verified_at' => now(),
@@ -105,12 +137,12 @@ class DemoAccountsSeeder extends Seeder
         );
 
         $embarques = [
-            ['numero_file' => 'OA-2026-0001', 'estado_embarque' => 'Confirmado_Origen', 'modo_transporte' => 'Maritimo'],
-            ['numero_file' => 'OA-2026-0002', 'estado_embarque' => 'En_Transito', 'modo_transporte' => 'Maritimo'],
-            ['numero_file' => 'OA-2026-0003', 'estado_embarque' => 'En_Aduana_Destino', 'modo_transporte' => 'Aereo'],
-            ['numero_file' => 'OA-2026-0004', 'estado_embarque' => 'En_Aduana_Destino', 'modo_transporte' => 'Maritimo'],
-            ['numero_file' => 'OA-2026-0005', 'estado_embarque' => 'Entregado', 'modo_transporte' => 'Terrestre'],
-            ['numero_file' => 'OA-2026-0006', 'estado_embarque' => 'Cerrado', 'modo_transporte' => 'Maritimo'],
+            ['numero_file' => 'OA-2026-0001', 'estado_embarque' => 'Confirmado_Origen', 'modo_transporte' => 'Maritimo', 'id_operativo' => $operativo->id_empleado, 'eta' => Carbon::today()->addDay()],
+            ['numero_file' => 'OA-2026-0002', 'estado_embarque' => 'En_Transito', 'modo_transporte' => 'Maritimo', 'id_operativo' => $operativo->id_empleado, 'eta' => Carbon::today()->addDays(12)],
+            ['numero_file' => 'OA-2026-0003', 'estado_embarque' => 'En_Aduana_Destino', 'modo_transporte' => 'Aereo', 'id_operativo' => null, 'eta' => Carbon::today()->addDays(10)],
+            ['numero_file' => 'OA-2026-0004', 'estado_embarque' => 'En_Aduana_Destino', 'modo_transporte' => 'Maritimo', 'id_operativo' => null, 'eta' => Carbon::today()->addDays(10)],
+            ['numero_file' => 'OA-2026-0005', 'estado_embarque' => 'Entregado', 'modo_transporte' => 'Terrestre', 'id_operativo' => $operativoTerrestre->id_empleado, 'eta' => Carbon::today()->addDays(10)],
+            ['numero_file' => 'OA-2026-0006', 'estado_embarque' => 'Cerrado', 'modo_transporte' => 'Maritimo', 'id_operativo' => $operativo->id_empleado, 'eta' => Carbon::today()->addDays(10)],
         ];
 
         $embarquesCreados = [];
@@ -120,21 +152,43 @@ class DemoAccountsSeeder extends Seeder
                 [
                     'id_cliente' => $cliente->id_cliente,
                     'id_comercial' => $comercial->id_empleado,
-                    'id_operativo' => $operativo->id_empleado,
+                    'id_operativo' => $datos['id_operativo'],
                     'id_naviera_aerolinea' => $datos['modo_transporte'] === 'Aereo' ? $aerolinea->id_proveedor : $naviera->id_proveedor,
                     'modo_transporte' => $datos['modo_transporte'],
                     'id_pol' => $puertoOrigen->codigo,
                     'id_pod' => $puertoDestino->codigo,
                     'estado_embarque' => $datos['estado_embarque'],
-                    'eta' => Carbon::today()->addDays(10),
+                    'eta' => $datos['eta'],
                 ],
             );
+        }
+
+        $embarqueMaritimoUrgente = $embarquesCreados['OA-2026-0001'];
+
+        if ($embarqueMaritimoUrgente->contenedores()->count() === 0) {
+            $embarqueMaritimoUrgente->contenedores()->createMany([
+                [
+                    'tipo_contenedor' => '40 DRY',
+                    'numero_contenedor' => 'MSCU1234567',
+                    'numero_sello' => 'SL-88213',
+                    'peso_kg' => 18500,
+                    'volumen_cbm' => 58.6,
+                ],
+                [
+                    'tipo_contenedor' => '20 DRY',
+                    'numero_contenedor' => 'MSCU7654321',
+                    'numero_sello' => 'SL-88214',
+                    'peso_kg' => 9200,
+                    'volumen_cbm' => 28.3,
+                ],
+            ]);
         }
 
         $tarifaMaritima = Tarifa::firstOrCreate(
             ['id_proveedor' => $naviera->id_proveedor, 'modo' => 'Maritimo', 'id_origen' => $puertoOrigen->codigo, 'id_destino' => $puertoDestino->codigo],
             [
                 'tipo_servicio' => 'FCL',
+                'dias_transito' => 35,
                 'costo_20' => 1200,
                 'costo_40' => 2000,
                 'costo_40hc' => 2200,
@@ -144,6 +198,7 @@ class DemoAccountsSeeder extends Seeder
                 'fecha_fin_vigencia' => Carbon::today()->addDays(3),
             ],
         );
+        $tarifaMaritima->update(['dias_transito' => 35]);
 
         if ($tarifaMaritima->cargosAdicionales()->count() === 0) {
             $tarifaMaritima->cargosAdicionales()->create([
@@ -154,12 +209,42 @@ class DemoAccountsSeeder extends Seeder
         }
 
         Tarifa::firstOrCreate(
+            ['id_proveedor' => $navieraVencida->id_proveedor, 'modo' => 'Maritimo', 'id_origen' => $puertoOrigen->codigo, 'id_destino' => $puertoDestino->codigo],
+            [
+                'tipo_servicio' => 'FCL',
+                'dias_transito' => 36,
+                'costo_20' => 1100,
+                'costo_40' => 1900,
+                'costo_40hc' => 3000,
+                'moneda' => 'USD',
+                'tipo_tarifa' => 'Normal',
+                'fecha_inicio_vigencia' => Carbon::today()->subMonths(3),
+                'fecha_fin_vigencia' => Carbon::today()->subDays(10),
+            ],
+        );
+
+        $tarifaAerea = Tarifa::firstOrCreate(
             ['id_proveedor' => $aerolinea->id_proveedor, 'modo' => 'Aereo', 'id_origen' => $aeropuertoOrigen->codigo, 'id_destino' => $puertoDestino->codigo],
             [
+                'dias_transito' => 5,
+                'costo_base' => 4.20,
                 'moneda' => 'USD',
                 'tipo_tarifa' => 'Normal',
                 'fecha_inicio_vigencia' => Carbon::today()->subMonth(),
                 'fecha_fin_vigencia' => Carbon::today()->addDays(60),
+            ],
+        );
+        $tarifaAerea->update(['dias_transito' => 5, 'costo_base' => 4.20]);
+
+        Tarifa::firstOrCreate(
+            ['id_proveedor' => $transportista->id_proveedor, 'modo' => 'Terrestre', 'id_origen' => $fronteraTerrestre->codigo, 'id_destino' => $puertoDestino->codigo],
+            [
+                'dias_transito' => 2,
+                'costo_base' => 850,
+                'moneda' => 'USD',
+                'tipo_tarifa' => 'Normal',
+                'fecha_inicio_vigencia' => Carbon::today()->subMonth(),
+                'fecha_fin_vigencia' => Carbon::today()->addDays(90),
             ],
         );
 
@@ -180,6 +265,39 @@ class DemoAccountsSeeder extends Seeder
                 'pagado' => true,
                 'fecha_pago' => Carbon::today()->subDays(2),
             ]);
+        }
+
+        $costosPorEmbarque = [
+            'OA-2026-0001' => [
+                ['concepto' => 'Ocean Freight', 'id_proveedor' => $naviera->id_proveedor, 'costo_compra' => 1800, 'costo_venta' => 2400],
+                ['concepto' => 'THC Origen', 'id_proveedor' => $naviera->id_proveedor, 'costo_compra' => 120, 'costo_venta' => 180],
+            ],
+            'OA-2026-0002' => [
+                ['concepto' => 'Ocean Freight', 'id_proveedor' => $naviera->id_proveedor, 'costo_compra' => 1900, 'costo_venta' => 2450],
+            ],
+            'OA-2026-0005' => [
+                ['concepto' => 'Land Freight', 'id_proveedor' => null, 'costo_compra' => 600, 'costo_venta' => 850],
+            ],
+            'OA-2026-0006' => [
+                ['concepto' => 'Ocean Freight', 'id_proveedor' => $naviera->id_proveedor, 'costo_compra' => 1750, 'costo_venta' => 2200],
+                ['concepto' => 'Freight Forwarder Fee', 'id_proveedor' => null, 'costo_compra' => 0, 'costo_venta' => 300],
+            ],
+        ];
+
+        foreach ($costosPorEmbarque as $numeroFile => $lineas) {
+            $embarque = $embarquesCreados[$numeroFile];
+
+            if ($embarque->costos()->count() === 0) {
+                foreach ($lineas as $linea) {
+                    $embarque->costos()->create([
+                        'concepto' => $linea['concepto'],
+                        'id_proveedor' => $linea['id_proveedor'],
+                        'costo_compra' => $linea['costo_compra'],
+                        'costo_venta' => $linea['costo_venta'],
+                        'moneda' => 'USD',
+                    ]);
+                }
+            }
         }
 
         $clienteTextiles = Cliente::firstOrCreate(

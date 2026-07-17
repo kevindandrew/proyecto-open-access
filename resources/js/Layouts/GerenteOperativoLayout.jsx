@@ -1,11 +1,33 @@
+import {
+    IconoClientes,
+    IconoCotizacionesNav,
+    IconoDashboard,
+    IconoEmbarquesNav,
+    IconoPersonalNav,
+    IconoReportesNav,
+    IconoTarifasNav,
+} from '@/Components/NavIcons';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 const navItems = [
-    { label: 'Dashboard', routeName: 'gerente-operativo.dashboard' },
-    { label: 'Tarifas', routeName: 'gerente-operativo.tarifas.index' },
-    { label: 'Embarques', routeName: 'gerente-operativo.embarques.index' },
+    { label: 'Dashboard', routeName: 'gerente-operativo.dashboard', icon: IconoDashboard },
+    { label: 'Clientes', routeName: 'gerente-operativo.clientes.index', icon: IconoClientes },
+    { label: 'Cotizaciones', routeName: 'gerente-operativo.cotizaciones.index', icon: IconoCotizacionesNav },
+    { label: 'Tarifas', routeName: 'gerente-operativo.tarifas.index', icon: IconoTarifasNav },
+    { label: 'Embarques', routeName: 'gerente-operativo.embarques.index', icon: IconoEmbarquesNav },
+    { label: 'Personal', routeName: 'gerente-operativo.personal.index', icon: IconoPersonalNav },
+    { label: 'Reportes', routeName: 'gerente-operativo.reportes.index', icon: IconoReportesNav },
 ];
+
+function iniciales(nombre) {
+    return nombre
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((parte) => parte[0].toUpperCase())
+        .join('');
+}
 
 export default function GerenteOperativoLayout({ header, children }) {
     const { auth, flash } = usePage().props;
@@ -31,31 +53,48 @@ export default function GerenteOperativoLayout({ header, children }) {
                 </div>
 
                 <nav className="mt-4 space-y-1 px-3">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.routeName}
-                            href={route(item.routeName)}
-                            className={`block rounded-md px-3 py-2 text-sm font-medium transition ${
-                                route().current(item.routeName + '*')
-                                    ? 'bg-[#71BFA6] text-[#042753]'
-                                    : 'text-white/80 hover:bg-white/10 hover:text-white'
-                            }`}
-                        >
-                            {item.label}
-                        </Link>
-                    ))}
+                    {navItems.map((item) => {
+                        const activo = route().current(item.routeName + '*');
+                        const Icon = item.icon;
+
+                        return (
+                            <Link
+                                key={item.routeName}
+                                href={route(item.routeName)}
+                                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                                    activo
+                                        ? 'bg-[#71BFA6] text-[#042753] shadow-sm'
+                                        : 'text-white/80 hover:translate-x-0.5 hover:bg-white/10 hover:text-white'
+                                }`}
+                            >
+                                <Icon
+                                    className={`h-5 w-5 flex-shrink-0 transition-colors ${
+                                        activo ? 'text-[#042753]' : 'text-white/50'
+                                    }`}
+                                />
+                                {item.label}
+                            </Link>
+                        );
+                    })}
                 </nav>
 
                 <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 px-4 py-4">
-                    <p className="truncate text-sm font-semibold">
-                        {auth.user.name}
-                    </p>
-                    <p className="text-xs text-white/60">Gerente Operativo</p>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#71BFA6]/20 text-sm font-bold text-[#71BFA6]">
+                            {iniciales(auth.user.name)}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                                {auth.user.name}
+                            </p>
+                            <p className="text-xs text-white/60">Gerente Operativo</p>
+                        </div>
+                    </div>
                     <Link
                         href={route('logout')}
                         method="post"
                         as="button"
-                        className="mt-2 text-xs text-[#71BFA6] hover:underline"
+                        className="mt-3 text-xs text-[#71BFA6] transition hover:underline"
                     >
                         Cerrar sesión
                     </Link>
@@ -94,8 +133,13 @@ export default function GerenteOperativoLayout({ header, children }) {
                             {header}
                         </h1>
                     </div>
-                    <div className="text-sm text-[#A9ABAE]">
-                        {auth.user.email}
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#042753]/10 text-xs font-bold text-[#042753]">
+                            {iniciales(auth.user.name)}
+                        </div>
+                        <span className="text-sm text-[#A9ABAE]">
+                            @{auth.user.username}
+                        </span>
                     </div>
                 </header>
 

@@ -2,11 +2,14 @@ import InputError from '@/Components/InputError';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
-function EnvelopeIcon(props) {
+function UserIcon(props) {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0-.621.504-1.125 1.125-1.125h17.25c.621 0 1.125.504 1.125 1.125v10.5c0 .621-.504 1.125-1.125 1.125H3.375A1.125 1.125 0 0 1 2.25 17.25V6.75Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="m3 7 9 6 9-6" />
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.964 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
         </svg>
     );
 }
@@ -52,7 +55,7 @@ export default function Login({ status, canResetPassword }) {
     const [showPassword, setShowPassword] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
+        username: '',
         password: '',
         remember: false,
     });
@@ -165,28 +168,28 @@ export default function Login({ status, canResetPassword }) {
                         <form onSubmit={submit} className="mt-6 space-y-4">
                             <div>
                                 <label
-                                    htmlFor="email"
+                                    htmlFor="username"
                                     className="text-sm font-medium text-[#042753]"
                                 >
-                                    Correo electrónico
+                                    Usuario
                                 </label>
                                 <div className="relative mt-1">
-                                    <EnvelopeIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#A9ABAE]" />
+                                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#A9ABAE]" />
                                     <input
-                                        id="email"
-                                        type="email"
-                                        name="email"
-                                        value={data.email}
+                                        id="username"
+                                        type="text"
+                                        name="username"
+                                        value={data.username}
                                         autoComplete="username"
                                         autoFocus
                                         onChange={(e) =>
-                                            setData('email', e.target.value)
+                                            setData('username', e.target.value)
                                         }
                                         className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
                                     />
                                 </div>
                                 <InputError
-                                    message={errors.email}
+                                    message={errors.username}
                                     className="mt-1"
                                 />
                             </div>
