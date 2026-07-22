@@ -7,22 +7,50 @@ import {
     IconoPersonalNav,
     IconoReportesNav,
     IconoTarifasNav,
-} from '@/Components/NavIcons';
-import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+} from "@/Components/NavIcons";
+import { Link, usePage } from "@inertiajs/react";
+import { useState } from "react";
 
 const navItems = [
-    { label: 'Dashboard', routeName: 'gerente-operativo.dashboard', icon: IconoDashboard },
-    { label: 'Clientes', routeName: 'gerente-operativo.clientes.index', icon: IconoClientes },
-    { label: 'Cotizaciones', routeName: 'gerente-operativo.cotizaciones.index', icon: IconoCotizacionesNav },
-    { label: 'Tarifas', routeName: 'gerente-operativo.tarifas.index', icon: IconoTarifasNav },
-    { label: 'Embarques', routeName: 'gerente-operativo.embarques.index', icon: IconoEmbarquesNav },
-    { label: 'Personal', routeName: 'gerente-operativo.personal.index', icon: IconoPersonalNav },
-    { label: 'Reportes', routeName: 'gerente-operativo.reportes.index', icon: IconoReportesNav },
     {
-        label: 'Configuración',
-        routeName: 'gerente-operativo.configuracion.proveedores.index',
-        activePattern: 'gerente-operativo.configuracion.*',
+        label: "Dashboard",
+        routeName: "gerente-operativo.dashboard",
+        icon: IconoDashboard,
+    },
+    {
+        label: "Clientes",
+        routeName: "gerente-operativo.clientes.index",
+        icon: IconoClientes,
+    },
+    {
+        label: "Cotizaciones",
+        routeName: "gerente-operativo.cotizaciones.index",
+        icon: IconoCotizacionesNav,
+    },
+    {
+        label: "Tarifas",
+        routeName: "gerente-operativo.tarifas.index",
+        icon: IconoTarifasNav,
+    },
+    {
+        label: "Embarques",
+        routeName: "gerente-operativo.embarques.index",
+        icon: IconoEmbarquesNav,
+    },
+    {
+        label: "Personal",
+        routeName: "gerente-operativo.personal.index",
+        icon: IconoPersonalNav,
+    },
+    {
+        label: "Reportes",
+        routeName: "gerente-operativo.reportes.index",
+        icon: IconoReportesNav,
+    },
+    {
+        label: "Configuración",
+        routeName: "gerente-operativo.configuracion.proveedores.index",
+        activePattern: "gerente-operativo.configuracion.*",
         icon: IconoConfiguracionNav,
     },
 ];
@@ -33,7 +61,7 @@ function iniciales(nombre) {
         .filter(Boolean)
         .slice(0, 2)
         .map((parte) => parte[0].toUpperCase())
-        .join('');
+        .join("");
 }
 
 export default function GerenteOperativoLayout({ header, children }) {
@@ -44,24 +72,24 @@ export default function GerenteOperativoLayout({ header, children }) {
         <div className="min-h-screen bg-gray-100">
             <aside
                 className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-[#042753] text-white transition-transform duration-200 lg:translate-x-0 ${
-                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
                 <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#71BFA6]/20 font-bold text-[#71BFA6]">
-                        OA
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold leading-tight">OPEN ACCESS</p>
-                        <p className="text-[10px] tracking-wide text-white/60">
-                            BOLIVIA S.R.L.
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <img
+                            src="/images/logoOpenAccess.png"
+                            alt="Logo Open Access"
+                            className="h-[45px] w-auto drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]"
+                        />
                     </div>
                 </div>
 
                 <nav className="mt-4 space-y-1 px-3">
                     {navItems.map((item) => {
-                        const activo = route().current(item.activePattern ?? item.routeName + '*');
+                        const activo = route().current(
+                            item.activePattern ?? item.routeName + "*",
+                        );
                         const Icon = item.icon;
 
                         return (
@@ -70,13 +98,15 @@ export default function GerenteOperativoLayout({ header, children }) {
                                 href={route(item.routeName)}
                                 className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
                                     activo
-                                        ? 'bg-[#71BFA6] text-[#042753] shadow-sm'
-                                        : 'text-white/80 hover:translate-x-0.5 hover:bg-white/10 hover:text-white'
+                                        ? "bg-[#71BFA6] text-[#042753] shadow-sm"
+                                        : "text-white/80 hover:translate-x-0.5 hover:bg-white/10 hover:text-white"
                                 }`}
                             >
                                 <Icon
                                     className={`h-5 w-5 flex-shrink-0 transition-colors ${
-                                        activo ? 'text-[#042753]' : 'text-white/50'
+                                        activo
+                                            ? "text-[#042753]"
+                                            : "text-white/50"
                                     }`}
                                 />
                                 {item.label}
@@ -94,11 +124,13 @@ export default function GerenteOperativoLayout({ header, children }) {
                             <p className="truncate text-sm font-semibold">
                                 {auth.user.name}
                             </p>
-                            <p className="text-xs text-white/60">Gerente Operativo</p>
+                            <p className="text-xs text-white/60">
+                                Gerente Operativo
+                            </p>
                         </div>
                     </div>
                     <Link
-                        href={route('logout')}
+                        href={route("logout")}
                         method="post"
                         as="button"
                         className="mt-3 text-xs text-[#71BFA6] transition hover:underline"

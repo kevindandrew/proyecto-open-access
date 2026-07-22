@@ -1,10 +1,16 @@
-import InputError from '@/Components/InputError';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import InputError from "@/Components/InputError";
+import { Head, Link, useForm } from "@inertiajs/react";
+import { useState } from "react";
 
 function UserIcon(props) {
     return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            {...props}
+        >
             <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -16,7 +22,13 @@ function UserIcon(props) {
 
 function LockIcon(props) {
     return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            {...props}
+        >
             <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -28,20 +40,36 @@ function LockIcon(props) {
 
 function EyeIcon(props) {
     return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            {...props}
+        >
             <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"
             />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
         </svg>
     );
 }
 
 function EyeSlashIcon(props) {
     return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            {...props}
+        >
             <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -55,16 +83,16 @@ export default function Login({ status, canResetPassword }) {
     const [showPassword, setShowPassword] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
-        username: '',
-        password: '',
+        username: "",
+        password: "",
         remember: false,
     });
 
     const submit = (e) => {
         e.preventDefault();
 
-        post(route('login'), {
-            onFinish: () => reset('password'),
+        post(route("login"), {
+            onFinish: () => reset("password"),
         });
     };
 
@@ -77,34 +105,16 @@ export default function Login({ status, canResetPassword }) {
                     className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#042753] p-12 text-white lg:flex"
                     style={{
                         backgroundImage:
-                            'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
-                        backgroundSize: '40px 40px',
+                            "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
+                        backgroundSize: "40px 40px",
                     }}
                 >
                     <div className="flex items-center gap-3">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#71BFA6"
-                                strokeWidth="1.5"
-                                className="h-8 w-8"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M2.25 15.75 12 3l9.75 12.75M4.5 10.5v9.75a.75.75 0 0 0 .75.75h4.5v-6h4.5v6h4.5a.75.75 0 0 0 .75-.75V10.5"
-                                />
-                            </svg>
-                        </div>
-                        <div>
-                            <p className="text-xl font-extrabold tracking-tight">
-                                OPEN ACCESS
-                            </p>
-                            <p className="text-xs tracking-widest text-white/50">
-                                BOLIVIA S.R.L.
-                            </p>
-                        </div>
+                        <img
+                            src="/images/logoOpenAccess.png"
+                            alt="Logo Open Access"
+                            className="h-[70px] w-auto drop-shadow-[0_2px_8px_rgba(255,255,255,0.4)]"
+                        />
                     </div>
 
                     <div>
@@ -112,8 +122,8 @@ export default function Login({ status, canResetPassword }) {
                             Logística internacional, gestionada con precisión.
                         </h1>
                         <p className="mt-4 max-w-sm text-white/60">
-                            ERP/CRM integral para importaciones y
-                            exportaciones por mar, aire y tierra.
+                            ERP/CRM integral para importaciones y exportaciones
+                            por mar, aire y tierra.
                         </p>
 
                         <div className="mt-10 flex gap-10">
@@ -183,7 +193,7 @@ export default function Login({ status, canResetPassword }) {
                                         autoComplete="username"
                                         autoFocus
                                         onChange={(e) =>
-                                            setData('username', e.target.value)
+                                            setData("username", e.target.value)
                                         }
                                         className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
                                     />
@@ -204,7 +214,7 @@ export default function Login({ status, canResetPassword }) {
                                     </label>
                                     {canResetPassword && (
                                         <Link
-                                            href={route('password.request')}
+                                            href={route("password.request")}
                                             className="text-xs text-[#042753] underline hover:text-[#71BFA6]"
                                         >
                                             ¿Olvidó su contraseña?
@@ -216,16 +226,13 @@ export default function Login({ status, canResetPassword }) {
                                     <input
                                         id="password"
                                         type={
-                                            showPassword ? 'text' : 'password'
+                                            showPassword ? "text" : "password"
                                         }
                                         name="password"
                                         value={data.password}
                                         autoComplete="current-password"
                                         onChange={(e) =>
-                                            setData(
-                                                'password',
-                                                e.target.value,
-                                            )
+                                            setData("password", e.target.value)
                                         }
                                         className="block w-full rounded-md border-gray-300 pl-10 pr-10 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
                                     />
@@ -255,10 +262,7 @@ export default function Login({ status, canResetPassword }) {
                                     name="remember"
                                     checked={data.remember}
                                     onChange={(e) =>
-                                        setData(
-                                            'remember',
-                                            e.target.checked,
-                                        )
+                                        setData("remember", e.target.checked)
                                     }
                                     className="rounded border-gray-300 text-[#71BFA6] focus:ring-[#71BFA6]"
                                 />
