@@ -1,5 +1,6 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import ModoTransporteIcon from '@/Components/ModoTransporteIcon';
+import { MODO_TRANSPORTE_ICON_COLOR } from '@/constants/modoTransporte';
 import PageHeader from '@/Components/PageHeader';
 import { IconoTarifasNav } from '@/Components/NavIcons';
 import { BotonIcono, IconoAgregar, IconoAlerta, IconoEditar, IconoEliminar, IconoMas, IconoSubir } from '@/Components/ActionIcons';
@@ -103,7 +104,10 @@ export default function Index({ tarifas }) {
                                 : 'text-[#A9ABAE] hover:text-[#042753]'
                         }`}
                     >
-                        <ModoTransporteIcon modo={m.valor} className="h-4 w-4" />
+                        <ModoTransporteIcon
+                            modo={m.valor}
+                            className={`h-4 w-4 ${MODO_TRANSPORTE_ICON_COLOR[m.valor] ?? ''}`}
+                        />
                         {m.etiqueta}
                     </button>
                 ))}

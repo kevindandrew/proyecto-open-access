@@ -8,14 +8,15 @@ use App\Models\Cotizacion;
 use App\Models\CotizacionContenedor;
 use App\Models\CotizacionDetalle;
 use App\Models\Embarque;
-use App\Models\Empleado;
 use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
-use App\Models\Tarifa;
+use App\Support\GeneradorNumeroFile;
+use App\Support\GeneradorNumeroReferencia;
+use App\Support\TarifaLookup;
+use App\Support\TiposTransportePorModo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -40,38 +41,7 @@ class CotizacionController extends Controller
             'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
         ]);
 
-        $hoy = Carbon::today();
-
-        $tarifas = Tarifa::with(['proveedor', 'cargosAdicionales'])
-            ->whereHas('proveedor', fn ($query) => $query->where('activo', true))
-            ->where('modo', $data['modo_transporte'])
-            ->when($data['id_pol'] ?? null, fn ($query, $pol) => $query->where('id_origen', $pol))
-            ->when($data['id_pod'] ?? null, fn ($query, $pod) => $query->where('id_destino', $pod))
-            ->when($data['tipo_servicio'] ?? null, fn ($query, $tipo) => $query->where('tipo_servicio', $tipo))
-            ->where('fecha_inicio_vigencia', '<=', $hoy)
-            ->where('fecha_fin_vigencia', '>=', $hoy)
-            ->orderBy('fecha_fin_vigencia')
-            ->get()
-            ->map(fn (Tarifa $tarifa) => [
-                'id_tarifa' => $tarifa->id_tarifa,
-                'carrier' => $tarifa->proveedor?->nombre,
-                'tipo_servicio' => $tarifa->tipo_servicio,
-                'moneda' => $tarifa->moneda,
-                'dias_transito' => $tarifa->dias_transito,
-                'costo_20' => $tarifa->costo_20,
-                'costo_40' => $tarifa->costo_40,
-                'costo_40hc' => $tarifa->costo_40hc,
-                'costo_cbm' => $tarifa->costo_cbm,
-                'costo_base' => $tarifa->costo_base,
-                'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
-                'cargos_adicionales' => $tarifa->cargosAdicionales->map(fn ($cargo) => [
-                    'concepto' => $cargo->concepto,
-                    'monto' => $cargo->monto,
-                    'moneda' => $cargo->moneda,
-                ]),
-            ]);
-
-        return response()->json($tarifas);
+        return response()->json(TarifaLookup::disponibles($data));
     }
 
     public function store(Request $request): RedirectResponse
@@ -114,7 +84,7 @@ class CotizacionController extends Controller
 
         $cotizacion = DB::transaction(function () use ($data, $comercial) {
             $cotizacion = Cotizacion::create([
-                'numero_referencia' => $this->generarNumeroReferencia($comercial),
+                'numero_referencia' => GeneradorNumeroReferencia::generar($comercial),
                 'id_cliente' => $data['id_cliente'],
                 'id_comercial' => $comercial->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
@@ -178,6 +148,7 @@ class CotizacionController extends Controller
                 'fecha_emision' => $cotizacion->fecha_emision->toDateString(),
                 'fecha_validez' => $cotizacion->fecha_validez->toDateString(),
                 'estado' => $cotizacion->estado,
+                'motivo_rechazo' => $cotizacion->motivo_rechazo,
                 'peso_kg' => $cotizacion->peso_kg,
                 'volumen_cbm' => $cotizacion->volumen_cbm,
                 'mercancia_peligrosa' => $cotizacion->mercancia_peligrosa,
@@ -202,7 +173,7 @@ class CotizacionController extends Controller
                 ->where('activo', true)
                 ->orderBy('nombre')
                 ->get(['id_proveedor', 'nombre']),
-            'proveedoresTransporte' => Proveedor::whereIn('tipo', $this->tiposTransportePara($cotizacion->modo_transporte))
+            'proveedoresTransporte' => Proveedor::whereIn('tipo', TiposTransportePorModo::para($cotizacion->modo_transporte))
                 ->where('activo', true)
                 ->orderBy('nombre')
                 ->get(['id_proveedor', 'nombre']),
@@ -215,6 +186,7 @@ class CotizacionController extends Controller
 
         $data = $request->validate([
             'estado' => ['required', Rule::in(['Aceptado', 'Rechazado'])],
+            'motivo' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($cotizacion->estado !== 'Cotizado') {
@@ -223,7 +195,10 @@ class CotizacionController extends Controller
                 ->with('error', 'Esta cotización ya no está en estado Cotizado.');
         }
 
-        $cotizacion->update(['estado' => $data['estado']]);
+        $cotizacion->update([
+            'estado' => $data['estado'],
+            'motivo_rechazo' => $data['estado'] === 'Rechazado' ? ($data['motivo'] ?? null) : null,
+        ]);
 
         return redirect()
             ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
@@ -253,13 +228,13 @@ class CotizacionController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists('proveedores', 'id_proveedor')
-                    ->where(fn ($query) => $query->whereIn('tipo', $this->tiposTransportePara($cotizacion->modo_transporte))),
+                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($cotizacion->modo_transporte))),
             ],
         ]);
 
         $embarque = DB::transaction(function () use ($data, $cotizacion) {
             $embarque = Embarque::create([
-                'numero_file' => $this->generarNumeroFile(),
+                'numero_file' => GeneradorNumeroFile::generar(),
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'id_cliente' => $cotizacion->id_cliente,
                 'consignatario' => $data['consignatario'] ?? null,
@@ -296,42 +271,4 @@ class CotizacionController extends Controller
         abort_unless($cotizacion->id_comercial === $idComercial, 403);
     }
 
-    private function tiposTransportePara(string $modo): array
-    {
-        return match ($modo) {
-            'Maritimo' => ['Naviera'],
-            'Aereo' => ['Aerolinea'],
-            'Terrestre' => ['Transportista'],
-            default => [],
-        };
-    }
-
-    private function generarNumeroReferencia(Empleado $comercial): string
-    {
-        $iniciales = $this->iniciales($comercial->nombre_completo);
-        $ciudad = 'LPZ';
-        $anio = now()->format('y');
-        $prefijo = "{$iniciales}{$ciudad}/{$anio}-";
-
-        $consecutivo = Cotizacion::where('numero_referencia', 'like', "{$prefijo}%")->count() + 1;
-
-        return $prefijo.str_pad((string) $consecutivo, 4, '0', STR_PAD_LEFT);
-    }
-
-    private function iniciales(string $nombreCompleto): string
-    {
-        $partes = preg_split('/\s+/', trim($nombreCompleto));
-        $primerNombre = $partes[0] ?? '';
-        $primerApellido = $partes[1] ?? $partes[0] ?? '';
-
-        return strtoupper(substr($primerNombre, 0, 2).substr($primerApellido, 0, 2));
-    }
-
-    private function generarNumeroFile(): string
-    {
-        $prefijo = now()->format('ym');
-        $consecutivo = Embarque::where('numero_file', 'like', "{$prefijo}%")->count() + 1;
-
-        return $prefijo.str_pad((string) $consecutivo, 3, '0', STR_PAD_LEFT);
-    }
 }

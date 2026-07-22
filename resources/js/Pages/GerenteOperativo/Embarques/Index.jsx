@@ -1,5 +1,6 @@
 import { ESTADO_LABELS } from '@/constants/estados';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import PageHeader from '@/Components/PageHeader';
 import { IconoEmbarquesNav } from '@/Components/NavIcons';
 import { Head, Link, router } from '@inertiajs/react';
@@ -125,7 +126,7 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                                     )}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {embarque.modo_transporte}
+                                    <ModoTransporteBadge modo={embarque.modo_transporte} />
                                 </td>
                                 <td className="px-4 py-3">
                                     {embarque.eta ?? '—'}

@@ -1,4 +1,5 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import { MONEDAS } from '@/constants/monedas';
 import { Head, useForm } from '@inertiajs/react';
 
 export default function Form({ tarifa, proveedores, puertos }) {
@@ -40,7 +41,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
     const agregarCargo = () => {
         setData('cargos_adicionales', [
             ...data.cargos_adicionales,
-            { concepto: '', monto: '' },
+            { concepto: '', monto: '', moneda: 'USD' },
         ]);
     };
 
@@ -220,14 +221,24 @@ export default function Form({ tarifa, proveedores, puertos }) {
 
                     <div>
                         <label className={labelClass}>Moneda</label>
-                        <input
-                            type="text"
+                        <select
                             className={inputClass}
                             value={data.moneda}
                             onChange={(e) =>
                                 setData('moneda', e.target.value)
                             }
-                        />
+                        >
+                            {MONEDAS.map((m) => (
+                                <option key={m.valor} value={m.valor}>
+                                    {m.etiqueta}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.moneda && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.moneda}
+                            </p>
+                        )}
                     </div>
 
                     {esFCL && (
@@ -411,6 +422,23 @@ export default function Form({ tarifa, proveedores, puertos }) {
                                         )
                                     }
                                 />
+                                <select
+                                    className={`${inputClass} max-w-[110px]`}
+                                    value={cargo.moneda}
+                                    onChange={(e) =>
+                                        actualizarCargo(
+                                            index,
+                                            'moneda',
+                                            e.target.value,
+                                        )
+                                    }
+                                >
+                                    {MONEDAS.map((m) => (
+                                        <option key={m.valor} value={m.valor}>
+                                            {m.valor}
+                                        </option>
+                                    ))}
+                                </select>
                                 <button
                                     type="button"
                                     onClick={() => quitarCargo(index)}

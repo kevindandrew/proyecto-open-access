@@ -1,4 +1,5 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import { MONEDAS } from '@/constants/monedas';
 import { Head, router, useForm } from '@inertiajs/react';
 
 const CONCEPTOS = ['Arancel', 'Impuesto', 'Tasa', 'Otro'];
@@ -172,14 +173,24 @@ export default function Show({ embarque, gastos, total }) {
                             <label className="text-sm font-medium text-[#042753]">
                                 Moneda
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 className={inputClass}
                                 value={data.moneda}
                                 onChange={(e) =>
                                     setData('moneda', e.target.value)
                                 }
-                            />
+                            >
+                                {MONEDAS.map((m) => (
+                                    <option key={m.valor} value={m.valor}>
+                                        {m.etiqueta}
+                                    </option>
+                                ))}
+                            </select>
+                            {errors.moneda && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.moneda}
+                                </p>
+                            )}
                         </div>
 
                         <button

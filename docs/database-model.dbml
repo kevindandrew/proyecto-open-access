@@ -1,0 +1,418 @@
+// Modelo relacional - Open Access (Laravel + PostgreSQL)
+// Pegar este código en https://dbdiagram.io para visualizar el diagrama
+// Generado a partir de database/migrations/*.php y app/Models/*.php
+
+Project open_access {
+  database_type: 'PostgreSQL'
+  Note: 'Sistema de gestion de cotizaciones y embarques (freight forwarding)'
+}
+
+//
+// ==================== AUTENTICACION Y PERMISOS ====================
+//
+
+Table users {
+  id bigint [pk, increment]
+  name varchar
+  username varchar(20) [unique]
+  email varchar [unique]
+  email_verified_at timestamp [null]
+  password varchar
+  empleado_id bigint [null, note: 'FK -> empleados.id_empleado (nullOnDelete), relacion 1 a 1']
+  remember_token varchar(100) [null]
+  created_at timestamp [null]
+  updated_at timestamp [null]
+}
+
+Table roles {
+  id bigint [pk, increment]
+  name varchar
+  guard_name varchar
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (name, guard_name) [unique]
+  }
+  Note: 'Tabla de spatie/laravel-permission (roles de sistema, distinta de roles_empleado)'
+}
+
+Table permissions {
+  id bigint [pk, increment]
+  name varchar
+  guard_name varchar
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (name, guard_name) [unique]
+  }
+}
+
+Table model_has_roles {
+  role_id bigint
+  model_type varchar
+  model_id bigint
+
+  indexes {
+    (role_id, model_id, model_type) [pk]
+    (model_id, model_type)
+  }
+}
+
+Table model_has_permissions {
+  permission_id bigint
+  model_type varchar
+  model_id bigint
+
+  indexes {
+    (permission_id, model_id, model_type) [pk]
+    (model_id, model_type)
+  }
+}
+
+Table role_has_permissions {
+  permission_id bigint
+  role_id bigint
+
+  indexes {
+    (permission_id, role_id) [pk]
+  }
+}
+
+//
+// ==================== ORGANIZACION / EMPLEADOS ====================
+//
+
+Table roles_empleado {
+  id_rol bigint [pk, increment]
+  nombre_rol varchar(50) [unique]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table empleados {
+  id_empleado bigint [pk, increment]
+  nombre_completo varchar(150)
+  ci varchar(20) [null]
+  telefono varchar(30) [null]
+  email varchar(120) [null]
+  id_rol bigint [not null, note: 'FK -> roles_empleado.id_rol']
+  especialidad_operativa varchar(20) [null, note: "CHECK IN ('Maritimo','Aereo','Terrestre') o NULL"]
+  id_jefe bigint [null, note: 'FK -> empleados.id_empleado (auto-referencia, jefe/subordinado)']
+  activo boolean [default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+//
+// ==================== CATALOGOS ====================
+//
+
+Table ciudades {
+  cod_ciudad varchar(2) [pk]
+  nombre_ciudad varchar(60)
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table puertos_aeropuertos {
+  codigo varchar(10) [pk]
+  nombre varchar(150)
+  tipo varchar(15) [note: "CHECK IN ('Puerto','Aeropuerto','Frontera')"]
+  pais varchar(60) [null]
+  activo boolean [default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table tipo_cambio {
+  id_tc bigint [pk, increment]
+  fecha date
+  moneda_origen varchar(5)
+  moneda_destino varchar(5)
+  valor decimal(10,4)
+  created_at timestamp
+  updated_at timestamp
+  Note: 'Tabla de tipos de cambio, sin relaciones con otras tablas'
+}
+
+//
+// ==================== CLIENTES Y PROVEEDORES ====================
+//
+
+Table clientes {
+  id_cliente bigint [pk, increment]
+  id_comercial bigint [null, note: 'FK -> empleados.id_empleado']
+  razon_social varchar(200)
+  nit varchar(30) [null]
+  id_ciudad varchar(2) [null, note: 'FK -> ciudades.cod_ciudad']
+  direccion text [null]
+  persona_contacto varchar(150) [null]
+  telefono1 varchar(30) [null]
+  celular_whatsapp varchar(30) [null]
+  email varchar(120) [null]
+  correo_factura varchar(120) [null]
+  condicion_pago varchar(50) [default: 'Al contado']
+  otro text [null]
+  created_at timestamp
+  updated_at timestamp
+  deleted_at timestamp [null, note: 'soft delete']
+}
+
+Table proveedores {
+  id_proveedor bigint [pk, increment]
+  tipo varchar(20) [note: "CHECK IN ('Naviera','Aerolinea','Transportista','Agente_Origen')"]
+  nombre varchar(200)
+  nombre_fantasia varchar(100) [null]
+  codigo_interno varchar(20) [null]
+  contacto varchar(150) [null]
+  direccion1 text [null]
+  direccion2 text [null]
+  ciudad varchar(100) [null]
+  pais varchar(60) [null]
+  telefono varchar(50) [null]
+  celular varchar(30) [null]
+  nit varchar(30) [null]
+  email varchar(200) [null]
+  activo boolean [default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+//
+// ==================== TARIFAS ====================
+//
+
+Table tarifas {
+  id_tarifa bigint [pk, increment]
+  id_proveedor bigint [not null, note: 'FK -> proveedores.id_proveedor']
+  id_origen varchar(10) [null, note: 'FK -> puertos_aeropuertos.codigo']
+  id_destino varchar(10) [null, note: 'FK -> puertos_aeropuertos.codigo']
+  modo varchar(15) [note: "CHECK IN ('Maritimo','Aereo','Terrestre')"]
+  tipo_servicio varchar(10) [null, note: "CHECK IN ('FCL','LCL') o NULL"]
+  dias_transito smallint [null]
+  costo_20 decimal(12,2) [null]
+  costo_40 decimal(12,2) [null]
+  costo_40hc decimal(12,2) [null]
+  costo_cbm decimal(12,2) [null]
+  costo_base decimal(12,2) [null]
+  moneda varchar(5) [default: 'USD']
+  tipo_tarifa varchar(20) [default: 'Normal']
+  fecha_inicio_vigencia date [not null]
+  fecha_fin_vigencia date [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table tarifa_cargos_adicionales {
+  id_cargo bigint [pk, increment]
+  id_tarifa bigint [not null, note: 'FK -> tarifas.id_tarifa (cascade delete)']
+  concepto varchar(100)
+  monto decimal(12,2)
+  moneda varchar(5) [default: 'USD']
+  created_at timestamp
+  updated_at timestamp
+}
+
+//
+// ==================== COTIZACIONES ====================
+//
+
+Table cotizaciones {
+  id_cotizacion bigint [pk, increment]
+  numero_referencia varchar(30) [unique]
+  id_cliente bigint [not null, note: 'FK -> clientes.id_cliente']
+  id_comercial bigint [not null, note: 'FK -> empleados.id_empleado']
+  modo_transporte varchar(15) [note: "CHECK IN ('Maritimo','Aereo','Terrestre')"]
+  tipo_servicio varchar(10) [null, note: "CHECK IN ('FCL','LCL') o NULL"]
+  incoterm varchar(10) [null]
+  id_pol varchar(10) [null, note: 'FK -> puertos_aeropuertos.codigo (puerto origen)']
+  id_pod varchar(10) [null, note: 'FK -> puertos_aeropuertos.codigo (puerto destino)']
+  destino_final varchar(150) [null]
+  fecha_emision date [default: `CURRENT_DATE`]
+  fecha_validez date [not null]
+  estado varchar(20) [default: 'Cotizado', note: "CHECK IN ('Cotizado','Aceptado','Rechazado','Vencido')"]
+  peso_kg decimal(12,2) [null]
+  volumen_cbm decimal(12,3) [null]
+  mercancia_peligrosa boolean [default: false]
+  dias_transito int [null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table cotizacion_contenedores {
+  id_item bigint [pk, increment]
+  id_cotizacion bigint [not null, note: 'FK -> cotizaciones.id_cotizacion (cascade delete)']
+  tipo_contenedor varchar(10)
+  cantidad int [default: 1]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table cotizacion_detalle {
+  id_detalle bigint [pk, increment]
+  id_cotizacion bigint [not null, note: 'FK -> cotizaciones.id_cotizacion (cascade delete)']
+  nro_item int [null]
+  descripcion varchar(200)
+  tipo_tarifa_unidad varchar(50) [null]
+  costo_unitario decimal(12,2) [null]
+  base_calculo decimal(12,3) [default: 1]
+  moneda varchar(5) [default: 'USD']
+  costo_total decimal(12,2) [null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+//
+// ==================== EMBARQUES ====================
+//
+
+Table embarques {
+  id_embarque bigint [pk, increment]
+  numero_file varchar(30) [unique]
+  id_cotizacion bigint [null, note: 'FK -> cotizaciones.id_cotizacion']
+  id_cliente bigint [not null, note: 'FK -> clientes.id_cliente']
+  consignatario varchar(200) [null]
+  id_comercial bigint [null, note: 'FK -> empleados.id_empleado']
+  id_operativo bigint [null, note: 'FK -> empleados.id_empleado']
+  id_agente_origen bigint [null, note: 'FK -> proveedores.id_proveedor']
+  id_naviera_aerolinea bigint [null, note: 'FK -> proveedores.id_proveedor']
+  modo_transporte varchar(15) [note: "CHECK IN ('Maritimo','Aereo','Terrestre')"]
+  tipo_embarque varchar(10) [null, note: "CHECK IN ('IMPO','EXPO','DOM') o NULL"]
+  oficina_venta varchar(60) [null]
+  oficina_operacional varchar(60) [null]
+  mbl varchar(50) [null]
+  id_pol varchar(10) [null, note: 'FK -> puertos_aeropuertos.codigo']
+  id_pod varchar(10) [null, note: 'FK -> puertos_aeropuertos.codigo']
+  destino_final varchar(150) [null]
+  etd date [null]
+  eta date [null]
+  nave varchar(100) [null]
+  viaje varchar(30) [null]
+  pago_master varchar(15) [null, note: "CHECK IN ('Prepaid','Collect') o NULL"]
+  estado_embarque varchar(30) [default: 'Confirmado_Origen', note: "CHECK IN ('Confirmado_Origen','En_Transito','En_Aduana_Destino','Entregado','Cerrado')"]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table house_bl {
+  id_hbl bigint [pk, increment]
+  id_embarque bigint [not null, note: 'FK -> embarques.id_embarque (cascade delete)']
+  numero_hbl varchar(50)
+  condicion_pago varchar(15) [null, note: "CHECK IN ('Prepaid','Collect') o NULL"]
+  fecha_emision date [null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table embarque_contenedores {
+  id_item bigint [pk, increment]
+  id_embarque bigint [not null, note: 'FK -> embarques.id_embarque (cascade delete)']
+  tipo_contenedor varchar(10) [null]
+  numero_contenedor varchar(20) [null]
+  numero_sello varchar(20) [null]
+  peso_kg decimal(12,2) [null]
+  volumen_cbm decimal(12,3) [null]
+  descripcion_mercancia text [null]
+  fecha_devolucion date [null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table embarque_costos {
+  id_costo bigint [pk, increment]
+  id_embarque bigint [not null, note: 'FK -> embarques.id_embarque (cascade delete)']
+  concepto varchar(100)
+  id_proveedor bigint [null, note: 'FK -> proveedores.id_proveedor']
+  costo_compra decimal(12,2) [not null]
+  costo_venta decimal(12,2) [not null]
+  moneda varchar(5) [default: 'USD']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table seguimiento_embarque {
+  id_seguimiento bigint [pk, increment]
+  id_embarque bigint [not null, note: 'FK -> embarques.id_embarque (cascade delete)']
+  fecha timestamp [default: `CURRENT_TIMESTAMP`]
+  estado varchar(30)
+  comentario text [null]
+  id_empleado_responsable bigint [null, note: 'FK -> empleados.id_empleado']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table documentos_embarque {
+  id_documento bigint [pk, increment]
+  id_embarque bigint [not null, note: 'FK -> embarques.id_embarque (cascade delete)']
+  tipo_documento varchar(50)
+  numero_documento varchar(50) [null]
+  fecha_emision date [null]
+  archivo_url text [null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table gastos_destino {
+  id_gasto bigint [pk, increment]
+  id_embarque bigint [not null, note: 'FK -> embarques.id_embarque (cascade delete)']
+  concepto varchar(20) [note: "CHECK IN ('Arancel','Impuesto','Tasa','Otro')"]
+  monto decimal(12,2) [not null]
+  moneda varchar(5) [default: 'USD']
+  pagado boolean [default: false]
+  fecha_pago date [null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+//
+// ==================== RELACIONES (Refs) ====================
+//
+
+// Autenticacion / permisos
+Ref: users.empleado_id - empleados.id_empleado
+Ref: model_has_roles.role_id > roles.id [delete: cascade]
+Ref: model_has_permissions.permission_id > permissions.id [delete: cascade]
+Ref: role_has_permissions.role_id > roles.id [delete: cascade]
+Ref: role_has_permissions.permission_id > permissions.id [delete: cascade]
+
+// Organizacion
+Ref: empleados.id_rol > roles_empleado.id_rol
+Ref: empleados.id_jefe > empleados.id_empleado
+
+// Clientes / proveedores
+Ref: clientes.id_comercial > empleados.id_empleado
+Ref: clientes.id_ciudad > ciudades.cod_ciudad
+
+// Tarifas
+Ref: tarifas.id_proveedor > proveedores.id_proveedor
+Ref: tarifas.id_origen > puertos_aeropuertos.codigo
+Ref: tarifas.id_destino > puertos_aeropuertos.codigo
+Ref: tarifa_cargos_adicionales.id_tarifa > tarifas.id_tarifa [delete: cascade]
+
+// Cotizaciones
+Ref: cotizaciones.id_cliente > clientes.id_cliente
+Ref: cotizaciones.id_comercial > empleados.id_empleado
+Ref: cotizaciones.id_pol > puertos_aeropuertos.codigo
+Ref: cotizaciones.id_pod > puertos_aeropuertos.codigo
+Ref: cotizacion_contenedores.id_cotizacion > cotizaciones.id_cotizacion [delete: cascade]
+Ref: cotizacion_detalle.id_cotizacion > cotizaciones.id_cotizacion [delete: cascade]
+
+// Embarques
+Ref: embarques.id_cotizacion > cotizaciones.id_cotizacion
+Ref: embarques.id_cliente > clientes.id_cliente
+Ref: embarques.id_comercial > empleados.id_empleado
+Ref: embarques.id_operativo > empleados.id_empleado
+Ref: embarques.id_agente_origen > proveedores.id_proveedor
+Ref: embarques.id_naviera_aerolinea > proveedores.id_proveedor
+Ref: embarques.id_pol > puertos_aeropuertos.codigo
+Ref: embarques.id_pod > puertos_aeropuertos.codigo
+Ref: house_bl.id_embarque > embarques.id_embarque [delete: cascade]
+Ref: embarque_contenedores.id_embarque > embarques.id_embarque [delete: cascade]
+Ref: embarque_costos.id_embarque > embarques.id_embarque [delete: cascade]
+Ref: embarque_costos.id_proveedor > proveedores.id_proveedor
+Ref: seguimiento_embarque.id_embarque > embarques.id_embarque [delete: cascade]
+Ref: seguimiento_embarque.id_empleado_responsable > empleados.id_empleado
+Ref: documentos_embarque.id_embarque > embarques.id_embarque [delete: cascade]
+Ref: gastos_destino.id_embarque > embarques.id_embarque [delete: cascade]

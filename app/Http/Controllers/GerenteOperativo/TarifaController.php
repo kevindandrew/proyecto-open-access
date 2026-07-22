@@ -105,6 +105,7 @@ class TarifaController extends Controller
                     'id_cargo' => $cargo->id_cargo,
                     'concepto' => $cargo->concepto,
                     'monto' => $cargo->monto,
+                    'moneda' => $cargo->moneda,
                 ]),
             ],
             'proveedores' => $this->proveedoresOptions($tarifa->id_proveedor),
@@ -160,6 +161,7 @@ class TarifaController extends Controller
             'cargos_adicionales' => ['array'],
             'cargos_adicionales.*.concepto' => ['required', 'string', 'max:100'],
             'cargos_adicionales.*.monto' => ['required', 'numeric'],
+            'cargos_adicionales.*.moneda' => ['required', 'string', 'max:5'],
         ])->after(function (Validator $validator) use ($request) {
             $modo = $request->input('modo');
             $tipoServicio = $request->input('tipo_servicio');

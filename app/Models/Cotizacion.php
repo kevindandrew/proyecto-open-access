@@ -31,6 +31,7 @@ class Cotizacion extends Model
         'volumen_cbm',
         'mercancia_peligrosa',
         'dias_transito',
+        'motivo_rechazo',
     ];
 
     protected function casts(): array

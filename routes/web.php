@@ -89,11 +89,18 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
             ->parameters(['personal' => 'empleado'])
             ->except(['show']);
 
+        Route::get('clientes/buscar', [GerenteOperativoClienteController::class, 'buscar'])->name('clientes.buscar');
+        Route::patch('clientes/{cliente}/reasignar', [GerenteOperativoClienteController::class, 'reasignar'])->name('clientes.reasignar');
         Route::resource('clientes', GerenteOperativoClienteController::class)
             ->except(['show']);
 
         Route::get('cotizaciones', [GerenteOperativoCotizacionController::class, 'index'])->name('cotizaciones.index');
+        Route::get('cotizaciones/nueva', [GerenteOperativoCotizacionController::class, 'create'])->name('cotizaciones.create');
+        Route::get('cotizaciones/tarifas-disponibles', [GerenteOperativoCotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
+        Route::post('cotizaciones', [GerenteOperativoCotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'show'])->name('cotizaciones.show');
+        Route::patch('cotizaciones/{cotizacion}/estado', [GerenteOperativoCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
+        Route::post('cotizaciones/{cotizacion}/convertir', [GerenteOperativoCotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
 
         Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
 

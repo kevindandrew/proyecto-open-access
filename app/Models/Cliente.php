@@ -29,7 +29,15 @@ class Cliente extends Model
         'correo_factura',
         'condicion_pago',
         'otro',
+        'reasignado_en',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'reasignado_en' => 'datetime',
+        ];
+    }
 
     public function comercial(): BelongsTo
     {

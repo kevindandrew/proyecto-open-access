@@ -1,10 +1,14 @@
-function Campo({ label, value }) {
+import AyudaTermino from '@/Components/AyudaTermino';
+import { INCOTERMS_INFO, TIPO_SERVICIO_INFO } from '@/constants/glosario';
+
+function Campo({ label, value, info }) {
     return (
         <div>
             <p className="text-xs font-medium uppercase tracking-wide text-[#A9ABAE]">
                 {label}
             </p>
             <p className="text-sm text-[#042753]">{value ?? '—'}</p>
+            {info && <AyudaTermino info={info} />}
         </div>
     );
 }
@@ -22,8 +26,16 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                     )}
                     <Campo label="Cliente" value={cotizacion.cliente} />
                     <Campo label="Modo de Transporte" value={cotizacion.modo_transporte} />
-                    <Campo label="Tipo de Servicio" value={cotizacion.tipo_servicio} />
-                    <Campo label="Incoterm" value={cotizacion.incoterm} />
+                    <Campo
+                        label="Tipo de Servicio"
+                        value={cotizacion.tipo_servicio}
+                        info={TIPO_SERVICIO_INFO[cotizacion.tipo_servicio]}
+                    />
+                    <Campo
+                        label="Incoterm"
+                        value={cotizacion.incoterm}
+                        info={INCOTERMS_INFO[cotizacion.incoterm]}
+                    />
                     <Campo label="POL" value={cotizacion.pol} />
                     <Campo label="POD" value={cotizacion.pod} />
                     <Campo label="Destino Final" value={cotizacion.destino_final} />
@@ -32,6 +44,17 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                     <Campo label="Días de Tránsito" value={cotizacion.dias_transito} />
                 </div>
             </div>
+
+            {cotizacion.estado === 'Rechazado' && cotizacion.motivo_rechazo && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
+                    <h3 className="mb-2 text-sm font-semibold text-red-700">
+                        Motivo del Rechazo
+                    </h3>
+                    <p className="whitespace-pre-line text-sm text-red-900">
+                        {cotizacion.motivo_rechazo}
+                    </p>
+                </div>
+            )}
 
             <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="mb-4 text-sm font-semibold text-[#042753]">Carga</h3>
@@ -61,6 +84,11 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                         <Campo label="Peso (kg)" value={cotizacion.peso_kg} />
                         <Campo label="Volumen (cbm)" value={cotizacion.volumen_cbm} />
                     </div>
+                )}
+                {contenedores.length > 0 && (
+                    <p className="mt-2 text-xs text-[#A9ABAE]">
+                        DRY = contenedor estándar · HC = High Cube (más alto, más volumen)
+                    </p>
                 )}
                 <p className="mt-3 text-sm text-[#042753]">
                     Mercancía peligrosa:{' '}
@@ -122,6 +150,11 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                         </tfoot>
                     </table>
                 </div>
+                {detalle.length > 0 && (
+                    <p className="mt-2 text-xs text-[#A9ABAE]">
+                        Per Container = por contenedor · Per Kg = por kilogramo · Per CBM = por metro cúbico · Flat = tarifa única
+                    </p>
+                )}
             </div>
         </div>
     );

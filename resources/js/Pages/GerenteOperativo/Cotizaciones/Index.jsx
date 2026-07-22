@@ -1,10 +1,10 @@
 import { COTIZACION_ESTADO_STYLES } from '@/constants/cotizacionEstados';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
-import ModoTransporteIcon from '@/Components/ModoTransporteIcon';
+import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import PageHeader from '@/Components/PageHeader';
 import { IconoCotizacionesNav } from '@/Components/NavIcons';
-import { BotonIcono, IconoVer } from '@/Components/ActionIcons';
-import { Head } from '@inertiajs/react';
+import { BotonIcono, IconoAgregar, IconoVer } from '@/Components/ActionIcons';
+import { Head, Link } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
 const ESTADOS = ['Todas', 'Cotizado', 'Aceptado', 'Rechazado', 'Vencido'];
@@ -56,7 +56,15 @@ export default function Index({ cotizaciones }) {
                 icon={IconoCotizacionesNav}
                 title="Cotizaciones"
                 subtitle="Todas las cotizaciones generadas por el equipo comercial"
-            />
+            >
+                <Link
+                    href={route('gerente-operativo.cotizaciones.create')}
+                    className="flex items-center gap-1.5 rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 hover:shadow-md active:scale-[0.98]"
+                >
+                    <IconoAgregar className="h-4 w-4" />
+                    Nueva Cotización
+                </Link>
+            </PageHeader>
 
             <div className="mb-4 inline-flex flex-wrap gap-1 rounded-lg bg-gray-100 p-1">
                 {ESTADOS.map((e) => (
@@ -92,6 +100,7 @@ export default function Index({ cotizaciones }) {
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Referencia</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Cliente</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Comercial</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Modo</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Ruta</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Emisión</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Validez</th>
@@ -109,10 +118,10 @@ export default function Index({ cotizaciones }) {
                                 <td className="px-4 py-3 text-[#042753]">{c.cliente}</td>
                                 <td className="px-4 py-3">{c.comercial ?? '—'}</td>
                                 <td className="px-4 py-3">
-                                    <div className="flex items-center gap-1.5">
-                                        <ModoTransporteIcon modo={c.modo_transporte} className="h-4 w-4 text-[#A9ABAE]" />
-                                        {c.pol ?? '—'} → {c.pod ?? '—'}
-                                    </div>
+                                    <ModoTransporteBadge modo={c.modo_transporte} />
+                                </td>
+                                <td className="px-4 py-3">
+                                    {c.pol ?? '—'} → {c.pod ?? '—'}
                                 </td>
                                 <td className="px-4 py-3 text-[#A9ABAE]">{c.fecha_emision}</td>
                                 <td className="px-4 py-3 text-[#A9ABAE]">{c.fecha_validez}</td>
@@ -143,7 +152,7 @@ export default function Index({ cotizaciones }) {
 
                         {filtradas.length === 0 && (
                             <tr>
-                                <td colSpan={9} className="px-4 py-6 text-center text-[#A9ABAE]">
+                                <td colSpan={10} className="px-4 py-6 text-center text-[#A9ABAE]">
                                     No hay cotizaciones para este filtro.
                                 </td>
                             </tr>

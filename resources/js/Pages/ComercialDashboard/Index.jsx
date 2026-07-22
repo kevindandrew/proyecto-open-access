@@ -1,4 +1,4 @@
-import ModoTransporteIcon from '@/Components/ModoTransporteIcon';
+import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import { COTIZACION_ESTADO_STYLES } from '@/constants/cotizacionEstados';
 import ComercialLayout from '@/Layouts/ComercialLayout';
 import { Head, Link, router } from '@inertiajs/react';
@@ -96,13 +96,7 @@ export default function Index({ contadores, ultimasCotizaciones }) {
                                     {cotizacion.cliente}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <div className="flex items-center gap-2">
-                                        <ModoTransporteIcon
-                                            modo={cotizacion.modo_transporte}
-                                            className="h-4 w-4 text-[#042753]"
-                                        />
-                                        {cotizacion.modo_transporte}
-                                    </div>
+                                    <ModoTransporteBadge modo={cotizacion.modo_transporte} />
                                 </td>
                                 <td className="px-4 py-3">
                                     {cotizacion.fecha_validez}

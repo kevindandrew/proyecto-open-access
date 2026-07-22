@@ -1,3 +1,4 @@
+import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import { ESTADO_LABELS } from '@/constants/estados';
 
 function Campo({ label, value }) {
@@ -110,7 +111,7 @@ export default function EmbarqueDetalle({ embarque, contenedores, seguimientos }
                 />
                 <Campo
                     label="Modo de Transporte"
-                    value={embarque.modo_transporte}
+                    value={<ModoTransporteBadge modo={embarque.modo_transporte} />}
                 />
                 <Campo
                     label="Tipo de Embarque"

@@ -65,6 +65,18 @@ export function IconoMas(props) {
     );
 }
 
+export function IconoReasignar(props) {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+            />
+        </svg>
+    );
+}
+
 export function IconoSubir(props) {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
@@ -81,6 +93,7 @@ const VARIANTES = {
     ver: 'text-[#042753] hover:bg-[#042753]/10',
     editar: 'text-[#042753] hover:bg-[#71BFA6]/20',
     eliminar: 'text-red-600 hover:bg-red-50',
+    reasignar: 'text-blue-600 hover:bg-blue-50',
 };
 
 export function BotonIcono({ variante = 'editar', titulo, onClick, href, as = 'button', children, ...props }) {

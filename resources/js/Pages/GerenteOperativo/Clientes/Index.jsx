@@ -11,8 +11,10 @@ import { IconoClientes } from "@/Components/NavIcons";
 import {
     BotonIcono,
     IconoAgregar,
+    IconoAlerta,
     IconoEditar,
     IconoEliminar,
+    IconoReasignar,
     IconoVer,
 } from "@/Components/ActionIcons";
 import { Head, useForm, router } from "@inertiajs/react";
@@ -794,6 +796,105 @@ function ModalFormCliente({
 }
 
 /* =========================================================================
+   2b. MODAL: REASIGNAR COMERCIAL
+   ========================================================================= */
+function ModalReasignarComercial({ cliente, show, onClose, comerciales = [] }) {
+    const { data, setData, patch, processing, errors, reset } = useForm({
+        id_comercial: "",
+    });
+
+    useEffect(() => {
+        if (cliente) {
+            setData("id_comercial", cliente.id_comercial ?? "");
+        }
+    }, [cliente, show]);
+
+    if (!cliente) return null;
+
+    const submit = (e) => {
+        e.preventDefault();
+        patch(
+            route("gerente-operativo.clientes.reasignar", cliente.id_cliente),
+            {
+                onSuccess: () => {
+                    reset();
+                    onClose();
+                },
+            },
+        );
+    };
+
+    return (
+        <Modal show={show} onClose={onClose} maxWidth="md">
+            <form onSubmit={submit} className="p-6">
+                <h2 className="text-lg font-bold text-[#042753]">
+                    Reasignar Comercial
+                </h2>
+                <p className="mt-2 text-sm text-gray-600">
+                    Cliente:{" "}
+                    <strong className="text-[#042753]">
+                        {cliente.razon_social}
+                    </strong>
+                </p>
+                <p className="text-xs text-gray-400">
+                    Comercial actual: {cliente.comercial ?? "Sin asignar"}
+                </p>
+
+                {cliente.sin_seguimiento && (
+                    <p className="mt-3 flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
+                        <IconoAlerta className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                        Este cliente no tiene cotizaciones en los últimos 6
+                        meses (o nunca tuvo una).
+                    </p>
+                )}
+
+                <div className="mt-4">
+                    <InputLabel
+                        htmlFor="nuevo_comercial"
+                        value="Nuevo Comercial"
+                    />
+                    <select
+                        id="nuevo_comercial"
+                        className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-[#042753] focus:ring-[#042753]"
+                        value={data.id_comercial}
+                        onChange={(e) =>
+                            setData("id_comercial", e.target.value)
+                        }
+                    >
+                        <option value="">Selecciona comercial</option>
+                        {comerciales.map((com) => (
+                            <option
+                                key={com.id_empleado}
+                                value={com.id_empleado}
+                            >
+                                {com.nombre_completo}
+                            </option>
+                        ))}
+                    </select>
+                    <InputError message={errors.id_comercial} className="mt-1" />
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" onClick={onClose}>
+                        Cancelar
+                    </SecondaryButton>
+                    <PrimaryButton
+                        disabled={
+                            processing ||
+                            !data.id_comercial ||
+                            String(data.id_comercial) ===
+                                String(cliente.id_comercial ?? "")
+                        }
+                    >
+                        Reasignar
+                    </PrimaryButton>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
+/* =========================================================================
    3. VISTA PRINCIPAL
    ========================================================================= */
 export default function Index({
@@ -803,6 +904,7 @@ export default function Index({
 }) {
     const [busqueda, setBusqueda] = useState("");
     const [filtroEstado, setFiltroEstado] = useState("todos");
+    const [filtroReasignado, setFiltroReasignado] = useState("todos");
 
     // Estados para Paginación
     const [paginaActual, setPaginaActual] = useState(1);
@@ -812,6 +914,7 @@ export default function Index({
     const [clienteVer, setClienteVer] = useState(null);
     const [modalFormOpen, setModalFormOpen] = useState(false);
     const [clienteEditar, setClienteEditar] = useState(null);
+    const [clienteReasignar, setClienteReasignar] = useState(null);
 
     // KPIs
     const totalClientes = clientes.length;
@@ -823,7 +926,7 @@ export default function Index({
 
     useEffect(() => {
         setPaginaActual(1);
-    }, [busqueda, filtroEstado, itemsPorPagina]);
+    }, [busqueda, filtroEstado, filtroReasignado, itemsPorPagina]);
 
     // Filtro interactivo
     const clientesFiltrados = useMemo(() => {
@@ -840,9 +943,14 @@ export default function Index({
                 (filtroEstado === "activos" && cliente.activo) ||
                 (filtroEstado === "inactivos" && !cliente.activo);
 
-            return coincideTexto && coincideEstado;
+            const coincideReasignado =
+                filtroReasignado === "todos" ||
+                (filtroReasignado === "reasignados" && cliente.fue_reasignado) ||
+                (filtroReasignado === "no_reasignados" && !cliente.fue_reasignado);
+
+            return coincideTexto && coincideEstado && coincideReasignado;
         });
-    }, [clientes, busqueda, filtroEstado]);
+    }, [clientes, busqueda, filtroEstado, filtroReasignado]);
 
     // Cálculo para paginación
     const totalPaginas =
@@ -961,6 +1069,18 @@ export default function Index({
                     </select>
 
                     <select
+                        value={filtroReasignado}
+                        onChange={(e) => setFiltroReasignado(e.target.value)}
+                        className="rounded-xl border-none bg-gray-50 py-2.5 px-4 text-sm font-medium text-[#042753] focus:ring-2 focus:ring-[#042753]"
+                    >
+                        <option value="todos">Reasignados o no</option>
+                        <option value="reasignados">Solo Reasignados</option>
+                        <option value="no_reasignados">
+                            Nunca Reasignados
+                        </option>
+                    </select>
+
+                    <select
                         value={itemsPorPagina}
                         onChange={(e) =>
                             setItemsPorPagina(Number(e.target.value))
@@ -997,6 +1117,9 @@ export default function Index({
                                 </th>
                                 <th scope="col" className="px-6 py-3.5">
                                     Comercial
+                                </th>
+                                <th scope="col" className="px-6 py-3.5">
+                                    Última Cotización
                                 </th>
                                 <th
                                     scope="col"
@@ -1070,6 +1193,33 @@ export default function Index({
 
                                         <td className="px-6 py-4 font-medium text-gray-600">
                                             {cliente.comercial || "Sin asignar"}
+                                            {cliente.fue_reasignado && (
+                                                <div
+                                                    className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600"
+                                                    title={`Reasignado el ${cliente.reasignado_en}`}
+                                                >
+                                                    <IconoReasignar className="h-3 w-3" />
+                                                    Reasignado
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        <td className="px-6 py-4">
+                                            {cliente.ultima_cotizacion ? (
+                                                <div className="text-gray-600">
+                                                    {cliente.ultima_cotizacion}
+                                                </div>
+                                            ) : (
+                                                <div className="italic text-gray-400">
+                                                    Sin cotizaciones
+                                                </div>
+                                            )}
+                                            {cliente.sin_seguimiento && (
+                                                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                                    <IconoAlerta className="h-3 w-3" />
+                                                    Sin seguimiento
+                                                </span>
+                                            )}
                                         </td>
 
                                         <td className="px-6 py-4 text-center">
@@ -1111,6 +1261,19 @@ export default function Index({
                                                 </BotonIcono>
                                                 {cliente.activo && (
                                                     <BotonIcono
+                                                        variante="reasignar"
+                                                        titulo="Reasignar comercial"
+                                                        onClick={() =>
+                                                            setClienteReasignar(
+                                                                cliente,
+                                                            )
+                                                        }
+                                                    >
+                                                        <IconoReasignar className="h-4 w-4" />
+                                                    </BotonIcono>
+                                                )}
+                                                {cliente.activo && (
+                                                    <BotonIcono
                                                         variante="eliminar"
                                                         titulo="Desactivar"
                                                         onClick={() =>
@@ -1129,7 +1292,7 @@ export default function Index({
                             {clientesFiltrados.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan="7"
+                                        colSpan="8"
                                         className="p-12 text-center text-gray-400"
                                     >
                                         No se encontraron clientes registrados.
@@ -1205,6 +1368,13 @@ export default function Index({
                 onClose={() => setModalFormOpen(false)}
                 cliente={clienteEditar}
                 ciudades={ciudades}
+                comerciales={comerciales}
+            />
+
+            <ModalReasignarComercial
+                show={Boolean(clienteReasignar)}
+                cliente={clienteReasignar}
+                onClose={() => setClienteReasignar(null)}
                 comerciales={comerciales}
             />
         </GerenteOperativoLayout>

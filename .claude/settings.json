@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(php artisan *)",
-      "Bash(node verify-tarifas-cotizacion.js)"
+      "Bash(node verify-tarifas-cotizacion.js)",
+      "Bash(php \"C:\\\\Users\\\\KEVIN\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-KEVIN-Desktop-proyectos-kb-open-access\\\\019bb7b3-9a4a-4dab-b00e-f77c3a5cb753\\\\scratchpad\\\\test_migration.php\" \"ep-odd-forest-apyjy5th-pooler.c-7.us-east-1.aws.neon.tech\" \"POOLER\")",
+      "Bash(php \"C:\\\\Users\\\\KEVIN\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-KEVIN-Desktop-proyectos-kb-open-access\\\\019bb7b3-9a4a-4dab-b00e-f77c3a5cb753\\\\scratchpad\\\\test_migration.php\" \"ep-odd-forest-apyjy5th.c-7.us-east-1.aws.neon.tech\" \"DIRECT\")"
     ]
   }
 }

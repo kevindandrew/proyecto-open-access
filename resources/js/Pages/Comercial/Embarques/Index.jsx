@@ -1,5 +1,6 @@
 import { ESTADO_LABELS } from '@/constants/estados';
 import ComercialLayout from '@/Layouts/ComercialLayout';
+import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import { Head, router } from '@inertiajs/react';
 
 export default function Index({ embarques }) {
@@ -49,7 +50,7 @@ export default function Index({ embarques }) {
                                     {embarque.cliente}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {embarque.modo_transporte}
+                                    <ModoTransporteBadge modo={embarque.modo_transporte} />
                                 </td>
                                 <td className="px-4 py-3">
                                     {embarque.eta ?? '—'}
