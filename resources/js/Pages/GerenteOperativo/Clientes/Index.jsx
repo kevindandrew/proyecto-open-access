@@ -29,9 +29,6 @@ function getIniciales(nombre) {
         .toUpperCase();
 }
 
-/* =========================================================================
-   1. MODAL: DETALLE DEL CLIENTE (VER)
-   ========================================================================= */
 function ModalDetalleCliente({ cliente, show, onClose }) {
     if (!cliente) return null;
 
@@ -225,9 +222,7 @@ function ModalDetalleCliente({ cliente, show, onClose }) {
     );
 }
 
-/* =========================================================================
-   2. MODAL FORMULARIO: CREAR / EDITAR CLIENTE
-   ========================================================================= */
+// MODAL FORMULARIO CREAR / EDITAR CLIENTE
 function ModalFormCliente({
     show,
     onClose,
@@ -793,9 +788,6 @@ function ModalFormCliente({
     );
 }
 
-/* =========================================================================
-   3. VISTA PRINCIPAL
-   ========================================================================= */
 export default function Index({
     clientes = [],
     ciudades = [],
@@ -804,16 +796,15 @@ export default function Index({
     const [busqueda, setBusqueda] = useState("");
     const [filtroEstado, setFiltroEstado] = useState("todos");
 
-    // Estados para Paginación
+    // Estados para paginacaion
     const [paginaActual, setPaginaActual] = useState(1);
     const [itemsPorPagina, setItemsPorPagina] = useState(10);
 
-    // Control de Modales
+    // Control de modales
     const [clienteVer, setClienteVer] = useState(null);
     const [modalFormOpen, setModalFormOpen] = useState(false);
     const [clienteEditar, setClienteEditar] = useState(null);
 
-    // KPIs
     const totalClientes = clientes.length;
     const activosCount = useMemo(
         () => clientes.filter((c) => c.activo).length,
@@ -825,7 +816,6 @@ export default function Index({
         setPaginaActual(1);
     }, [busqueda, filtroEstado, itemsPorPagina]);
 
-    // Filtro interactivo
     const clientesFiltrados = useMemo(() => {
         return clientes.filter((cliente) => {
             const coincideTexto =
@@ -844,7 +834,7 @@ export default function Index({
         });
     }, [clientes, busqueda, filtroEstado]);
 
-    // Cálculo para paginación
+    // Calculo paginación
     const totalPaginas =
         Math.ceil(clientesFiltrados.length / itemsPorPagina) || 1;
     const indiceInicio = (paginaActual - 1) * itemsPorPagina;
