@@ -26,12 +26,24 @@ use Inertia\Response;
 
 class CotizacionController extends Controller
 {
-    public function create(): Response
-    {
-        return Inertia::render('GerenteOperativo/Cotizaciones/Nueva', [
-            'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
-        ]);
-    }
+ public function create(): Response
+{
+    return Inertia::render('GerenteOperativo/Cotizaciones/Nueva', [
+        'puertos' => PuertoAeropuerto::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['codigo', 'nombre', 'tipo']),
+
+        // Traer solo las columnas existentes en la BD
+        'clientes' => Cliente::select('id_cliente', 'razon_social')
+            ->orderBy('razon_social')
+            ->get()
+            ->map(fn ($cliente) => [
+                'id' => $cliente->id_cliente,
+                'nombre' => $cliente->razon_social,
+                'razon_social' => $cliente->razon_social,
+            ]),
+    ]);
+}
 
     public function tarifasDisponibles(Request $request): JsonResponse
     {

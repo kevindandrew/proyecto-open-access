@@ -22,6 +22,7 @@ class Embarque extends Model
         'id_comercial',
         'id_operativo',
         'id_agente_origen',
+        'id_agente_destino', // <-- Agregado a fillable si existe la columna
         'id_naviera_aerolinea',
         'modo_transporte',
         'tipo_embarque',
@@ -70,6 +71,12 @@ class Embarque extends Model
     public function agenteOrigen(): BelongsTo
     {
         return $this->belongsTo(Proveedor::class, 'id_agente_origen', 'id_proveedor');
+    }
+
+    // <-- AGREGADA LA RELACIÓN QUE FALTABA
+    public function agenteDestino(): BelongsTo
+    {
+        return $this->belongsTo(Proveedor::class, 'id_agente_destino', 'id_proveedor');
     }
 
     public function navieraAerolinea(): BelongsTo
