@@ -1,36 +1,50 @@
-import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
-import ModoTransporteIcon from '@/Components/ModoTransporteIcon';
-import { MODO_TRANSPORTE_ICON_COLOR } from '@/constants/modoTransporte';
-import PageHeader from '@/Components/PageHeader';
-import { IconoTarifasNav } from '@/Components/NavIcons';
-import { BotonIcono, IconoAgregar, IconoAlerta, IconoEditar, IconoEliminar, IconoMas, IconoSubir } from '@/Components/ActionIcons';
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { Head, Link, router } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import GerenteOperativoLayout from "@/Layouts/GerenteOperativoLayout";
+import ModoTransporteIcon from "@/Components/ModoTransporteIcon";
+import { MODO_TRANSPORTE_ICON_COLOR } from "@/constants/modoTransporte";
+import PageHeader from "@/Components/PageHeader";
+import { IconoTarifasNav } from "@/Components/NavIcons";
+import {
+    IconoAgregar,
+    IconoAlerta,
+    IconoEditar,
+    IconoEliminar,
+    IconoMas,
+    IconoSubir,
+} from "@/Components/ActionIcons";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { Head, router } from "@inertiajs/react";
+import { useMemo, useState } from "react";
+import ModalTarifa from "./ModalTarifa";
 
 const MODOS = [
-    { valor: 'Maritimo', etiqueta: 'Marítimo' },
-    { valor: 'Aereo', etiqueta: 'Aéreo' },
-    { valor: 'Terrestre', etiqueta: 'Terrestre' },
+    { valor: "Maritimo", etiqueta: "Marítimo" },
+    { valor: "Aereo", etiqueta: "Aéreo" },
+    { valor: "Terrestre", etiqueta: "Terrestre" },
 ];
 
 const ESTADO_ESTILOS = {
-    Activo: 'bg-green-100 text-green-700',
-    'Por Vencer': 'bg-amber-100 text-amber-700',
-    Vencida: 'bg-amber-50 text-amber-700/80',
+    Activo: "bg-green-100 text-green-700",
+    "Por Vencer": "bg-amber-100 text-amber-700",
+    Vencida: "bg-amber-50 text-amber-700/80",
 };
 
 function formatoMonto(valor) {
-    if (valor === null || valor === undefined || valor === '') {
-        return '—';
+    if (valor === null || valor === undefined || valor === "") {
+        return "—";
     }
 
-    return Number(valor).toLocaleString('es-BO', { maximumFractionDigits: 2 });
+    return Number(valor).toLocaleString("es-BO", { maximumFractionDigits: 2 });
 }
 
-export default function Index({ tarifas }) {
-    const [modo, setModo] = useState('Maritimo');
-    const [busqueda, setBusqueda] = useState('');
+export default function Index({
+    tarifas = [],
+    proveedores = [],
+    ubicaciones = [],
+}) {
+    const [modo, setModo] = useState("Maritimo");
+    const [busqueda, setBusqueda] = useState("");
+    const [modalOpen, setModalOpen] = useState(false);
+    const [tarifaEdicion, setTarifaEdicion] = useState(null);
 
     const porModo = useMemo(
         () => tarifas.filter((t) => t.modo === modo),
@@ -51,7 +65,19 @@ export default function Index({ tarifas }) {
         );
     }, [porModo, busqueda]);
 
-    const porVencerEnTab = porModo.filter((t) => t.estado === 'Por Vencer').length;
+    const porVencerEnTab = porModo.filter(
+        (t) => t.estado === "Por Vencer",
+    ).length;
+
+    const abrirCrearModal = () => {
+        setTarifaEdicion(null);
+        setModalOpen(true);
+    };
+
+    const abrirEditarModal = (tarifa) => {
+        setTarifaEdicion(tarifa);
+        setModalOpen(true);
+    };
 
     const eliminar = (tarifa) => {
         if (
@@ -62,7 +88,25 @@ export default function Index({ tarifas }) {
             return;
         }
 
-        router.delete(route('gerente-operativo.tarifas.destroy', tarifa.id_tarifa));
+        router.delete(
+            route("gerente-operativo.tarifas.destroy", tarifa.id_tarifa),
+        );
+    };
+
+    const guardarTarifa = (datos) => {
+        if (datos.id_tarifa) {
+            router.put(
+                route("gerente-operativo.tarifas.update", datos.id_tarifa),
+                datos,
+                {
+                    onSuccess: () => setModalOpen(false),
+                },
+            );
+        } else {
+            router.post(route("gerente-operativo.tarifas.store"), datos, {
+                onSuccess: () => setModalOpen(false),
+            });
+        }
     };
 
     return (
@@ -83,13 +127,14 @@ export default function Index({ tarifas }) {
                     <IconoSubir className="h-4 w-4" />
                     Importar Excel
                 </button>
-                <Link
-                    href={route('gerente-operativo.tarifas.create')}
+                <button
+                    type="button"
+                    onClick={abrirCrearModal}
                     className="flex items-center gap-1.5 rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 hover:shadow-md active:scale-[0.98]"
                 >
                     <IconoAgregar className="h-4 w-4" />
                     Agregar Tarifa
-                </Link>
+                </button>
             </PageHeader>
 
             <div className="mb-4 inline-flex rounded-lg bg-gray-100 p-1">
@@ -100,13 +145,13 @@ export default function Index({ tarifas }) {
                         onClick={() => setModo(m.valor)}
                         className={`flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition ${
                             modo === m.valor
-                                ? 'bg-white text-[#042753] shadow-sm'
-                                : 'text-[#A9ABAE] hover:text-[#042753]'
+                                ? "bg-white text-[#042753] shadow-sm"
+                                : "text-[#A9ABAE] hover:text-[#042753]"
                         }`}
                     >
                         <ModoTransporteIcon
                             modo={m.valor}
-                            className={`h-4 w-4 ${MODO_TRANSPORTE_ICON_COLOR[m.valor] ?? ''}`}
+                            className={`h-4 w-4 ${MODO_TRANSPORTE_ICON_COLOR[m.valor] ?? ""}`}
                         />
                         {m.etiqueta}
                     </button>
@@ -128,13 +173,14 @@ export default function Index({ tarifas }) {
                             {porVencerEnTab} por vencer
                         </span>
                     )}
-                    <Link
-                        href={route('gerente-operativo.tarifas.create')}
+                    <button
+                        type="button"
+                        onClick={abrirCrearModal}
                         className="flex items-center gap-1.5 rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 hover:shadow-md active:scale-[0.98]"
                     >
                         <IconoAgregar className="h-4 w-4" />
                         Agregar Tarifa
-                    </Link>
+                    </button>
                 </div>
             </div>
 
@@ -142,16 +188,36 @@ export default function Index({ tarifas }) {
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Carrier</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Origen</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Destino</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Servicio</th>
-                            <th className="px-4 py-3 text-right font-semibold text-[#042753]">Tarifa Base</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Moneda</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Tránsito</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Válido desde</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Válido hasta</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Estado</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Carrier / Proveedor
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Origen
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Destino
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Servicio
+                            </th>
+                            <th className="px-4 py-3 text-right font-semibold text-[#042753]">
+                                Tarifa Base
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Moneda
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Tránsito
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Válido desde
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Válido hasta
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Estado
+                            </th>
                             <th className="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -160,37 +226,68 @@ export default function Index({ tarifas }) {
                             <tr
                                 key={`${t.id_tarifa}-${t.servicio}-${index}`}
                                 className={`transition-colors hover:bg-gray-50 ${
-                                    t.estado === 'Por Vencer' ? 'bg-amber-50/40' : ''
+                                    t.estado === "Por Vencer"
+                                        ? "bg-amber-50/40"
+                                        : ""
                                 }`}
                             >
-                                <td className="px-4 py-3 font-medium text-[#042753]">{t.carrier}</td>
-                                <td className="px-4 py-3">{t.origen ?? '—'}</td>
-                                <td className="px-4 py-3">{t.destino ?? '—'}</td>
-                                <td className="px-4 py-3">
-                                    <span className="rounded border border-gray-200 px-2 py-1 font-mono text-xs text-[#042753]">
-                                        {t.servicio || '—'}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 text-right font-semibold text-[#042753]">
-                                    {formatoMonto(t.tarifa_base)}
-                                    {t.unidad && (
-                                        <span className="ml-1 font-normal text-[#A9ABAE]">/ {t.unidad}</span>
+                                <td className="px-4 py-3 font-medium text-[#042753]">
+                                    {t.carrier}
+                                    {t.tipo_proveedor && (
+                                        <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-normal uppercase text-gray-500">
+                                            {t.tipo_proveedor}
+                                        </span>
                                     )}
                                 </td>
-                                <td className="px-4 py-3 text-[#A9ABAE]">{t.moneda}</td>
+                                <td className="px-4 py-3">{t.origen ?? "—"}</td>
                                 <td className="px-4 py-3">
-                                    {t.dias_transito ? `${t.dias_transito}d` : '—'}
+                                    {t.destino ?? "—"}
                                 </td>
-                                <td className="px-4 py-3 text-[#A9ABAE]">{t.valido_desde}</td>
-                                <td className="px-4 py-3 text-[#A9ABAE]">{t.valido_hasta}</td>
+                                <td className="px-4 py-3">
+                                    <span className="rounded border border-gray-200 px-2 py-1 font-mono text-xs text-[#042753]">
+                                        {t.servicio || "—"}
+                                    </span>
+                                </td>
+
+                                <td className="px-4 py-3 text-right font-medium text-gray-600">
+                                    {formatoMonto(t.tarifa_base)}
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs text-amber-600 font-semibold">
+                                    + {formatoMonto(t.total_recargos)}
+                                    <span className="block text-[10px] text-gray-400 font-normal">
+                                        {t.recargos?.length || 0} conceptos
+                                    </span>
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold text-[#042753] bg-blue-50/50">
+                                    {formatoMonto(
+                                        Number(t.tarifa_base || 0) +
+                                            Number(t.total_recargos || 0),
+                                    )}{" "}
+                                    {t.moneda}
+                                </td>
+                                <td className="px-4 py-3 text-[#A9ABAE]">
+                                    {t.moneda}
+                                </td>
+                                <td className="px-4 py-3">
+                                    {t.dias_transito
+                                        ? `${t.dias_transito}d`
+                                        : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-[#A9ABAE]">
+                                    {t.valido_desde}
+                                </td>
+                                <td className="px-4 py-3 text-[#A9ABAE]">
+                                    {t.valido_hasta}
+                                </td>
                                 <td className="px-4 py-3">
                                     <span className="flex w-fit items-center gap-1.5">
-                                        {t.estado === 'Por Vencer' && (
+                                        {t.estado === "Por Vencer" && (
                                             <IconoAlerta className="h-4 w-4 text-amber-600" />
                                         )}
                                         <span
                                             className={`rounded px-2 py-1 text-xs font-medium ${
-                                                ESTADO_ESTILOS[t.estado] ?? 'bg-gray-100 text-gray-600'
+                                                ESTADO_ESTILOS[t.estado] ??
+                                                "bg-gray-100 text-gray-600"
                                             }`}
                                         >
                                             {t.estado}
@@ -198,19 +295,25 @@ export default function Index({ tarifas }) {
                                     </span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
-                                    <Menu as="div" className="relative inline-block text-left">
+                                    <Menu
+                                        as="div"
+                                        className="relative inline-block text-left"
+                                    >
                                         <MenuButton className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A9ABAE] hover:bg-gray-100 hover:text-[#042753]">
                                             <IconoMas className="h-4 w-4" />
                                         </MenuButton>
                                         <MenuItems className="absolute right-0 z-10 mt-1 w-36 origin-top-right rounded-md border border-gray-200 bg-white py-1 shadow-lg focus:outline-none">
                                             <MenuItem>
-                                                <Link
-                                                    href={route('gerente-operativo.tarifas.edit', t.id_tarifa)}
-                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-[#042753] data-[focus]:bg-gray-50"
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        abrirEditarModal(t)
+                                                    }
+                                                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#042753] data-[focus]:bg-gray-50"
                                                 >
                                                     <IconoEditar className="h-4 w-4" />
                                                     Editar
-                                                </Link>
+                                                </button>
                                             </MenuItem>
                                             <MenuItem>
                                                 <button
@@ -230,14 +333,28 @@ export default function Index({ tarifas }) {
 
                         {filtradas.length === 0 && (
                             <tr>
-                                <td colSpan={11} className="px-4 py-6 text-center text-[#A9ABAE]">
-                                    No hay tarifas cargadas para este modo de transporte.
+                                <td
+                                    colSpan={11}
+                                    className="px-4 py-6 text-center text-[#A9ABAE]"
+                                >
+                                    No hay tarifas cargadas para este modo de
+                                    transporte.
                                 </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Modal para Crear y Editar Tarifas */}
+            <ModalTarifa
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                tarifa={tarifaEdicion}
+                proveedores={proveedores}
+                ubicaciones={ubicaciones}
+                onSave={guardarTarifa}
+            />
         </GerenteOperativoLayout>
     );
 }

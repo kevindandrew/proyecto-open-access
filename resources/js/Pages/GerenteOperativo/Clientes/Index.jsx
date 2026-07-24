@@ -251,9 +251,18 @@ function ModalFormCliente({
         id_comercial: "",
         otro: "",
         activo: true,
-        // Contactos Múltiples
-        contactos: [{ nombre_completo: "", numero: "", correo: "" }],
-        // Datos Consignatario
+        archivo_nit: null,
+        archivo_ci: null,
+        contactos: [
+            {
+                nombre_completo: "",
+                numero: "",
+                correo: "",
+            },
+        ],
+
+        // NUEVOS CAMPOS
+        consignatario_nombre: "",
         consignatario_nit: "",
         consignatario_direccion: "",
         consignatario_celular: "",
@@ -281,6 +290,9 @@ function ModalFormCliente({
                 consignatario_direccion: cliente.consignatario_direccion ?? "",
                 consignatario_celular: cliente.consignatario_celular ?? "",
                 consignatario_correo: cliente.consignatario_correo ?? "",
+                archivo_nit: null,
+                archivo_ci: null,
+                consignatario_nombre: cliente.consignatario_nombre ?? "",
             });
         } else {
             reset();
@@ -308,20 +320,25 @@ function ModalFormCliente({
 
     const submit = (e) => {
         e.preventDefault();
+        if (!esEdicion && !data.archivo_nit && !data.archivo_ci) {
+            alert("Debe adjuntar al menos el NIT o el Carnet de Identidad.");
+            return;
+        }
         if (esEdicion) {
             put(
                 route("gerente-operativo.clientes.update", cliente.id_cliente),
                 {
+                    forceFormData: true,
                     onSuccess: () => onClose(),
                 },
             );
         } else {
             post(route("gerente-operativo.clientes.store"), {
+                forceFormData: true,
                 onSuccess: () => onClose(),
             });
         }
     };
-
     const selectClass =
         "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#042753] focus:ring-[#042753] text-sm";
 
@@ -367,7 +384,7 @@ function ModalFormCliente({
                                     onChange={(e) =>
                                         setData("razon_social", e.target.value)
                                     }
-                                    placeholder="Ej: Importadora Andina S.A."
+                                    placeholder="Nombre del proveedor o empresa"
                                 />
                                 <InputError
                                     message={errors.razon_social}
@@ -384,6 +401,7 @@ function ModalFormCliente({
                                     type="text"
                                     className="mt-1 block w-full"
                                     value={data.nit}
+                                    placeholder="Ej: 10101010"
                                     onChange={(e) =>
                                         setData("nit", e.target.value)
                                     }
@@ -463,6 +481,7 @@ function ModalFormCliente({
                                         id="direccion"
                                         type="text"
                                         className="mt-1 block w-full"
+                                        placeholder="Ej: Zona/Avenida/calle/número"
                                         value={data.direccion}
                                         onChange={(e) =>
                                             setData("direccion", e.target.value)
@@ -481,6 +500,7 @@ function ModalFormCliente({
                                 <TextInput
                                     id="direccion"
                                     type="text"
+                                    placeholder="Ej: Zona/Avenida/calle/número"
                                     className="mt-1 block w-full"
                                     value={data.direccion}
                                     onChange={(e) =>
@@ -500,6 +520,7 @@ function ModalFormCliente({
                                     id="email"
                                     type="email"
                                     className="mt-1 block w-full"
+                                    placeholder="nombre@empresa.com"
                                     value={data.email}
                                     onChange={(e) =>
                                         setData("email", e.target.value)
@@ -519,6 +540,7 @@ function ModalFormCliente({
                                     id="correo_factura"
                                     type="email"
                                     className="mt-1 block w-full"
+                                    placeholder="facturas@empresa.com"
                                     value={data.correo_factura}
                                     onChange={(e) =>
                                         setData(
@@ -540,6 +562,7 @@ function ModalFormCliente({
                                     id="condicion_pago"
                                     type="text"
                                     className="mt-1 block w-full"
+                                    placeholder="Ej: Al contado, 30 días, 60 días"
                                     value={data.condicion_pago}
                                     onChange={(e) =>
                                         setData(
@@ -668,6 +691,31 @@ function ModalFormCliente({
                         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                             Datos del Consignatario
                         </h3>
+                        <div>
+                            <InputLabel
+                                htmlFor="consignatario_nombre"
+                                value="Nombre del Consignatario"
+                            />
+
+                            <TextInput
+                                id="consignatario_nombre"
+                                type="text"
+                                className="mt-1 block w-full"
+                                placeholder="Ej: Juan Pérez"
+                                value={data.consignatario_nombre}
+                                onChange={(e) =>
+                                    setData(
+                                        "consignatario_nombre",
+                                        e.target.value,
+                                    )
+                                }
+                            />
+
+                            <InputError
+                                message={errors.consignatario_nombre}
+                                className="mt-1"
+                            />
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <InputLabel
@@ -678,6 +726,7 @@ function ModalFormCliente({
                                     id="consignatario_nit"
                                     type="text"
                                     className="mt-1 block w-full"
+                                    placeholder="Escribir NIT o CI del consignatario"
                                     value={data.consignatario_nit}
                                     onChange={(e) =>
                                         setData(
@@ -696,6 +745,7 @@ function ModalFormCliente({
                                     id="consignatario_celular"
                                     type="text"
                                     className="mt-1 block w-full"
+                                    placeholder="Ej: +591 70000000"
                                     value={data.consignatario_celular}
                                     onChange={(e) =>
                                         setData(
@@ -715,6 +765,7 @@ function ModalFormCliente({
                                 />
                                 <TextInput
                                     id="consignatario_direccion"
+                                    placeholder="Ej: Zona/Avenida/calle/número"
                                     type="text"
                                     className="mt-1 block w-full"
                                     value={data.consignatario_direccion}
@@ -734,6 +785,7 @@ function ModalFormCliente({
                                 <TextInput
                                     id="consignatario_correo"
                                     type="email"
+                                    placeholder="Ej: correo@empresa.com"
                                     className="mt-1 block w-full"
                                     value={data.consignatario_correo}
                                     onChange={(e) =>
@@ -746,7 +798,65 @@ function ModalFormCliente({
                             </div>
                         </div>
                     </div>
+                    {/* =======================================================
+    DOCUMENTOS
+======================================================= */}
 
+                    <div className="space-y-4 pt-3 border-t border-gray-100">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                            Documentación
+                        </h3>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <InputLabel value="Documento del NIT" />
+
+                                <input
+                                    type="file"
+                                    accept=".pdf,image/*"
+                                    className="mt-1 block w-full rounded-md border border-gray-300 text-sm"
+                                    onChange={(e) =>
+                                        setData(
+                                            "archivo_nit",
+                                            e.target.files[0],
+                                        )
+                                    }
+                                />
+
+                                <p className="mt-1 text-xs text-gray-400">
+                                    PDF, JPG o PNG
+                                </p>
+
+                                <InputError message={errors.archivo_nit} />
+                            </div>
+
+                            <div>
+                                <InputLabel value="Carnet de Identidad" />
+
+                                <input
+                                    type="file"
+                                    accept=".pdf,image/*"
+                                    className="mt-1 block w-full rounded-md border border-gray-300 text-sm"
+                                    onChange={(e) =>
+                                        setData("archivo_ci", e.target.files[0])
+                                    }
+                                />
+
+                                <p className="mt-1 text-xs text-gray-400">
+                                    PDF, JPG o PNG
+                                </p>
+
+                                <InputError message={errors.archivo_ci} />
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-3">
+                            <p className="text-xs text-yellow-700">
+                                Debe adjuntar al menos uno de los dos
+                                documentos.
+                            </p>
+                        </div>
+                    </div>
                     {/* SECCIÓN 4: OBSERVACIONES Y ESTADO */}
                     <div className="space-y-4 pt-3 border-t border-gray-100">
                         <div>
@@ -758,6 +868,7 @@ function ModalFormCliente({
                                 id="otro"
                                 type="text"
                                 className="mt-1 block w-full"
+                                placeholder="Ej: Cliente VIP, requiere seguimiento especial, etc."
                                 value={data.otro}
                                 onChange={(e) =>
                                     setData("otro", e.target.value)
@@ -871,7 +982,10 @@ function ModalReasignarComercial({ cliente, show, onClose, comerciales = [] }) {
                             </option>
                         ))}
                     </select>
-                    <InputError message={errors.id_comercial} className="mt-1" />
+                    <InputError
+                        message={errors.id_comercial}
+                        className="mt-1"
+                    />
                 </div>
 
                 <div className="mt-6 flex justify-end gap-3">
@@ -928,7 +1042,6 @@ export default function Index({
         setPaginaActual(1);
     }, [busqueda, filtroEstado, filtroReasignado, itemsPorPagina]);
 
-    // Filtro interactivo
     const clientesFiltrados = useMemo(() => {
         return clientes.filter((cliente) => {
             const coincideTexto =
@@ -945,13 +1058,14 @@ export default function Index({
 
             const coincideReasignado =
                 filtroReasignado === "todos" ||
-                (filtroReasignado === "reasignados" && cliente.fue_reasignado) ||
-                (filtroReasignado === "no_reasignados" && !cliente.fue_reasignado);
+                (filtroReasignado === "reasignados" &&
+                    cliente.fue_reasignado) ||
+                (filtroReasignado === "no_reasignados" &&
+                    !cliente.fue_reasignado);
 
             return coincideTexto && coincideEstado && coincideReasignado;
         });
     }, [clientes, busqueda, filtroEstado, filtroReasignado]);
-
     // Cálculo para paginación
     const totalPaginas =
         Math.ceil(clientesFiltrados.length / itemsPorPagina) || 1;
@@ -1051,7 +1165,7 @@ export default function Index({
                 <div className="relative flex-1">
                     <TextInput
                         type="text"
-                        placeholder="Buscar por nombre, correo o ciudad..."
+                        placeholder="Buscar por nombre, NIT, correo o ciudad..."
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                         className="w-full border-none bg-gray-50 focus:bg-white"
@@ -1336,10 +1450,30 @@ export default function Index({
                                 Anteriores
                             </button>
 
-                            <div className="px-2 text-xs font-semibold text-[#042753]">
-                                {paginaActual} / {totalPaginas}
-                            </div>
+                            <div className="flex items-center gap-1">
+                                {Array.from(
+                                    { length: totalPaginas },
+                                    (_, index) => {
+                                        const pagina = index + 1;
 
+                                        return (
+                                            <button
+                                                key={pagina}
+                                                onClick={() =>
+                                                    setPaginaActual(pagina)
+                                                }
+                                                className={`h-8 w-8 rounded-lg text-xs font-semibold transition ${
+                                                    paginaActual === pagina
+                                                        ? "bg-[#042753] text-white"
+                                                        : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                }`}
+                                            >
+                                                {pagina}
+                                            </button>
+                                        );
+                                    },
+                                )}
+                            </div>
                             <button
                                 onClick={() =>
                                     setPaginaActual((p) =>

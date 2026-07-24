@@ -1,151 +1,183 @@
-import { ESTADO_LABELS } from '@/constants/estados';
-import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
-import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
-import PageHeader from '@/Components/PageHeader';
-import { IconoEmbarquesNav } from '@/Components/NavIcons';
-import { Head, Link, router } from '@inertiajs/react';
+// resources/js/Pages/GerenteOperativo/Embarques/Index.jsx
+import React from "react";
+import GerenteOperativoLayout from "@/Layouts/GerenteOperativoLayout";
+import { Head, Link, router } from "@inertiajs/react";
+import ModoTransporteBadge from "@/Components/ModoTransporteBadge";
 
-export default function Index({ embarques, filtros, operativos, modos, estados }) {
-    const aplicarFiltro = (campo, valor) => {
+export default function Index({
+    embarques,
+    filtros,
+    operativos,
+    modos,
+    estados,
+}) {
+    const handleFilterChange = (key, value) => {
         router.get(
-            route('gerente-operativo.embarques.index'),
-            { ...filtros, [campo]: valor || undefined },
+            route("gerente-operativo.embarques.index"),
+            { ...filtros, [key]: value },
             { preserveState: true, replace: true },
         );
     };
 
-    const selectClass =
-        'rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]';
-
     return (
-        <GerenteOperativoLayout header="Embarques">
-            <Head title="Embarques" />
+        <GerenteOperativoLayout header="Gestión de Embarques">
+            <Head title="Embarques Operativos" />
 
-            <PageHeader
-                icon={IconoEmbarquesNav}
-                title="Embarques"
-                subtitle="Seguimiento de embarques en curso y su estado actual"
-            />
+            {/* Barra de Filtros */}
+            <div className="mb-6 grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-3">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600">
+                        Modo Transportes
+                    </label>
+                    <select
+                        className="mt-1 w-full rounded-md border-gray-300 text-xs focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                        value={filtros.modo_transporte || ""}
+                        onChange={(e) =>
+                            handleFilterChange(
+                                "modo_transporte",
+                                e.target.value,
+                            )
+                        }
+                    >
+                        <option value="">Todos los modos</option>
+                        {modos.map((m) => (
+                            <option key={m} value={m}>
+                                {m}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-            <div className="mb-4 flex flex-wrap gap-3">
-                <select
-                    className={selectClass}
-                    value={filtros.id_operativo ?? ''}
-                    onChange={(e) =>
-                        aplicarFiltro('id_operativo', e.target.value)
-                    }
-                >
-                    <option value="">Todos los operativos</option>
-                    {operativos.map((op) => (
-                        <option key={op.id_empleado} value={op.id_empleado}>
-                            {op.nombre_completo}
-                        </option>
-                    ))}
-                </select>
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600">
+                        Operativo Responsable
+                    </label>
+                    <select
+                        className="mt-1 w-full rounded-md border-gray-300 text-xs focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                        value={filtros.id_operativo || ""}
+                        onChange={(e) =>
+                            handleFilterChange("id_operativo", e.target.value)
+                        }
+                    >
+                        <option value="">Todos los operativos</option>
+                        {operativos.map((op) => (
+                            <option key={op.id_empleado} value={op.id_empleado}>
+                                {op.nombre_completo}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-                <select
-                    className={selectClass}
-                    value={filtros.modo_transporte ?? ''}
-                    onChange={(e) =>
-                        aplicarFiltro('modo_transporte', e.target.value)
-                    }
-                >
-                    <option value="">Todos los modos</option>
-                    {modos.map((modo) => (
-                        <option key={modo} value={modo}>
-                            {modo}
-                        </option>
-                    ))}
-                </select>
-
-                <select
-                    className={selectClass}
-                    value={filtros.estado_embarque ?? ''}
-                    onChange={(e) =>
-                        aplicarFiltro('estado_embarque', e.target.value)
-                    }
-                >
-                    <option value="">Todos los estados</option>
-                    {estados.map((estado) => (
-                        <option key={estado} value={estado}>
-                            {ESTADO_LABELS[estado] ?? estado}
-                        </option>
-                    ))}
-                </select>
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600">
+                        Estado del Embarque
+                    </label>
+                    <select
+                        className="mt-1 w-full rounded-md border-gray-300 text-xs focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                        value={filtros.estado_embarque || ""}
+                        onChange={(e) =>
+                            handleFilterChange(
+                                "estado_embarque",
+                                e.target.value,
+                            )
+                        }
+                    >
+                        <option value="">Todos los estados</option>
+                        {estados.map((est) => (
+                            <option key={est} value={est}>
+                                {est}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
+            {/* Tabla de Embarques */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-[#042753] text-white">
                         <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
-                                Nro. File
+                            <th className="px-4 py-3 text-left font-semibold">
+                                Nro. FILE
                             </th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
-                                Cliente
+                            <th className="px-4 py-3 text-left font-semibold">
+                                Cliente / Razón Social
                             </th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
-                                Operativo
-                            </th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                            <th className="px-4 py-3 text-left font-semibold">
                                 Modo
                             </th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                            <th className="px-4 py-3 text-left font-semibold">
+                                Operativo Asignado
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold">
                                 ETA
                             </th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                            <th className="px-4 py-3 text-left font-semibold">
                                 Estado
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold">
+                                Acción
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {embarques.map((embarque) => (
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                        {embarques.map((emb) => (
                             <tr
-                                key={embarque.id_embarque}
-                                onClick={() =>
-                                    router.visit(
-                                        route(
-                                            'gerente-operativo.embarques.show',
-                                            embarque.id_embarque,
-                                        ),
-                                    )
-                                }
-                                className="cursor-pointer transition-colors hover:bg-[#71BFA6]/10"
+                                key={emb.id_embarque}
+                                className="hover:bg-gray-50"
                             >
-                                <td className="px-4 py-3 font-medium text-[#042753]">
-                                    {embarque.numero_file}
+                                <td className="px-4 py-3 font-mono font-bold text-[#042753]">
+                                    #{emb.numero_file}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-gray-800">
+                                    {emb.cliente || "—"}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {embarque.cliente}
+                                    <ModoTransporteBadge
+                                        modo={emb.modo_transporte}
+                                    />
                                 </td>
-                                <td className="px-4 py-3">
-                                    {embarque.operativo ?? (
-                                        <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
-                                            Sin asignar
+                                <td className="px-4 py-3 text-gray-600">
+                                    {emb.operativo ? (
+                                        <span className="inline-flex items-center gap-1 font-medium text-gray-800">
+                                            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                            {emb.operativo}
+                                        </span>
+                                    ) : (
+                                        <span className="italic text-amber-600">
+                                            Sin Asignar
                                         </span>
                                     )}
                                 </td>
-                                <td className="px-4 py-3">
-                                    <ModoTransporteBadge modo={embarque.modo_transporte} />
+                                <td className="px-4 py-3 text-gray-600">
+                                    {emb.eta || "—"}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {embarque.eta ?? '—'}
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 uppercase border border-slate-200">
+                                        {emb.estado_embarque}
+                                    </span>
                                 </td>
-                                <td className="px-4 py-3">
-                                    {ESTADO_LABELS[embarque.estado_embarque] ??
-                                        embarque.estado_embarque}
+                                <td className="px-4 py-3 text-center">
+                                    <Link
+                                        href={route(
+                                            "gerente-operativo.embarques.show",
+                                            emb.id_embarque,
+                                        )}
+                                        className="rounded-md bg-[#71BFA6] px-3 py-1.5 font-bold text-[#042753] hover:opacity-80 transition-all shadow-sm"
+                                    >
+                                        Ver Detalle
+                                    </Link>
                                 </td>
                             </tr>
                         ))}
-
                         {embarques.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={6}
-                                    className="px-4 py-6 text-center text-[#A9ABAE]"
+                                    colSpan={7}
+                                    className="py-8 text-center text-gray-400"
                                 >
-                                    No hay embarques que coincidan con los
-                                    filtros.
+                                    No se encontraron embarques registrados con
+                                    los filtros seleccionados.
                                 </td>
                             </tr>
                         )}

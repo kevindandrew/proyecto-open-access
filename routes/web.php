@@ -103,7 +103,8 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::post('cotizaciones/{cotizacion}/convertir', [GerenteOperativoCotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
 
         Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
-
+Route::post('embarques/{embarque}/contenedores', [EmbarqueController::class, 'storeContenedor'])->name('embarques.contenedores.store');
+    Route::put('contenedores/{contenedor}', [EmbarqueController::class, 'updateContenedor'])->name('contenedores.update');
         Route::prefix('configuracion')->name('configuracion.')->group(function () {
             Route::resource('proveedores', ProveedorController::class)
                 ->parameters(['proveedores' => 'proveedor'])
