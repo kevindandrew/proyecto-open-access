@@ -4,7 +4,10 @@ use App\Http\Controllers\Comercial\ClienteController;
 use App\Http\Controllers\Comercial\CotizacionController;
 use App\Http\Controllers\Comercial\EmbarqueController as ComercialEmbarqueController;
 use App\Http\Controllers\ComercialController;
+use App\Http\Controllers\GerenteComercial\ClienteController as GerenteComercialClienteController;
+use App\Http\Controllers\GerenteComercial\CotizacionController as GerenteComercialCotizacionController;
 use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
+use App\Http\Controllers\GerenteOperativo\ConceptoCostoExtraController;
 use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperativoCotizacionController;
 use App\Http\Controllers\GerenteOperativo\EmbarqueController;
 use App\Http\Controllers\GerenteOperativo\GastoDestinoController;
@@ -12,6 +15,7 @@ use App\Http\Controllers\GerenteOperativo\PersonalController;
 use App\Http\Controllers\GerenteOperativo\ProveedorController;
 use App\Http\Controllers\GerenteOperativo\PuertoController;
 use App\Http\Controllers\GerenteOperativo\ReporteController;
+use App\Http\Controllers\GerenteOperativo\SolicitudTarifaController;
 use App\Http\Controllers\GerenteOperativo\TarifaController;
 use App\Http\Controllers\GerenteOperativoController;
 use App\Http\Controllers\Operativo\EmbarqueController as OperativoEmbarqueController;
@@ -34,11 +38,22 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// Placeholder dashboards for roles that don't have a real screen built yet.
-// They exist so the post-login role redirect has somewhere valid to land.
 Route::middleware(['auth', 'verified', 'role.empleado:Gerente Comercial'])
-    ->get('/gerente-comercial', fn () => Inertia::render('GerenteComercial/Index'))
-    ->name('gerente-comercial.dashboard');
+    ->prefix('gerente-comercial')
+    ->name('gerente-comercial.')
+    ->group(function () {
+        Route::get('/', fn () => Inertia::render('GerenteComercial/Index'))->name('dashboard');
+
+        Route::get('clientes/buscar', [GerenteComercialClienteController::class, 'buscar'])->name('clientes.buscar');
+
+        Route::get('cotizaciones', [GerenteComercialCotizacionController::class, 'index'])->name('cotizaciones.index');
+        Route::get('cotizaciones/nueva', [GerenteComercialCotizacionController::class, 'create'])->name('cotizaciones.create');
+        Route::get('cotizaciones/tarifas-disponibles', [GerenteComercialCotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
+        Route::post('cotizaciones', [GerenteComercialCotizacionController::class, 'store'])->name('cotizaciones.store');
+        Route::get('cotizaciones/{cotizacion}', [GerenteComercialCotizacionController::class, 'show'])->name('cotizaciones.show');
+        Route::patch('cotizaciones/{cotizacion}/estado', [GerenteComercialCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
+        Route::get('cotizaciones/{cotizacion}/pdf', [GerenteComercialCotizacionController::class, 'pdf'])->name('cotizaciones.pdf');
+    });
 
 Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
     ->prefix('comercial')
@@ -56,6 +71,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
         Route::get('cotizaciones/{cotizacion}', [CotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [CotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
         Route::post('cotizaciones/{cotizacion}/convertir', [CotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
+        Route::get('cotizaciones/{cotizacion}/pdf', [CotizacionController::class, 'pdf'])->name('cotizaciones.pdf');
 
         Route::get('embarques', [ComercialEmbarqueController::class, 'index'])->name('embarques.index');
         Route::get('embarques/{embarque}', [ComercialEmbarqueController::class, 'show'])->name('embarques.show');
@@ -101,14 +117,21 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [GerenteOperativoCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
         Route::post('cotizaciones/{cotizacion}/convertir', [GerenteOperativoCotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
+        Route::get('cotizaciones/{cotizacion}/pdf', [GerenteOperativoCotizacionController::class, 'pdf'])->name('cotizaciones.pdf');
 
         Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
+
+        Route::get('solicitudes-tarifa', [SolicitudTarifaController::class, 'index'])->name('solicitudes-tarifa.index');
+        Route::patch('solicitudes-tarifa/{solicitud}/atender', [SolicitudTarifaController::class, 'atender'])->name('solicitudes-tarifa.atender');
 
         Route::prefix('configuracion')->name('configuracion.')->group(function () {
             Route::resource('proveedores', ProveedorController::class)
                 ->parameters(['proveedores' => 'proveedor'])
                 ->except(['show']);
             Route::resource('puertos', PuertoController::class)->except(['show']);
+            Route::resource('costos-extra', ConceptoCostoExtraController::class)
+                ->parameters(['costos-extra' => 'concepto'])
+                ->only(['index', 'store', 'update', 'destroy']);
         });
 
         Route::get('embarques', [EmbarqueController::class, 'index'])->name('embarques.index');

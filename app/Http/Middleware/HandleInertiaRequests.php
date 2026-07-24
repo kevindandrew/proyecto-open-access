@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SolicitudTarifa;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -39,6 +40,9 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'credenciales' => fn () => $request->session()->get('credenciales'),
             ],
+            'solicitudesTarifaPendientes' => fn () => $request->user()?->empleado?->rol?->nombre_rol === 'Gerente Operativo'
+                ? SolicitudTarifa::where('estado', 'Pendiente')->count()
+                : 0,
         ];
     }
 }

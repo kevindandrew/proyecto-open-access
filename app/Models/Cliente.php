@@ -21,6 +21,7 @@ class Cliente extends Model
         'razon_social',
         'nit',
         'id_ciudad',
+        'ciudad_personalizada',
         'direccion',
         'persona_contacto',
         'telefono1',
@@ -30,6 +31,11 @@ class Cliente extends Model
         'condicion_pago',
         'otro',
         'reasignado_en',
+        'consignatario_nombre',
+        'consignatario_nit',
+        'consignatario_direccion',
+        'consignatario_celular',
+        'consignatario_correo',
     ];
 
     protected function casts(): array

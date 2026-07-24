@@ -9,6 +9,7 @@ export default function CotizacionAcciones({
     rutaCambiarEstado,
     rutaConvertir,
     rutaVerEmbarque,
+    rutaPdf,
     proveedoresAgenteOrigen,
     proveedoresTransporte,
 }) {
@@ -47,7 +48,18 @@ export default function CotizacionAcciones({
                     </>
                 )}
 
-                {cotizacion.tiene_embarque ? (
+                {rutaPdf && (
+                    <a
+                        href={route(rutaPdf, cotizacion.id_cotizacion)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md border border-[#042753] px-4 py-2 text-sm font-semibold text-[#042753] hover:bg-[#042753]/5"
+                    >
+                        Descargar PDF
+                    </a>
+                )}
+
+                {rutaConvertir && (cotizacion.tiene_embarque ? (
                     <Link
                         href={route(rutaVerEmbarque, cotizacion.embarque_id)}
                         className="rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
@@ -62,17 +74,19 @@ export default function CotizacionAcciones({
                     >
                         Convertir en Embarque
                     </button>
-                )}
+                ))}
             </div>
 
-            <ConvertirEnEmbarqueModal
-                open={modalAbierto}
-                onClose={() => setModalAbierto(false)}
-                cotizacion={cotizacion}
-                rutaConvertir={rutaConvertir}
-                proveedoresAgenteOrigen={proveedoresAgenteOrigen}
-                proveedoresTransporte={proveedoresTransporte}
-            />
+            {rutaConvertir && (
+                <ConvertirEnEmbarqueModal
+                    open={modalAbierto}
+                    onClose={() => setModalAbierto(false)}
+                    cotizacion={cotizacion}
+                    rutaConvertir={rutaConvertir}
+                    proveedoresAgenteOrigen={proveedoresAgenteOrigen}
+                    proveedoresTransporte={proveedoresTransporte}
+                />
+            )}
 
             <MotivoRechazoModal
                 open={modalRechazoAbierto}

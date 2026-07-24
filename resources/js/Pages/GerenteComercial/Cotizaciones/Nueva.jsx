@@ -1,20 +1,21 @@
-import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import GerenteComercialLayout from '@/Layouts/GerenteComercialLayout';
 import NuevaCotizacionWizard from '@/Components/Cotizaciones/NuevaCotizacionWizard';
 import { Head } from '@inertiajs/react';
 
 export default function Nueva({ puertos, conceptosCostoExtra, origen }) {
     return (
-        <GerenteOperativoLayout header="Nueva Cotización">
+        <GerenteComercialLayout header="Nueva Cotización">
             <Head title="Nueva Cotización" />
 
             <NuevaCotizacionWizard
                 puertos={puertos}
                 conceptosCostoExtra={conceptosCostoExtra}
                 origen={origen}
-                rutaBuscarCliente="gerente-operativo.clientes.buscar"
-                rutaTarifasDisponibles="gerente-operativo.cotizaciones.tarifas-disponibles"
-                rutaStore="gerente-operativo.cotizaciones.store"
+                permiteTarifaInexistente
+                rutaBuscarCliente="gerente-comercial.clientes.buscar"
+                rutaTarifasDisponibles="gerente-comercial.cotizaciones.tarifas-disponibles"
+                rutaStore="gerente-comercial.cotizaciones.store"
             />
-        </GerenteOperativoLayout>
+        </GerenteComercialLayout>
     );
 }

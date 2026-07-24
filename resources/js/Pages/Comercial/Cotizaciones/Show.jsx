@@ -20,6 +20,7 @@ export default function Show({
                 rutaCambiarEstado="comercial.cotizaciones.cambiar-estado"
                 rutaConvertir="comercial.cotizaciones.convertir"
                 rutaVerEmbarque="comercial.embarques.show"
+                rutaPdf="comercial.cotizaciones.pdf"
                 proveedoresAgenteOrigen={proveedoresAgenteOrigen}
                 proveedoresTransporte={proveedoresTransporte}
             />
@@ -29,6 +30,7 @@ export default function Show({
                 contenedores={contenedores}
                 detalle={detalle}
                 total={total}
+                rutaCrearTerrestre="comercial.cotizaciones.create"
             />
         </ComercialLayout>
     );

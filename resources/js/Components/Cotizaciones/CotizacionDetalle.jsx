@@ -1,5 +1,6 @@
 import AyudaTermino from '@/Components/AyudaTermino';
 import { INCOTERMS_INFO, TIPO_SERVICIO_INFO } from '@/constants/glosario';
+import { Link } from '@inertiajs/react';
 
 function Campo({ label, value, info }) {
     return (
@@ -13,13 +14,26 @@ function Campo({ label, value, info }) {
     );
 }
 
-export default function CotizacionDetalle({ cotizacion, contenedores, detalle, total }) {
+export default function CotizacionDetalle({ cotizacion, contenedores, detalle, total, rutaCrearTerrestre }) {
+    const puedeCrearTerrestre =
+        rutaCrearTerrestre && cotizacion.modo_transporte === 'Maritimo' && cotizacion.estado === 'Aceptado';
+
     return (
         <div className="space-y-6">
             <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-4 text-sm font-semibold text-[#042753]">
-                    Cliente y Ruta
-                </h3>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-[#042753]">
+                        Cliente y Ruta
+                    </h3>
+                    {puedeCrearTerrestre && (
+                        <Link
+                            href={route(rutaCrearTerrestre, { desde_cotizacion: cotizacion.id_cotizacion })}
+                            className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
+                        >
+                            + Crear Cotización Terrestre desde este puerto
+                        </Link>
+                    )}
+                </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {cotizacion.comercial && (
                         <Campo label="Comercial" value={cotizacion.comercial} />

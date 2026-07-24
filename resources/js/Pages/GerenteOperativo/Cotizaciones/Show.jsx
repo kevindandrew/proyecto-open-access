@@ -20,6 +20,7 @@ export default function Show({
                 rutaCambiarEstado="gerente-operativo.cotizaciones.cambiar-estado"
                 rutaConvertir="gerente-operativo.cotizaciones.convertir"
                 rutaVerEmbarque="gerente-operativo.embarques.show"
+                rutaPdf="gerente-operativo.cotizaciones.pdf"
                 proveedoresAgenteOrigen={proveedoresAgenteOrigen}
                 proveedoresTransporte={proveedoresTransporte}
             />
@@ -29,6 +30,7 @@ export default function Show({
                 contenedores={contenedores}
                 detalle={detalle}
                 total={total}
+                rutaCrearTerrestre="gerente-operativo.cotizaciones.create"
             />
         </GerenteOperativoLayout>
     );

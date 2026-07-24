@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Comercial;
+namespace App\Http\Controllers\GerenteComercial;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
@@ -8,10 +8,9 @@ use App\Models\ConceptoCostoExtra;
 use App\Models\Cotizacion;
 use App\Models\CotizacionContenedor;
 use App\Models\CotizacionDetalle;
-use App\Models\Embarque;
+use App\Models\Empleado;
 use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
-use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
 use App\Support\SolicitudTarifaRegistrador;
@@ -21,20 +20,44 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class CotizacionController extends Controller
 {
+    public function index(): Response
+    {
+        $cotizaciones = Cotizacion::with(['cliente', 'comercial', 'pol', 'pod'])
+            ->withSum('detalle as total', 'costo_total')
+            ->orderByDesc('fecha_emision')
+            ->get()
+            ->map(fn (Cotizacion $cotizacion) => [
+                'id_cotizacion' => $cotizacion->id_cotizacion,
+                'numero_referencia' => $cotizacion->numero_referencia,
+                'cliente' => $cotizacion->cliente?->razon_social,
+                'comercial' => $cotizacion->comercial?->nombre_completo,
+                'modo_transporte' => $cotizacion->modo_transporte,
+                'pol' => $cotizacion->pol?->nombre,
+                'pod' => $cotizacion->pod?->nombre,
+                'fecha_emision' => $cotizacion->fecha_emision->toDateString(),
+                'fecha_validez' => $cotizacion->fecha_validez->toDateString(),
+                'total' => $cotizacion->total,
+                'estado' => $cotizacion->estado,
+            ]);
+
+        return Inertia::render('GerenteComercial/Cotizaciones/Index', [
+            'cotizaciones' => $cotizaciones,
+        ]);
+    }
+
     public function create(Request $request): Response
     {
-        return Inertia::render('Comercial/Cotizaciones/Nueva', [
+        return Inertia::render('GerenteComercial/Cotizaciones/Nueva', [
             'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
             'conceptosCostoExtra' => ConceptoCostoExtra::where('activo', true)->orderBy('nombre')->get(['id_concepto', 'nombre']),
             'origen' => PrefillCotizacionTerrestre::desde($request->integer('desde_cotizacion') ?: null),
@@ -55,8 +78,6 @@ class CotizacionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $comercial = Auth::user()->empleado;
-
         $data = $request->validate([
             'id_cliente' => ['required', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
@@ -85,11 +106,10 @@ class CotizacionController extends Controller
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
         ]);
 
-        $clientePertenece = Cliente::where('id_cliente', $data['id_cliente'])
-            ->where('id_comercial', $comercial->id_empleado)
-            ->exists();
-
-        abort_unless($clientePertenece, 403);
+        $cliente = Cliente::findOrFail($data['id_cliente']);
+        $comercialAsignado = $cliente->id_comercial
+            ? Empleado::find($cliente->id_comercial)
+            : Auth::user()->empleado;
 
         $filtrosRuta = [
             'modo_transporte' => $data['modo_transporte'],
@@ -99,18 +119,14 @@ class CotizacionController extends Controller
         ];
 
         if (! TarifaLookup::existeParaRuta($filtrosRuta)) {
-            SolicitudTarifaRegistrador::registrar($filtrosRuta, $data['id_cliente'], $comercial->id_empleado);
-
-            throw ValidationException::withMessages([
-                'tarifa' => 'No existe una tarifa cargada para esta ruta. Se avisó a Gerente Operativo para que la cree; una vez cargada vas a poder crear esta cotización. Solo Gerente Comercial puede crear cotizaciones sin una tarifa existente.',
-            ]);
+            SolicitudTarifaRegistrador::registrar($filtrosRuta, $data['id_cliente'], $comercialAsignado->id_empleado);
         }
 
-        $cotizacion = DB::transaction(function () use ($data, $comercial) {
+        $cotizacion = DB::transaction(function () use ($data, $comercialAsignado) {
             $cotizacion = Cotizacion::create([
-                'numero_referencia' => GeneradorNumeroReferencia::generar($comercial),
+                'numero_referencia' => GeneradorNumeroReferencia::generar($comercialAsignado),
                 'id_cliente' => $data['id_cliente'],
-                'id_comercial' => $comercial->id_empleado,
+                'id_comercial' => $comercialAsignado->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
                 'tipo_servicio' => in_array($data['modo_transporte'], ['Maritimo', 'Terrestre'], true) ? ($data['tipo_servicio'] ?? null) : null,
                 'incoterm' => $data['incoterm'] ?? null,
@@ -148,21 +164,20 @@ class CotizacionController extends Controller
         });
 
         return redirect()
-            ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
+            ->route('gerente-comercial.cotizaciones.show', $cotizacion->id_cotizacion)
             ->with('success', 'Cotización creada correctamente.');
     }
 
     public function show(Cotizacion $cotizacion): Response
     {
-        $this->autorizar($cotizacion);
+        $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
 
-        $cotizacion->load(['cliente', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
-
-        return Inertia::render('Comercial/Cotizaciones/Show', [
+        return Inertia::render('GerenteComercial/Cotizaciones/Show', [
             'cotizacion' => [
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'numero_referencia' => $cotizacion->numero_referencia,
                 'cliente' => $cotizacion->cliente?->razon_social,
+                'comercial' => $cotizacion->comercial?->nombre_completo,
                 'modo_transporte' => $cotizacion->modo_transporte,
                 'tipo_servicio' => $cotizacion->tipo_servicio,
                 'incoterm' => $cotizacion->incoterm,
@@ -206,8 +221,6 @@ class CotizacionController extends Controller
 
     public function pdf(Cotizacion $cotizacion): HttpResponse
     {
-        $this->autorizar($cotizacion);
-
         $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle']);
 
         $pdf = Pdf::loadView('pdf.cotizacion', [
@@ -253,8 +266,6 @@ class CotizacionController extends Controller
 
     public function cambiarEstado(Request $request, Cotizacion $cotizacion): RedirectResponse
     {
-        $this->autorizar($cotizacion);
-
         $data = $request->validate([
             'estado' => ['required', Rule::in(['Aceptado', 'Rechazado'])],
             'motivo' => ['nullable', 'string', 'max:500'],
@@ -262,7 +273,7 @@ class CotizacionController extends Controller
 
         if ($cotizacion->estado !== 'Cotizado') {
             return redirect()
-                ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
+                ->route('gerente-comercial.cotizaciones.show', $cotizacion->id_cotizacion)
                 ->with('error', 'Esta cotización ya no está en estado Cotizado.');
         }
 
@@ -272,74 +283,7 @@ class CotizacionController extends Controller
         ]);
 
         return redirect()
-            ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
+            ->route('gerente-comercial.cotizaciones.show', $cotizacion->id_cotizacion)
             ->with('success', "Cotización marcada como {$data['estado']}.");
     }
-
-    public function convertirEnEmbarque(Request $request, Cotizacion $cotizacion): RedirectResponse
-    {
-        $this->autorizar($cotizacion);
-
-        if ($cotizacion->estado !== 'Aceptado') {
-            return redirect()
-                ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
-                ->with('error', 'Solo se puede convertir una cotización Aceptada.');
-        }
-
-        if ($cotizacion->embarques()->exists()) {
-            return redirect()
-                ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
-                ->with('error', 'Esta cotización ya fue convertida en un embarque.');
-        }
-
-        $data = $request->validate([
-            'consignatario' => ['nullable', 'string', 'max:200'],
-            'id_agente_origen' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
-            'id_naviera_aerolinea' => [
-                'nullable',
-                'integer',
-                Rule::exists('proveedores', 'id_proveedor')
-                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($cotizacion->modo_transporte))),
-            ],
-        ]);
-
-        $embarque = DB::transaction(function () use ($data, $cotizacion) {
-            $embarque = Embarque::create([
-                'numero_file' => GeneradorNumeroFile::generar(),
-                'id_cotizacion' => $cotizacion->id_cotizacion,
-                'id_cliente' => $cotizacion->id_cliente,
-                'consignatario' => $data['consignatario'] ?? null,
-                'id_comercial' => $cotizacion->id_comercial,
-                'id_operativo' => null,
-                'id_agente_origen' => $data['id_agente_origen'] ?? null,
-                'id_naviera_aerolinea' => $data['id_naviera_aerolinea'] ?? null,
-                'modo_transporte' => $cotizacion->modo_transporte,
-                'id_pol' => $cotizacion->id_pol,
-                'id_pod' => $cotizacion->id_pod,
-                'destino_final' => $cotizacion->destino_final,
-                'estado_embarque' => 'Confirmado_Origen',
-            ]);
-
-            $embarque->seguimientos()->create([
-                'fecha' => now(),
-                'estado' => 'Confirmado_Origen',
-                'comentario' => 'Embarque creado desde cotización aceptada',
-                'id_empleado_responsable' => $cotizacion->id_comercial,
-            ]);
-
-            return $embarque;
-        });
-
-        return redirect()
-            ->route('comercial.embarques.show', $embarque->id_embarque)
-            ->with('success', 'Embarque creado correctamente a partir de la cotización.');
-    }
-
-    private function autorizar(Cotizacion $cotizacion): void
-    {
-        $idComercial = Auth::user()->empleado->id_empleado;
-
-        abort_unless($cotizacion->id_comercial === $idComercial, 403);
-    }
-
 }

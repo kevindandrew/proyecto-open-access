@@ -1,13 +1,13 @@
 import AyudaTermino from '@/Components/AyudaTermino';
 import { INCOTERMS_INFO, TIPO_CONTENEDOR_INFO } from '@/constants/glosario';
 import { MONEDAS } from '@/constants/monedas';
+import { TIPOS_CONTENEDOR } from '@/constants/tiposContenedor';
 import { useForm } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 
 const PASOS = ['Cliente', 'Ruta y Transporte', 'Carga', 'Costos y Resumen'];
 const INCOTERMS = ['FOB', 'EXW', 'CIF', 'CFR', 'DDP'];
-const TIPOS_CONTENEDOR = ['20 DRY', '40 DRY', '40 HC'];
 
 const TIPO_PUERTO_POR_MODO = {
     Maritimo: 'Puerto',
@@ -185,7 +185,7 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                             ...data,
                             modo_transporte: e.target.value,
                             tipo_servicio:
-                                e.target.value === 'Maritimo'
+                                e.target.value === 'Maritimo' || e.target.value === 'Terrestre'
                                     ? data.tipo_servicio
                                     : '',
                             id_pol: '',
@@ -201,7 +201,7 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                 <CampoError mensaje={errors.modo_transporte} />
             </div>
 
-            {data.modo_transporte === 'Maritimo' && (
+            {(data.modo_transporte === 'Maritimo' || data.modo_transporte === 'Terrestre') && (
                 <div>
                     <label className={labelClass}>Tipo de Servicio</label>
                     <select
@@ -481,13 +481,7 @@ function PasoCarga({ data, setData, errors, clearErrors }) {
     );
 }
 
-const CAMPO_COSTO_POR_CONTENEDOR = {
-    '20 DRY': 'costo_20',
-    '40 DRY': 'costo_40',
-    '40 HC': 'costo_40hc',
-};
-
-function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles }) {
+function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles, permiteTarifaInexistente }) {
     const [tarifas, setTarifas] = useState([]);
     const [cargando, setCargando] = useState(false);
     const [consultado, setConsultado] = useState(false);
@@ -540,8 +534,10 @@ function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles }) {
 
             {!cargando && consultado && tarifas.length === 0 && (
                 <p className="text-sm text-[#A9ABAE]">
-                    No hay tarifas vigentes cargadas para esta ruta. Podés
-                    completar los costos manualmente abajo.
+                    No hay ninguna tarifa cargada para esta ruta.{' '}
+                    {permiteTarifaInexistente
+                        ? 'Podés completar los costos manualmente abajo — como Gerente Comercial, se avisará a Gerente Operativo para que la cargue.'
+                        : 'No vas a poder crear esta cotización hasta que Gerente Operativo cargue una tarifa para esta ruta. Al confirmar, se le va a avisar automáticamente.'}
                 </p>
             )}
 
@@ -563,13 +559,25 @@ function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles }) {
                                     ` · +${tarifa.cargos_adicionales.length} cargo(s) adicional(es)`}
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => onAplicar(tarifa)}
-                            className="flex-shrink-0 rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
-                        >
-                            Usar esta tarifa
-                        </button>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                            {tarifa.estado === 'Vencida' && (
+                                <span className="rounded px-2 py-1 text-xs font-semibold bg-red-100 text-red-700">
+                                    Vencida
+                                </span>
+                            )}
+                            {tarifa.estado === 'Por Vencer' && (
+                                <span className="rounded px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-700">
+                                    Por Vencer
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => onAplicar(tarifa)}
+                                className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
+                            >
+                                Usar esta tarifa
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -577,43 +585,154 @@ function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles }) {
     );
 }
 
-function PasoCostos({ data, setData, errors, clearErrors, rutaTarifasDisponibles }) {
+function CostosExtraOpcionales({ data, setData, conceptosCostoExtra }) {
+    const [idConcepto, setIdConcepto] = useState('');
+    const [monto, setMonto] = useState('');
+    const [moneda, setMoneda] = useState('USD');
+
+    if (!conceptosCostoExtra || conceptosCostoExtra.length === 0) {
+        return null;
+    }
+
+    const agregar = () => {
+        const concepto = conceptosCostoExtra.find(
+            (c) => String(c.id_concepto) === String(idConcepto),
+        );
+
+        if (!concepto || !monto) {
+            return;
+        }
+
+        setData({
+            ...data,
+            detalle: [
+                ...data.detalle,
+                {
+                    descripcion: concepto.nombre,
+                    tipo_tarifa_unidad: 'Flat',
+                    costo_unitario: monto,
+                    base_calculo: 1,
+                    moneda,
+                },
+            ],
+        });
+        setIdConcepto('');
+        setMonto('');
+    };
+
+    return (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <label className={labelClass}>Costos Extras Opcionales</label>
+            <p className="mb-2 text-xs text-[#A9ABAE]">
+                Cargos adicionales elegidos de una lista predefinida (mantenida por Gerente
+                Operativo). Vos ingresás el monto.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+                <select
+                    className="rounded-md border-gray-300 text-sm"
+                    value={idConcepto}
+                    onChange={(e) => setIdConcepto(e.target.value)}
+                >
+                    <option value="">Selecciona un concepto</option>
+                    {conceptosCostoExtra.map((c) => (
+                        <option key={c.id_concepto} value={c.id_concepto}>
+                            {c.nombre}
+                        </option>
+                    ))}
+                </select>
+                <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Monto"
+                    className="w-28 rounded-md border-gray-300 text-sm"
+                    value={monto}
+                    onChange={(e) => setMonto(e.target.value)}
+                />
+                <select
+                    className="w-24 rounded-md border-gray-300 text-sm"
+                    value={moneda}
+                    onChange={(e) => setMoneda(e.target.value)}
+                >
+                    {MONEDAS.map((m) => (
+                        <option key={m.valor} value={m.valor}>
+                            {m.valor}
+                        </option>
+                    ))}
+                </select>
+                <button
+                    type="button"
+                    onClick={agregar}
+                    disabled={!idConcepto || !monto}
+                    className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
+                >
+                    + Agregar
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function PasoCostos({
+    data,
+    setData,
+    errors,
+    clearErrors,
+    rutaTarifasDisponibles,
+    conceptosCostoExtra,
+    permiteTarifaInexistente,
+}) {
     const aplicarTarifa = (tarifa) => {
         const lineasNuevas = [];
 
         if (data.tipo_servicio === 'FCL' && data.contenedores.length > 0) {
             data.contenedores.forEach((contenedor) => {
-                const campo = CAMPO_COSTO_POR_CONTENEDOR[contenedor.tipo_contenedor];
-                const costo = campo ? tarifa[campo] : null;
+                const costoFila = tarifa.costos.find(
+                    (c) =>
+                        c.tipo_servicio === 'FCL' &&
+                        c.tipo_contenedor === contenedor.tipo_contenedor,
+                );
 
-                if (costo) {
+                if (costoFila) {
                     lineasNuevas.push({
                         descripcion: `Flete - ${contenedor.tipo_contenedor}`,
                         tipo_tarifa_unidad: 'Per Container',
-                        costo_unitario: costo,
+                        costo_unitario: costoFila.costo,
                         base_calculo: contenedor.cantidad,
-                        moneda: tarifa.moneda,
+                        moneda: costoFila.moneda,
                     });
                 }
             });
-        } else if (data.tipo_servicio === 'LCL' && tarifa.costo_cbm) {
-            lineasNuevas.push({
-                descripcion: 'Flete - Carga Consolidada (LCL)',
-                tipo_tarifa_unidad: 'Per CBM',
-                costo_unitario: tarifa.costo_cbm,
-                base_calculo: data.volumen_cbm || 1,
-                moneda: tarifa.moneda,
-            });
+
+            if (tarifa.costo_tramite) {
+                lineasNuevas.push({
+                    descripcion: 'Trámite',
+                    tipo_tarifa_unidad: 'Flat',
+                    costo_unitario: tarifa.costo_tramite,
+                    base_calculo: 1,
+                    moneda: tarifa.moneda_tramite,
+                });
+            }
+        } else if (data.tipo_servicio === 'LCL') {
+            tarifa.costos
+                .filter((c) => c.tipo_servicio === 'LCL')
+                .forEach((costoFila, index) => {
+                    lineasNuevas.push({
+                        descripcion:
+                            index === 0
+                                ? 'Flete - Carga Consolidada (LCL)'
+                                : `Flete LCL (línea ${index + 1})`,
+                        tipo_tarifa_unidad: 'Per CBM',
+                        costo_unitario: costoFila.costo,
+                        base_calculo: data.volumen_cbm || 1,
+                        moneda: costoFila.moneda,
+                    });
+                });
         } else if (tarifa.costo_base) {
             lineasNuevas.push({
                 descripcion: 'Flete',
-                tipo_tarifa_unidad:
-                    data.modo_transporte === 'Aereo' ? 'Per Kg' : 'Flat',
+                tipo_tarifa_unidad: 'Per Kg',
                 costo_unitario: tarifa.costo_base,
-                base_calculo:
-                    data.modo_transporte === 'Aereo'
-                        ? data.peso_kg || 1
-                        : 1,
+                base_calculo: data.peso_kg || 1,
                 moneda: tarifa.moneda,
             });
         }
@@ -690,7 +809,14 @@ function PasoCostos({ data, setData, errors, clearErrors, rutaTarifasDisponibles
                 data={data}
                 onAplicar={aplicarTarifa}
                 rutaTarifasDisponibles={rutaTarifasDisponibles}
+                permiteTarifaInexistente={permiteTarifaInexistente}
             />
+
+            {errors.tarifa && (
+                <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {errors.tarifa}
+                </div>
+            )}
 
             <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -884,6 +1010,12 @@ function PasoCostos({ data, setData, errors, clearErrors, rutaTarifasDisponibles
                 <CampoError mensaje={errors.detalle} />
             </div>
 
+            <CostosExtraOpcionales
+                data={data}
+                setData={setData}
+                conceptosCostoExtra={conceptosCostoExtra}
+            />
+
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className={labelClass}>Fecha de Validez</label>
@@ -922,18 +1054,26 @@ function PasoCostos({ data, setData, errors, clearErrors, rutaTarifasDisponibles
     );
 }
 
-export default function NuevaCotizacionWizard({ puertos, rutaBuscarCliente, rutaTarifasDisponibles, rutaStore }) {
-    const [paso, setPaso] = useState(1);
+export default function NuevaCotizacionWizard({
+    puertos,
+    rutaBuscarCliente,
+    rutaTarifasDisponibles,
+    rutaStore,
+    conceptosCostoExtra = [],
+    permiteTarifaInexistente = false,
+    origen = null,
+}) {
+    const [paso, setPaso] = useState(origen ? 2 : 1);
 
     const { data, setData, post, processing, errors, clearErrors } = useForm({
-        id_cliente: '',
-        cliente_nombre: '',
-        modo_transporte: 'Maritimo',
+        id_cliente: origen?.id_cliente ?? '',
+        cliente_nombre: origen?.cliente_nombre ?? '',
+        modo_transporte: origen ? 'Terrestre' : 'Maritimo',
         tipo_servicio: '',
         incoterm: '',
-        id_pol: '',
+        id_pol: origen?.id_pol ?? '',
         id_pod: '',
-        destino_final: '',
+        destino_final: origen?.destino_final ?? '',
         contenedores: [],
         peso_kg: '',
         volumen_cbm: '',
@@ -978,7 +1118,8 @@ export default function NuevaCotizacionWizard({ puertos, rutaBuscarCliente, ruta
                 return (
                     clave.startsWith('detalle') ||
                     clave === 'fecha_validez' ||
-                    clave === 'dias_transito'
+                    clave === 'dias_transito' ||
+                    clave === 'tarifa'
                 );
             }
             return false;
@@ -1013,7 +1154,15 @@ export default function NuevaCotizacionWizard({ puertos, rutaBuscarCliente, ruta
         <div className="mx-auto max-w-4xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <ProgresoWizard paso={paso} />
 
-            {Object.keys(errors).length > 0 && (
+            {origen && (
+                <div className="mb-4 rounded-md bg-[#71BFA6]/10 px-4 py-3 text-sm text-[#042753]">
+                    Creando cotización terrestre a partir de la cotización marítima{' '}
+                    <strong>#{origen.id_cotizacion_origen}</strong>. El cliente y el
+                    puerto de origen ya vienen completados.
+                </div>
+            )}
+
+            {Object.keys(errors).filter((clave) => clave !== 'tarifa').length > 0 && (
                 <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
                     Revisa los datos ingresados, hay errores de validación
                     marcados debajo de cada campo.
@@ -1054,6 +1203,8 @@ export default function NuevaCotizacionWizard({ puertos, rutaBuscarCliente, ruta
                         errors={errors}
                         clearErrors={clearErrors}
                         rutaTarifasDisponibles={rutaTarifasDisponibles}
+                        conceptosCostoExtra={conceptosCostoExtra}
+                        permiteTarifaInexistente={permiteTarifaInexistente}
                     />
                 )}
 

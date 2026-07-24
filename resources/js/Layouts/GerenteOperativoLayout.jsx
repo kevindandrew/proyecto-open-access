@@ -6,6 +6,7 @@ import {
     IconoEmbarquesNav,
     IconoPersonalNav,
     IconoReportesNav,
+    IconoSolicitudesNav,
     IconoTarifasNav,
 } from "@/Components/NavIcons";
 import { Link, usePage } from "@inertiajs/react";
@@ -38,6 +39,11 @@ const navItems = [
         icon: IconoEmbarquesNav,
     },
     {
+        label: "Solicitudes de Tarifa",
+        routeName: "gerente-operativo.solicitudes-tarifa.index",
+        icon: IconoSolicitudesNav,
+    },
+    {
         label: "Personal",
         routeName: "gerente-operativo.personal.index",
         icon: IconoPersonalNav,
@@ -65,7 +71,7 @@ function iniciales(nombre) {
 }
 
 export default function GerenteOperativoLayout({ header, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth, flash, solicitudesTarifaPendientes } = usePage().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
@@ -109,7 +115,19 @@ export default function GerenteOperativoLayout({ header, children }) {
                                             : "text-white/50"
                                     }`}
                                 />
-                                {item.label}
+                                <span className="flex-1">{item.label}</span>
+                                {item.routeName === "gerente-operativo.solicitudes-tarifa.index" &&
+                                    solicitudesTarifaPendientes > 0 && (
+                                        <span
+                                            className={`flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                                                activo
+                                                    ? "bg-[#042753] text-white"
+                                                    : "bg-amber-400 text-[#042753]"
+                                            }`}
+                                        >
+                                            {solicitudesTarifaPendientes}
+                                        </span>
+                                    )}
                             </Link>
                         );
                     })}

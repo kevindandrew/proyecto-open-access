@@ -51,4 +51,32 @@ export const TIPO_CONTENEDOR_INFO = {
         nombre: "Contenedor High Cube de 40'",
         explicacion: 'Igual de largo que el de 40\' estándar, pero más alto — más volumen para carga liviana y voluminosa.',
     },
+    '45 HC': {
+        nombre: "Contenedor High Cube de 45'",
+        explicacion: 'El más largo y alto de los estándar — para carga muy voluminosa y liviana.',
+    },
+    '20 REEFER': {
+        nombre: "Contenedor Refrigerado de 20'",
+        explicacion: 'Contenedor con control de temperatura — para carga perecedera o sensible al calor.',
+    },
+    '40 REEFER': {
+        nombre: "Contenedor Refrigerado de 40'",
+        explicacion: 'Versión más grande del refrigerado — mayor volumen para carga perecedera.',
+    },
+    '20 OPEN TOP': {
+        nombre: "Contenedor Open Top de 20'",
+        explicacion: 'Sin techo rígido (se cubre con lona) — para carga que no entra por la puerta, se carga por arriba.',
+    },
+    '40 OPEN TOP': {
+        nombre: "Contenedor Open Top de 40'",
+        explicacion: 'Versión más grande del Open Top — para carga alta o voluminosa que se carga por arriba.',
+    },
+    '20 FLAT RACK': {
+        nombre: "Contenedor Flat Rack de 20'",
+        explicacion: 'Sin paredes laterales — para carga sobredimensionada o de forma irregular.',
+    },
+    '40 FLAT RACK': {
+        nombre: "Contenedor Flat Rack de 40'",
+        explicacion: 'Versión más grande del Flat Rack — para carga larga, pesada o de forma irregular.',
+    },
 };

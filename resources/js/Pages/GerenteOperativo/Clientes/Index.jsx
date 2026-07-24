@@ -185,6 +185,14 @@ function ModalDetalleCliente({ cliente, show, onClose }) {
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
                             <div>
                                 <dt className="text-xs text-gray-400 font-medium">
+                                    Nombre
+                                </dt>
+                                <dd className="font-semibold text-[#042753]">
+                                    {cliente.consignatario_nombre || "—"}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-gray-400 font-medium">
                                     NIT / CI Consignatario
                                 </dt>
                                 <dd className="font-semibold text-[#042753]">
@@ -254,6 +262,7 @@ function ModalFormCliente({
         // Contactos Múltiples
         contactos: [{ nombre_completo: "", numero: "", correo: "" }],
         // Datos Consignatario
+        consignatario_nombre: "",
         consignatario_nit: "",
         consignatario_direccion: "",
         consignatario_celular: "",
@@ -277,6 +286,7 @@ function ModalFormCliente({
                 contactos: cliente.contactos?.length
                     ? cliente.contactos
                     : [{ nombre_completo: "", numero: "", correo: "" }],
+                consignatario_nombre: cliente.consignatario_nombre ?? "",
                 consignatario_nit: cliente.consignatario_nit ?? "",
                 consignatario_direccion: cliente.consignatario_direccion ?? "",
                 consignatario_celular: cliente.consignatario_celular ?? "",
@@ -312,12 +322,18 @@ function ModalFormCliente({
             put(
                 route("gerente-operativo.clientes.update", cliente.id_cliente),
                 {
-                    onSuccess: () => onClose(),
+                    onSuccess: () => {
+                        reset();
+                        onClose();
+                    },
                 },
             );
         } else {
             post(route("gerente-operativo.clientes.store"), {
-                onSuccess: () => onClose(),
+                onSuccess: () => {
+                    reset();
+                    onClose();
+                },
             });
         }
     };
@@ -383,6 +399,7 @@ function ModalFormCliente({
                                     id="nit"
                                     type="text"
                                     className="mt-1 block w-full"
+                                    placeholder="Ej: 1023456028"
                                     value={data.nit}
                                     onChange={(e) =>
                                         setData("nit", e.target.value)
@@ -463,6 +480,7 @@ function ModalFormCliente({
                                         id="direccion"
                                         type="text"
                                         className="mt-1 block w-full"
+                                        placeholder="Ej: Av. Arce #2077"
                                         value={data.direccion}
                                         onChange={(e) =>
                                             setData("direccion", e.target.value)
@@ -500,6 +518,7 @@ function ModalFormCliente({
                                     id="email"
                                     type="email"
                                     className="mt-1 block w-full"
+                                    placeholder="contacto@empresa.com"
                                     value={data.email}
                                     onChange={(e) =>
                                         setData("email", e.target.value)
@@ -519,6 +538,7 @@ function ModalFormCliente({
                                     id="correo_factura"
                                     type="email"
                                     className="mt-1 block w-full"
+                                    placeholder="facturacion@empresa.com"
                                     value={data.correo_factura}
                                     onChange={(e) =>
                                         setData(
@@ -540,6 +560,7 @@ function ModalFormCliente({
                                     id="condicion_pago"
                                     type="text"
                                     className="mt-1 block w-full"
+                                    placeholder="Ej: Al contado, 30 días..."
                                     value={data.condicion_pago}
                                     onChange={(e) =>
                                         setData(
@@ -671,17 +692,18 @@ function ModalFormCliente({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <InputLabel
-                                    htmlFor="consignatario_nit"
-                                    value="NIT / CI Consignatario"
+                                    htmlFor="consignatario_nombre"
+                                    value="Nombre del Consignatario"
                                 />
                                 <TextInput
-                                    id="consignatario_nit"
+                                    id="consignatario_nombre"
                                     type="text"
                                     className="mt-1 block w-full"
-                                    value={data.consignatario_nit}
+                                    placeholder="Ej: Juan Pérez"
+                                    value={data.consignatario_nombre}
                                     onChange={(e) =>
                                         setData(
-                                            "consignatario_nit",
+                                            "consignatario_nombre",
                                             e.target.value,
                                         )
                                     }
@@ -689,17 +711,18 @@ function ModalFormCliente({
                             </div>
                             <div>
                                 <InputLabel
-                                    htmlFor="consignatario_celular"
-                                    value="Celular Consignatario"
+                                    htmlFor="consignatario_nit"
+                                    value="NIT / CI Consignatario"
                                 />
                                 <TextInput
-                                    id="consignatario_celular"
+                                    id="consignatario_nit"
                                     type="text"
                                     className="mt-1 block w-full"
-                                    value={data.consignatario_celular}
+                                    placeholder="Ej: 1023456028"
+                                    value={data.consignatario_nit}
                                     onChange={(e) =>
                                         setData(
-                                            "consignatario_celular",
+                                            "consignatario_nit",
                                             e.target.value,
                                         )
                                     }
@@ -710,17 +733,18 @@ function ModalFormCliente({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <InputLabel
-                                    htmlFor="consignatario_direccion"
-                                    value="Dirección Consignatario"
+                                    htmlFor="consignatario_celular"
+                                    value="Celular Consignatario"
                                 />
                                 <TextInput
-                                    id="consignatario_direccion"
+                                    id="consignatario_celular"
                                     type="text"
                                     className="mt-1 block w-full"
-                                    value={data.consignatario_direccion}
+                                    placeholder="Ej: +591 70000000"
+                                    value={data.consignatario_celular}
                                     onChange={(e) =>
                                         setData(
-                                            "consignatario_direccion",
+                                            "consignatario_celular",
                                             e.target.value,
                                         )
                                     }
@@ -735,6 +759,7 @@ function ModalFormCliente({
                                     id="consignatario_correo"
                                     type="email"
                                     className="mt-1 block w-full"
+                                    placeholder="consignatario@empresa.com"
                                     value={data.consignatario_correo}
                                     onChange={(e) =>
                                         setData(
@@ -744,6 +769,26 @@ function ModalFormCliente({
                                     }
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <InputLabel
+                                htmlFor="consignatario_direccion"
+                                value="Dirección Consignatario"
+                            />
+                            <TextInput
+                                id="consignatario_direccion"
+                                type="text"
+                                className="mt-1 block w-full"
+                                placeholder="Ej: Av. Siempre Viva #123"
+                                value={data.consignatario_direccion}
+                                onChange={(e) =>
+                                    setData(
+                                        "consignatario_direccion",
+                                        e.target.value,
+                                    )
+                                }
+                            />
                         </div>
                     </div>
 
@@ -758,6 +803,7 @@ function ModalFormCliente({
                                 id="otro"
                                 type="text"
                                 className="mt-1 block w-full"
+                                placeholder="Notas adicionales sobre este cliente..."
                                 value={data.otro}
                                 onChange={(e) =>
                                     setData("otro", e.target.value)
@@ -935,6 +981,7 @@ export default function Index({
                 cliente.razon_social
                     ?.toLowerCase()
                     .includes(busqueda.toLowerCase()) ||
+                cliente.nit?.toLowerCase().includes(busqueda.toLowerCase()) ||
                 cliente.email?.toLowerCase().includes(busqueda.toLowerCase()) ||
                 cliente.ciudad?.toLowerCase().includes(busqueda.toLowerCase());
 
@@ -1051,7 +1098,7 @@ export default function Index({
                 <div className="relative flex-1">
                     <TextInput
                         type="text"
-                        placeholder="Buscar por nombre, correo o ciudad..."
+                        placeholder="Buscar por nombre, NIT, correo o ciudad..."
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                         className="w-full border-none bg-gray-50 focus:bg-white"

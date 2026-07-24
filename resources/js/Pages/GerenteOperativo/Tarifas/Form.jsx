@@ -1,6 +1,13 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { MONEDAS } from '@/constants/monedas';
+import { TIPOS_CONTENEDOR } from '@/constants/tiposContenedor';
 import { Head, useForm } from '@inertiajs/react';
+import { useMemo } from 'react';
+
+const TIPO_PUERTO_POR_MODO = {
+    Maritimo: 'Puerto',
+    Aereo: 'Aeropuerto',
+};
 
 export default function Form({ tarifa, proveedores, puertos }) {
     const isEditing = Boolean(tarifa);
@@ -10,23 +17,46 @@ export default function Form({ tarifa, proveedores, puertos }) {
         id_origen: tarifa?.id_origen ?? '',
         id_destino: tarifa?.id_destino ?? '',
         modo: tarifa?.modo ?? 'Maritimo',
-        tipo_servicio: tarifa?.tipo_servicio ?? '',
+        incluye_fcl: tarifa?.incluye_fcl ?? false,
+        incluye_lcl: tarifa?.incluye_lcl ?? false,
         dias_transito: tarifa?.dias_transito ?? '',
-        costo_20: tarifa?.costo_20 ?? '',
-        costo_40: tarifa?.costo_40 ?? '',
-        costo_40hc: tarifa?.costo_40hc ?? '',
-        costo_cbm: tarifa?.costo_cbm ?? '',
         costo_base: tarifa?.costo_base ?? '',
+        costo_tramite: tarifa?.costo_tramite ?? '',
+        moneda_tramite: tarifa?.moneda_tramite ?? 'USD',
         moneda: tarifa?.moneda ?? 'USD',
         tipo_tarifa: tarifa?.tipo_tarifa ?? 'Normal',
+        observaciones: tarifa?.observaciones ?? '',
         fecha_inicio_vigencia: tarifa?.fecha_inicio_vigencia ?? '',
         fecha_fin_vigencia: tarifa?.fecha_fin_vigencia ?? '',
+        costos_fcl: tarifa?.costos_fcl?.length
+            ? tarifa.costos_fcl
+            : [{ tipo_contenedor: '20 DRY', costo: '', moneda: 'USD' }],
+        costos_lcl: tarifa?.costos_lcl?.length
+            ? tarifa.costos_lcl
+            : [{ costo: '', moneda: 'USD' }],
         cargos_adicionales: tarifa?.cargos_adicionales ?? [],
     });
 
     const esMaritimo = data.modo === 'Maritimo';
-    const esFCL = esMaritimo && data.tipo_servicio === 'FCL';
-    const esLCL = esMaritimo && data.tipo_servicio === 'LCL';
+    const esTerrestre = data.modo === 'Terrestre';
+    const esAereo = data.modo === 'Aereo';
+    const permiteFclLcl = esMaritimo || esTerrestre;
+    const esFclTerrestre = esTerrestre && data.incluye_fcl;
+
+    const puertosFiltrados = useMemo(() => {
+        const tipoRequerido = TIPO_PUERTO_POR_MODO[data.modo];
+
+        if (!tipoRequerido) {
+            return puertos;
+        }
+
+        return puertos.filter(
+            (puerto) =>
+                puerto.tipo === tipoRequerido ||
+                puerto.codigo === data.id_origen ||
+                puerto.codigo === data.id_destino,
+        );
+    }, [puertos, data.modo, data.id_origen, data.id_destino]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -36,6 +66,37 @@ export default function Form({ tarifa, proveedores, puertos }) {
         } else {
             post(route('gerente-operativo.tarifas.store'));
         }
+    };
+
+    const agregarCostoFcl = () => {
+        setData('costos_fcl', [
+            ...data.costos_fcl,
+            { tipo_contenedor: '20 DRY', costo: '', moneda: 'USD' },
+        ]);
+    };
+
+    const quitarCostoFcl = (index) => {
+        setData('costos_fcl', data.costos_fcl.filter((_, i) => i !== index));
+    };
+
+    const actualizarCostoFcl = (index, campo, valor) => {
+        const copia = [...data.costos_fcl];
+        copia[index] = { ...copia[index], [campo]: valor };
+        setData('costos_fcl', copia);
+    };
+
+    const agregarCostoLcl = () => {
+        setData('costos_lcl', [...data.costos_lcl, { costo: '', moneda: 'USD' }]);
+    };
+
+    const quitarCostoLcl = (index) => {
+        setData('costos_lcl', data.costos_lcl.filter((_, i) => i !== index));
+    };
+
+    const actualizarCostoLcl = (index, campo, valor) => {
+        const copia = [...data.costos_lcl];
+        copia[index] = { ...copia[index], [campo]: valor };
+        setData('costos_lcl', copia);
     };
 
     const agregarCargo = () => {
@@ -108,10 +169,8 @@ export default function Form({ tarifa, proveedores, puertos }) {
                                 setData({
                                     ...data,
                                     modo: e.target.value,
-                                    tipo_servicio:
-                                        e.target.value === 'Maritimo'
-                                            ? data.tipo_servicio
-                                            : '',
+                                    id_origen: '',
+                                    id_destino: '',
                                 })
                             }
                         >
@@ -136,7 +195,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             }
                         >
                             <option value="">—</option>
-                            {puertos.map((p) => (
+                            {puertosFiltrados.map((p) => (
                                 <option key={p.codigo} value={p.codigo}>
                                     {p.codigo} — {p.nombre}
                                 </option>
@@ -159,7 +218,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             }
                         >
                             <option value="">—</option>
-                            {puertos.map((p) => (
+                            {puertosFiltrados.map((p) => (
                                 <option key={p.codigo} value={p.codigo}>
                                     {p.codigo} — {p.nombre}
                                 </option>
@@ -171,28 +230,6 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             </p>
                         )}
                     </div>
-
-                    {esMaritimo && (
-                        <div>
-                            <label className={labelClass}>Tipo de Servicio</label>
-                            <select
-                                className={inputClass}
-                                value={data.tipo_servicio}
-                                onChange={(e) =>
-                                    setData('tipo_servicio', e.target.value)
-                                }
-                            >
-                                <option value="">Selecciona FCL o LCL</option>
-                                <option value="FCL">FCL — contenedor completo</option>
-                                <option value="LCL">LCL — carga consolidada (por m³)</option>
-                            </select>
-                            {errors.tipo_servicio && (
-                                <p className="mt-1 text-sm text-red-600">
-                                    {errors.tipo_servicio}
-                                </p>
-                            )}
-                        </div>
-                    )}
 
                     <div>
                         <label className={labelClass}>Tipo de Tarifa</label>
@@ -219,104 +256,34 @@ export default function Form({ tarifa, proveedores, puertos }) {
                         />
                     </div>
 
-                    <div>
-                        <label className={labelClass}>Moneda</label>
-                        <select
-                            className={inputClass}
-                            value={data.moneda}
-                            onChange={(e) =>
-                                setData('moneda', e.target.value)
-                            }
-                        >
-                            {MONEDAS.map((m) => (
-                                <option key={m.valor} value={m.valor}>
-                                    {m.etiqueta}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.moneda && (
-                            <p className="mt-1 text-sm text-red-600">
-                                {errors.moneda}
-                            </p>
-                        )}
-                    </div>
-
-                    {esFCL && (
-                        <>
-                            <div>
-                                <label className={labelClass}>Costo 20' (por contenedor)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.costo_20}
-                                    onChange={(e) =>
-                                        setData('costo_20', e.target.value)
-                                    }
-                                />
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>Costo 40' (por contenedor)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.costo_40}
-                                    onChange={(e) =>
-                                        setData('costo_40', e.target.value)
-                                    }
-                                />
-                                {errors.costo_40 && (
-                                    <p className="mt-1 text-sm text-red-600">
-                                        {errors.costo_40}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>
-                                    Costo 40' HC (por contenedor)
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className={inputClass}
-                                    value={data.costo_40hc}
-                                    onChange={(e) =>
-                                        setData('costo_40hc', e.target.value)
-                                    }
-                                />
-                            </div>
-                        </>
-                    )}
-
-                    {esLCL && (
+                    {esAereo && (
                         <div>
-                            <label className={labelClass}>Costo por m³ (carga consolidada)</label>
-                            <input
-                                type="number"
-                                step="0.01"
+                            <label className={labelClass}>Moneda</label>
+                            <select
                                 className={inputClass}
-                                value={data.costo_cbm}
+                                value={data.moneda}
                                 onChange={(e) =>
-                                    setData('costo_cbm', e.target.value)
+                                    setData('moneda', e.target.value)
                                 }
-                            />
-                            {errors.costo_cbm && (
+                            >
+                                {MONEDAS.map((m) => (
+                                    <option key={m.valor} value={m.valor}>
+                                        {m.etiqueta}
+                                    </option>
+                                ))}
+                            </select>
+                            {errors.moneda && (
                                 <p className="mt-1 text-sm text-red-600">
-                                    {errors.costo_cbm}
+                                    {errors.moneda}
                                 </p>
                             )}
                         </div>
                     )}
 
-                    {!esMaritimo && (
+                    {esAereo && (
                         <div>
                             <label className={labelClass}>
-                                {data.modo === 'Aereo'
-                                    ? 'Tarifa por Kilo (USD/kg)'
-                                    : 'Tarifa Plana (por viaje)'}
+                                Tarifa por Kilo
                             </label>
                             <input
                                 type="number"
@@ -334,7 +301,240 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             )}
                         </div>
                     )}
+                </div>
 
+                {permiteFclLcl && (
+                    <div className="space-y-4 border-t border-gray-100 pt-4">
+                        <div className="flex flex-wrap gap-6">
+                            <label className="flex items-center gap-2 text-sm font-medium text-[#042753]">
+                                <input
+                                    type="checkbox"
+                                    checked={data.incluye_fcl}
+                                    onChange={(e) =>
+                                        setData('incluye_fcl', e.target.checked)
+                                    }
+                                    className="rounded border-gray-300 text-[#71BFA6] focus:ring-[#71BFA6]"
+                                />
+                                Incluye FCL (por contenedor)
+                            </label>
+                            <label className="flex items-center gap-2 text-sm font-medium text-[#042753]">
+                                <input
+                                    type="checkbox"
+                                    checked={data.incluye_lcl}
+                                    onChange={(e) =>
+                                        setData('incluye_lcl', e.target.checked)
+                                    }
+                                    className="rounded border-gray-300 text-[#71BFA6] focus:ring-[#71BFA6]"
+                                />
+                                Incluye LCL (por m³)
+                            </label>
+                        </div>
+                        {errors.incluye_fcl && (
+                            <p className="text-sm text-red-600">
+                                {errors.incluye_fcl}
+                            </p>
+                        )}
+
+                        {data.incluye_fcl && (
+                            <div>
+                                <div className="mb-2 flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold text-[#042753]">
+                                        Costos por Contenedor (FCL)
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={agregarCostoFcl}
+                                        className="text-sm font-medium text-[#71BFA6] hover:underline"
+                                    >
+                                        + Agregar contenedor
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {data.costos_fcl.map((costo, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <select
+                                                className={inputClass}
+                                                value={costo.tipo_contenedor}
+                                                onChange={(e) =>
+                                                    actualizarCostoFcl(
+                                                        index,
+                                                        'tipo_contenedor',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                {TIPOS_CONTENEDOR.map((tipo) => (
+                                                    <option key={tipo} value={tipo}>
+                                                        {tipo}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="Costo"
+                                                className={`${inputClass} max-w-[140px]`}
+                                                value={costo.costo}
+                                                onChange={(e) =>
+                                                    actualizarCostoFcl(
+                                                        index,
+                                                        'costo',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <select
+                                                className={`${inputClass} max-w-[110px]`}
+                                                value={costo.moneda}
+                                                onChange={(e) =>
+                                                    actualizarCostoFcl(
+                                                        index,
+                                                        'moneda',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                {MONEDAS.map((m) => (
+                                                    <option key={m.valor} value={m.valor}>
+                                                        {m.valor}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {data.costos_fcl.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => quitarCostoFcl(index)}
+                                                    className="text-red-600 hover:underline"
+                                                >
+                                                    Quitar
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                {errors.costos_fcl && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.costos_fcl}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {data.incluye_lcl && (
+                            <div>
+                                <div className="mb-2 flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold text-[#042753]">
+                                        Costos LCL (por m³)
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={agregarCostoLcl}
+                                        className="text-sm font-medium text-[#71BFA6] hover:underline"
+                                    >
+                                        + Agregar línea
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {data.costos_lcl.map((costo, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="Costo por m³"
+                                                className={`${inputClass} max-w-[160px]`}
+                                                value={costo.costo}
+                                                onChange={(e) =>
+                                                    actualizarCostoLcl(
+                                                        index,
+                                                        'costo',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <select
+                                                className={`${inputClass} max-w-[110px]`}
+                                                value={costo.moneda}
+                                                onChange={(e) =>
+                                                    actualizarCostoLcl(
+                                                        index,
+                                                        'moneda',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                {MONEDAS.map((m) => (
+                                                    <option key={m.valor} value={m.valor}>
+                                                        {m.valor}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {data.costos_lcl.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => quitarCostoLcl(index)}
+                                                    className="text-red-600 hover:underline"
+                                                >
+                                                    Quitar
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                {errors.costos_lcl && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.costos_lcl}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {esFclTerrestre && (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className={labelClass}>
+                                        Costo de Trámite
+                                    </label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="Ej. 150"
+                                        className={inputClass}
+                                        value={data.costo_tramite}
+                                        onChange={(e) =>
+                                            setData('costo_tramite', e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>
+                                        Moneda del Trámite
+                                    </label>
+                                    <select
+                                        className={inputClass}
+                                        value={data.moneda_tramite}
+                                        onChange={(e) =>
+                                            setData('moneda_tramite', e.target.value)
+                                        }
+                                    >
+                                        {MONEDAS.map((m) => (
+                                            <option key={m.valor} value={m.valor}>
+                                                {m.etiqueta}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
                     <div>
                         <label className={labelClass}>
                             Inicio de Vigencia
@@ -373,6 +573,24 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             </p>
                         )}
                     </div>
+                </div>
+
+                <div>
+                    <label className={labelClass}>Observaciones</label>
+                    <textarea
+                        rows={3}
+                        placeholder="Ej. Peso permitido: 25000 kg"
+                        className={inputClass}
+                        value={data.observaciones}
+                        onChange={(e) =>
+                            setData('observaciones', e.target.value)
+                        }
+                    />
+                    {errors.observaciones && (
+                        <p className="mt-1 text-sm text-red-600">
+                            {errors.observaciones}
+                        </p>
+                    )}
                 </div>
 
                 <div>

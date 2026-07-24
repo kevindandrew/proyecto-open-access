@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,12 +32,17 @@ class ClienteController extends Controller
                 'id_cliente' => $cliente->id_cliente,
                 'razon_social' => $cliente->razon_social,
                 'nit' => $cliente->nit,
-                'ciudad' => $cliente->ciudad?->nombre_ciudad,
+                'ciudad' => $cliente->ciudad?->nombre_ciudad ?? $cliente->ciudad_personalizada,
+                'id_ciudad' => $cliente->id_ciudad,
+                'ciudad_personalizada' => $cliente->ciudad_personalizada,
+                'direccion' => $cliente->direccion,
                 'persona_contacto' => $cliente->persona_contacto,
                 'telefono1' => $cliente->telefono1,
                 'celular_whatsapp' => $cliente->celular_whatsapp,
                 'email' => $cliente->email,
+                'correo_factura' => $cliente->correo_factura,
                 'condicion_pago' => $cliente->condicion_pago,
+                'otro' => $cliente->otro,
                 'id_comercial' => $cliente->id_comercial,
                 'comercial' => $cliente->comercial?->nombre_completo,
                 'activo' => $cliente->deleted_at === null,
@@ -47,10 +53,16 @@ class ClienteController extends Controller
                     || Carbon::parse($cliente->ultima_cotizacion)->lt($limiteSeguimiento),
                 'fue_reasignado' => $cliente->reasignado_en !== null,
                 'reasignado_en' => $cliente->reasignado_en?->toDateString(),
+                'consignatario_nombre' => $cliente->consignatario_nombre,
+                'consignatario_nit' => $cliente->consignatario_nit,
+                'consignatario_direccion' => $cliente->consignatario_direccion,
+                'consignatario_celular' => $cliente->consignatario_celular,
+                'consignatario_correo' => $cliente->consignatario_correo,
             ]);
 
         return Inertia::render('GerenteOperativo/Clientes/Index', [
             'clientes' => $clientes,
+            'ciudades' => $this->ciudades(),
             'comerciales' => $this->comerciales(),
         ]);
     }
@@ -113,6 +125,7 @@ class ClienteController extends Controller
                 'razon_social' => $cliente->razon_social,
                 'nit' => $cliente->nit,
                 'id_ciudad' => $cliente->id_ciudad,
+                'ciudad_personalizada' => $cliente->ciudad_personalizada,
                 'direccion' => $cliente->direccion,
                 'persona_contacto' => $cliente->persona_contacto,
                 'telefono1' => $cliente->telefono1,
@@ -123,6 +136,11 @@ class ClienteController extends Controller
                 'otro' => $cliente->otro,
                 'id_comercial' => $cliente->id_comercial,
                 'activo' => $cliente->deleted_at === null,
+                'consignatario_nombre' => $cliente->consignatario_nombre,
+                'consignatario_nit' => $cliente->consignatario_nit,
+                'consignatario_direccion' => $cliente->consignatario_direccion,
+                'consignatario_celular' => $cliente->consignatario_celular,
+                'consignatario_correo' => $cliente->consignatario_correo,
             ],
             'ciudades' => $this->ciudades(),
             'comerciales' => $this->comerciales(),
@@ -157,10 +175,11 @@ class ClienteController extends Controller
 
     private function validado(Request $request, ?Cliente $cliente = null): array
     {
-        return $request->validate([
+        $validator = validator($request->all(), [
             'razon_social' => ['required', 'string', 'max:200'],
             'nit' => ['nullable', 'string', 'max:30'],
-            'id_ciudad' => ['nullable', 'string', 'exists:ciudades,cod_ciudad'],
+            'id_ciudad' => ['nullable', 'string'],
+            'ciudad_personalizada' => ['nullable', 'string', 'max:100'],
             'direccion' => ['nullable', 'string'],
             'persona_contacto' => ['nullable', 'string', 'max:150'],
             'telefono1' => ['nullable', 'string', 'max:30'],
@@ -173,7 +192,33 @@ class ClienteController extends Controller
                 'required', 'integer',
                 Rule::exists('empleados', 'id_empleado'),
             ],
-        ]);
+            'consignatario_nombre' => ['nullable', 'string', 'max:150'],
+            'consignatario_nit' => ['nullable', 'string', 'max:30'],
+            'consignatario_direccion' => ['nullable', 'string'],
+            'consignatario_celular' => ['nullable', 'string', 'max:30'],
+            'consignatario_correo' => ['nullable', 'email', 'max:120'],
+        ])->after(function (Validator $validator) use ($request) {
+            $idCiudad = $request->input('id_ciudad');
+
+            if ($idCiudad === 'OTRO') {
+                if (! $request->filled('ciudad_personalizada')) {
+                    $validator->errors()->add('ciudad_personalizada', 'Especificá la ciudad o país.');
+                }
+            } elseif (filled($idCiudad) && ! Ciudad::where('cod_ciudad', $idCiudad)->exists()) {
+                $validator->errors()->add('id_ciudad', 'La ciudad seleccionada no es válida.');
+            }
+        });
+
+        $validated = $validator->validate();
+
+        if ($validated['id_ciudad'] === 'OTRO') {
+            $validated['id_ciudad'] = null;
+        } else {
+            $validated['ciudad_personalizada'] = null;
+            $validated['id_ciudad'] = $validated['id_ciudad'] !== '' ? $validated['id_ciudad'] : null;
+        }
+
+        return $validated;
     }
 
     private function ciudades()

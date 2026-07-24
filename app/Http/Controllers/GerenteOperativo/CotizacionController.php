@@ -4,6 +4,7 @@ namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
+use App\Models\ConceptoCostoExtra;
 use App\Models\Cotizacion;
 use App\Models\CotizacionContenedor;
 use App\Models\CotizacionDetalle;
@@ -13,23 +14,29 @@ use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
 use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
+use App\Support\PrefillCotizacionTerrestre;
 use App\Support\TarifaLookup;
 use App\Support\TiposTransportePorModo;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class CotizacionController extends Controller
 {
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('GerenteOperativo/Cotizaciones/Nueva', [
             'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
+            'conceptosCostoExtra' => ConceptoCostoExtra::where('activo', true)->orderBy('nombre')->get(['id_concepto', 'nombre']),
+            'origen' => PrefillCotizacionTerrestre::desde($request->integer('desde_cotizacion') ?: null),
         ]);
     }
 
@@ -51,7 +58,7 @@ class CotizacionController extends Controller
             'id_cliente' => ['required', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
             'tipo_servicio' => [
-                Rule::requiredIf(fn () => $request->input('modo_transporte') === 'Maritimo'),
+                Rule::requiredIf(fn () => in_array($request->input('modo_transporte'), ['Maritimo', 'Terrestre'], true)),
                 'nullable',
                 Rule::in(['FCL', 'LCL']),
             ],
@@ -86,7 +93,7 @@ class CotizacionController extends Controller
                 'id_cliente' => $data['id_cliente'],
                 'id_comercial' => $comercialAsignado->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
-                'tipo_servicio' => $data['modo_transporte'] === 'Maritimo' ? ($data['tipo_servicio'] ?? null) : null,
+                'tipo_servicio' => in_array($data['modo_transporte'], ['Maritimo', 'Terrestre'], true) ? ($data['tipo_servicio'] ?? null) : null,
                 'incoterm' => $data['incoterm'] ?? null,
                 'id_pol' => $data['id_pol'] ?? null,
                 'id_pod' => $data['id_pod'] ?? null,
@@ -200,6 +207,51 @@ class CotizacionController extends Controller
                 ->orderBy('nombre')
                 ->get(['id_proveedor', 'nombre']),
         ]);
+    }
+
+    public function pdf(Cotizacion $cotizacion): HttpResponse
+    {
+        $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle']);
+
+        $pdf = Pdf::loadView('pdf.cotizacion', [
+            'cotizacion' => [
+                'numero_referencia' => $cotizacion->numero_referencia,
+                'cliente' => $cotizacion->cliente?->razon_social,
+                'comercial' => $cotizacion->comercial?->nombre_completo,
+                'modo_transporte' => $cotizacion->modo_transporte,
+                'tipo_servicio' => $cotizacion->tipo_servicio,
+                'incoterm' => $cotizacion->incoterm,
+                'pol' => $cotizacion->pol?->nombre,
+                'pod' => $cotizacion->pod?->nombre,
+                'destino_final' => $cotizacion->destino_final,
+                'fecha_emision' => $cotizacion->fecha_emision->toDateString(),
+                'fecha_validez' => $cotizacion->fecha_validez->toDateString(),
+                'estado' => $cotizacion->estado,
+                'motivo_rechazo' => $cotizacion->motivo_rechazo,
+                'peso_kg' => $cotizacion->peso_kg,
+                'volumen_cbm' => $cotizacion->volumen_cbm,
+                'mercancia_peligrosa' => $cotizacion->mercancia_peligrosa,
+                'dias_transito' => $cotizacion->dias_transito,
+            ],
+            'contenedores' => $cotizacion->contenedores->map(fn (CotizacionContenedor $item) => [
+                'tipo_contenedor' => $item->tipo_contenedor,
+                'cantidad' => $item->cantidad,
+            ])->all(),
+            'detalle' => $cotizacion->detalle->map(fn (CotizacionDetalle $linea) => [
+                'descripcion' => $linea->descripcion,
+                'tipo_tarifa_unidad' => $linea->tipo_tarifa_unidad,
+                'costo_unitario' => $linea->costo_unitario,
+                'base_calculo' => $linea->base_calculo,
+                'moneda' => $linea->moneda,
+                'costo_total' => $linea->costo_total,
+            ])->all(),
+            'total' => $cotizacion->detalle->sum('costo_total'),
+            'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
+        ]);
+
+        $nombreArchivo = str_replace(['/', '\\'], '-', $cotizacion->numero_referencia);
+
+        return $pdf->stream("Cotizacion-{$nombreArchivo}.pdf");
     }
 
     public function cambiarEstado(Request $request, Cotizacion $cotizacion): RedirectResponse

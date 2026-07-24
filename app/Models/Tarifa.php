@@ -21,13 +21,12 @@ class Tarifa extends Model
         'modo',
         'tipo_servicio',
         'dias_transito',
-        'costo_20',
-        'costo_40',
-        'costo_40hc',
-        'costo_cbm',
         'costo_base',
+        'costo_tramite',
+        'moneda_tramite',
         'moneda',
         'tipo_tarifa',
+        'observaciones',
         'fecha_inicio_vigencia',
         'fecha_fin_vigencia',
     ];
@@ -58,5 +57,10 @@ class Tarifa extends Model
     public function cargosAdicionales(): HasMany
     {
         return $this->hasMany(TarifaCargoAdicional::class, 'id_tarifa', 'id_tarifa');
+    }
+
+    public function costos(): HasMany
+    {
+        return $this->hasMany(TarifaCosto::class, 'id_tarifa', 'id_tarifa');
     }
 }

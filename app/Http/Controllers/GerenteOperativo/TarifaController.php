@@ -17,18 +17,12 @@ use Inertia\Response;
 
 class TarifaController extends Controller
 {
-    private const TALLAS_CONTENEDOR = [
-        'costo_20' => "20'",
-        'costo_40' => "40'",
-        'costo_40hc' => "40HC",
-    ];
-
     public function index(): Response
     {
         $hoy = Carbon::today();
         $vencePronto = $hoy->copy()->addDays(5);
 
-        $tarifas = Tarifa::with(['proveedor', 'origen', 'destino'])
+        $tarifas = Tarifa::with(['proveedor', 'origen', 'destino', 'costos'])
             ->orderBy('fecha_fin_vigencia')
             ->get()
             ->flatMap(fn (Tarifa $tarifa) => $this->filasVisibles($tarifa, $hoy, $vencePronto));
@@ -67,13 +61,11 @@ class TarifaController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $this->validado($request);
 
         $tarifa = Tarifa::create($data['tarifa']);
 
-        foreach ($data['cargos_adicionales'] as $cargo) {
-            $tarifa->cargosAdicionales()->create($cargo);
-        }
+        $this->sincronizarCostos($tarifa, $data);
 
         return redirect()->route('gerente-operativo.tarifas.index')
             ->with('success', 'Tarifa creada correctamente.');
@@ -81,7 +73,7 @@ class TarifaController extends Controller
 
     public function edit(Tarifa $tarifa): Response
     {
-        $tarifa->load('cargosAdicionales');
+        $tarifa->load('cargosAdicionales', 'costos');
 
         return Inertia::render('GerenteOperativo/Tarifas/Form', [
             'tarifa' => [
@@ -90,17 +82,26 @@ class TarifaController extends Controller
                 'id_origen' => $tarifa->id_origen,
                 'id_destino' => $tarifa->id_destino,
                 'modo' => $tarifa->modo,
-                'tipo_servicio' => $tarifa->tipo_servicio,
+                'incluye_fcl' => str_contains((string) $tarifa->tipo_servicio, 'FCL'),
+                'incluye_lcl' => str_contains((string) $tarifa->tipo_servicio, 'LCL'),
                 'dias_transito' => $tarifa->dias_transito,
-                'costo_20' => $tarifa->costo_20,
-                'costo_40' => $tarifa->costo_40,
-                'costo_40hc' => $tarifa->costo_40hc,
-                'costo_cbm' => $tarifa->costo_cbm,
                 'costo_base' => $tarifa->costo_base,
+                'costo_tramite' => $tarifa->costo_tramite,
+                'moneda_tramite' => $tarifa->moneda_tramite,
                 'moneda' => $tarifa->moneda,
                 'tipo_tarifa' => $tarifa->tipo_tarifa,
+                'observaciones' => $tarifa->observaciones,
                 'fecha_inicio_vigencia' => $tarifa->fecha_inicio_vigencia->toDateString(),
                 'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
+                'costos_fcl' => $tarifa->costos->where('tipo_servicio', 'FCL')->values()->map(fn ($costo) => [
+                    'tipo_contenedor' => $costo->tipo_contenedor,
+                    'costo' => $costo->costo,
+                    'moneda' => $costo->moneda,
+                ]),
+                'costos_lcl' => $tarifa->costos->where('tipo_servicio', 'LCL')->values()->map(fn ($costo) => [
+                    'costo' => $costo->costo,
+                    'moneda' => $costo->moneda,
+                ]),
                 'cargos_adicionales' => $tarifa->cargosAdicionales->map(fn ($cargo) => [
                     'id_cargo' => $cargo->id_cargo,
                     'concepto' => $cargo->concepto,
@@ -115,14 +116,11 @@ class TarifaController extends Controller
 
     public function update(Request $request, Tarifa $tarifa): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $this->validado($request);
 
         $tarifa->update($data['tarifa']);
 
-        $tarifa->cargosAdicionales()->delete();
-        foreach ($data['cargos_adicionales'] as $cargo) {
-            $tarifa->cargosAdicionales()->create($cargo);
-        }
+        $this->sincronizarCostos($tarifa, $data);
 
         return redirect()->route('gerente-operativo.tarifas.index')
             ->with('success', 'Tarifa actualizada correctamente.');
@@ -136,65 +134,113 @@ class TarifaController extends Controller
             ->with('success', 'Tarifa eliminada correctamente.');
     }
 
-    private function validated(Request $request): array
+    private function sincronizarCostos(Tarifa $tarifa, array $data): void
+    {
+        $tarifa->costos()->delete();
+
+        foreach ($data['costos_fcl'] as $costo) {
+            $tarifa->costos()->create([
+                'tipo_servicio' => 'FCL',
+                'tipo_contenedor' => $costo['tipo_contenedor'],
+                'costo' => $costo['costo'],
+                'moneda' => $costo['moneda'],
+            ]);
+        }
+
+        foreach ($data['costos_lcl'] as $costo) {
+            $tarifa->costos()->create([
+                'tipo_servicio' => 'LCL',
+                'tipo_contenedor' => null,
+                'costo' => $costo['costo'],
+                'moneda' => $costo['moneda'],
+            ]);
+        }
+
+        $tarifa->cargosAdicionales()->delete();
+        foreach ($data['cargos_adicionales'] as $cargo) {
+            $tarifa->cargosAdicionales()->create($cargo);
+        }
+    }
+
+    private function validado(Request $request): array
     {
         $validator = validator($request->all(), [
             'id_proveedor' => ['required', 'integer', 'exists:proveedores,id_proveedor'],
             'id_origen' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'id_destino' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'modo' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
-            'tipo_servicio' => [
-                Rule::requiredIf(fn () => $request->input('modo') === 'Maritimo'),
-                'nullable',
-                Rule::in(['FCL', 'LCL']),
-            ],
+            'incluye_fcl' => ['boolean'],
+            'incluye_lcl' => ['boolean'],
             'dias_transito' => ['nullable', 'integer', 'min:0'],
-            'costo_20' => ['nullable', 'numeric'],
-            'costo_40' => ['nullable', 'numeric'],
-            'costo_40hc' => ['nullable', 'numeric'],
-            'costo_cbm' => ['nullable', 'numeric'],
             'costo_base' => ['nullable', 'numeric'],
+            'costo_tramite' => ['nullable', 'numeric'],
+            'moneda_tramite' => ['nullable', 'string', 'max:5'],
             'moneda' => ['required', 'string', 'max:5'],
             'tipo_tarifa' => ['required', 'string', 'max:20'],
+            'observaciones' => ['nullable', 'string'],
             'fecha_inicio_vigencia' => ['required', 'date'],
             'fecha_fin_vigencia' => ['required', 'date', 'after_or_equal:fecha_inicio_vigencia'],
+            'costos_fcl' => ['array'],
+            'costos_fcl.*.tipo_contenedor' => ['required', 'string', 'max:20'],
+            'costos_fcl.*.costo' => ['required', 'numeric'],
+            'costos_fcl.*.moneda' => ['required', 'string', 'max:5'],
+            'costos_lcl' => ['array'],
+            'costos_lcl.*.costo' => ['required', 'numeric'],
+            'costos_lcl.*.moneda' => ['required', 'string', 'max:5'],
             'cargos_adicionales' => ['array'],
             'cargos_adicionales.*.concepto' => ['required', 'string', 'max:100'],
             'cargos_adicionales.*.monto' => ['required', 'numeric'],
             'cargos_adicionales.*.moneda' => ['required', 'string', 'max:5'],
         ])->after(function (Validator $validator) use ($request) {
             $modo = $request->input('modo');
-            $tipoServicio = $request->input('tipo_servicio');
+            $incluyeFcl = $request->boolean('incluye_fcl');
+            $incluyeLcl = $request->boolean('incluye_lcl');
 
-            if ($modo === 'Maritimo' && $tipoServicio === 'FCL') {
-                $tieneAlgunCosto = collect(['costo_20', 'costo_40', 'costo_40hc'])
-                    ->contains(fn ($campo) => $request->filled($campo));
-
-                if (! $tieneAlgunCosto) {
-                    $validator->errors()->add('costo_40', 'Cargá al menos un precio por tamaño de contenedor.');
+            if (in_array($modo, ['Maritimo', 'Terrestre'], true)) {
+                if (! $incluyeFcl && ! $incluyeLcl) {
+                    $validator->errors()->add('incluye_fcl', 'Seleccioná al menos FCL o LCL.');
                 }
-            } elseif ($modo === 'Maritimo' && $tipoServicio === 'LCL' && ! $request->filled('costo_cbm')) {
-                $validator->errors()->add('costo_cbm', 'El precio por metro cúbico es obligatorio para LCL.');
-            } elseif (in_array($modo, ['Aereo', 'Terrestre'], true) && ! $request->filled('costo_base')) {
-                $validator->errors()->add('costo_base', 'La tarifa base es obligatoria para este modo de transporte.');
+
+                if ($incluyeFcl && count($request->input('costos_fcl', [])) === 0) {
+                    $validator->errors()->add('costos_fcl', 'Cargá al menos un costo por tipo de contenedor.');
+                }
+
+                if ($incluyeLcl && count($request->input('costos_lcl', [])) === 0) {
+                    $validator->errors()->add('costos_lcl', 'Cargá al menos un costo LCL.');
+                }
+            } elseif ($modo === 'Aereo' && ! $request->filled('costo_base')) {
+                $validator->errors()->add('costo_base', 'La tarifa por kilo es obligatoria para Aéreo.');
             }
         });
 
         $validated = $validator->validate();
 
         $modo = $validated['modo'];
-        $tipoServicio = $modo === 'Maritimo' ? $validated['tipo_servicio'] : null;
+        $incluyeFcl = $request->boolean('incluye_fcl');
+        $incluyeLcl = $request->boolean('incluye_lcl');
+        $esFclTerrestre = $modo === 'Terrestre' && $incluyeFcl;
 
-        $tarifa = collect($validated)->except('cargos_adicionales')->toArray();
-        $tarifa['tipo_servicio'] = $tipoServicio;
-        $tarifa['costo_20'] = $tipoServicio === 'FCL' ? ($tarifa['costo_20'] ?? null) : null;
-        $tarifa['costo_40'] = $tipoServicio === 'FCL' ? ($tarifa['costo_40'] ?? null) : null;
-        $tarifa['costo_40hc'] = $tipoServicio === 'FCL' ? ($tarifa['costo_40hc'] ?? null) : null;
-        $tarifa['costo_cbm'] = $tipoServicio === 'LCL' ? ($tarifa['costo_cbm'] ?? null) : null;
-        $tarifa['costo_base'] = in_array($modo, ['Aereo', 'Terrestre'], true) ? ($tarifa['costo_base'] ?? null) : null;
+        $tipoServicio = in_array($modo, ['Maritimo', 'Terrestre'], true)
+            ? implode(',', array_filter([$incluyeFcl ? 'FCL' : null, $incluyeLcl ? 'LCL' : null]))
+            : null;
+
+        $tarifa = collect($validated)
+            ->only([
+                'id_proveedor', 'id_origen', 'id_destino', 'modo', 'dias_transito',
+                'costo_base', 'moneda', 'tipo_tarifa', 'observaciones',
+                'fecha_inicio_vigencia', 'fecha_fin_vigencia',
+            ])
+            ->toArray();
+
+        $tarifa['tipo_servicio'] = $tipoServicio ?: null;
+        $tarifa['costo_base'] = $modo === 'Aereo' ? ($tarifa['costo_base'] ?? null) : null;
+        $tarifa['costo_tramite'] = $esFclTerrestre ? ($validated['costo_tramite'] ?? null) : null;
+        $tarifa['moneda_tramite'] = $esFclTerrestre ? ($validated['moneda_tramite'] ?? null) : null;
 
         return [
             'tarifa' => $tarifa,
+            'costos_fcl' => $incluyeFcl ? ($validated['costos_fcl'] ?? []) : [],
+            'costos_lcl' => $incluyeLcl ? ($validated['costos_lcl'] ?? []) : [],
             'cargos_adicionales' => $validated['cargos_adicionales'] ?? [],
         ];
     }
@@ -207,44 +253,46 @@ class TarifaController extends Controller
             'carrier' => $tarifa->proveedor?->nombre,
             'origen' => $tarifa->origen?->nombre,
             'destino' => $tarifa->destino?->nombre,
-            'moneda' => $tarifa->moneda,
             'dias_transito' => $tarifa->dias_transito,
             'valido_desde' => $this->fechaEs($tarifa->fecha_inicio_vigencia),
             'valido_hasta' => $this->fechaEs($tarifa->fecha_fin_vigencia),
             'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
         ];
 
-        if ($tarifa->modo === 'Maritimo' && $tarifa->tipo_servicio === 'FCL') {
+        if (in_array($tarifa->modo, ['Maritimo', 'Terrestre'], true)) {
             $filas = [];
 
-            foreach (self::TALLAS_CONTENEDOR as $campo => $etiqueta) {
-                if ($tarifa->{$campo} !== null) {
-                    $filas[] = [
-                        ...$base,
-                        'servicio' => "FCL {$etiqueta}",
-                        'unidad' => 'contenedor',
-                        'tarifa_base' => $tarifa->{$campo},
-                    ];
-                }
+            foreach ($tarifa->costos as $costo) {
+                $filas[] = [
+                    ...$base,
+                    'servicio' => $costo->tipo_servicio === 'FCL'
+                        ? "FCL {$costo->tipo_contenedor}"
+                        : 'LCL',
+                    'unidad' => $costo->tipo_servicio === 'FCL' ? 'contenedor' : 'm³',
+                    'tarifa_base' => $costo->costo,
+                    'moneda' => $costo->moneda,
+                ];
+            }
+
+            if ($tarifa->costo_tramite !== null) {
+                $filas[] = [
+                    ...$base,
+                    'servicio' => 'Trámite',
+                    'unidad' => 'trámite',
+                    'tarifa_base' => $tarifa->costo_tramite,
+                    'moneda' => $tarifa->moneda_tramite,
+                ];
             }
 
             return $filas;
         }
 
-        if ($tarifa->modo === 'Maritimo' && $tarifa->tipo_servicio === 'LCL') {
-            return [[
-                ...$base,
-                'servicio' => 'LCL',
-                'unidad' => 'm³',
-                'tarifa_base' => $tarifa->costo_cbm,
-            ]];
-        }
-
         return [[
             ...$base,
-            'servicio' => $tarifa->modo === 'Aereo' ? 'Aéreo' : 'Terrestre',
-            'unidad' => $tarifa->modo === 'Aereo' ? 'kg' : 'viaje',
+            'servicio' => 'Aéreo',
+            'unidad' => 'kg',
             'tarifa_base' => $tarifa->costo_base,
+            'moneda' => $tarifa->moneda,
         ]];
     }
 
