@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 const TIPO_PUERTO_POR_MODO = {
     Maritimo: 'Puerto',
     Aereo: 'Aeropuerto',
+    Terrestre: 'Frontera',
 };
 
 export default function Form({ tarifa, proveedores, puertos }) {
@@ -43,7 +44,11 @@ export default function Form({ tarifa, proveedores, puertos }) {
     const permiteFclLcl = esMaritimo || esTerrestre;
     const esFclTerrestre = esTerrestre && data.incluye_fcl;
 
-    const puertosFiltrados = useMemo(() => {
+    // El Origen se filtra por el tipo que corresponde al modo (Puerto/Aeropuerto/
+    // Frontera) porque ahí sí importa cómo sale la carga. El Destino no se filtra:
+    // el punto de entrega final (ej. La Paz) suele ser el mismo sin importar el
+    // modo de transporte, así que restringirlo por tipo lo dejaría inseleccionable.
+    const puertosOrigenFiltrados = useMemo(() => {
         const tipoRequerido = TIPO_PUERTO_POR_MODO[data.modo];
 
         if (!tipoRequerido) {
@@ -52,11 +57,9 @@ export default function Form({ tarifa, proveedores, puertos }) {
 
         return puertos.filter(
             (puerto) =>
-                puerto.tipo === tipoRequerido ||
-                puerto.codigo === data.id_origen ||
-                puerto.codigo === data.id_destino,
+                puerto.tipo === tipoRequerido || puerto.codigo === data.id_origen,
         );
-    }, [puertos, data.modo, data.id_origen, data.id_destino]);
+    }, [puertos, data.modo, data.id_origen]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -195,7 +198,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             }
                         >
                             <option value="">—</option>
-                            {puertosFiltrados.map((p) => (
+                            {puertosOrigenFiltrados.map((p) => (
                                 <option key={p.codigo} value={p.codigo}>
                                     {p.codigo} — {p.nombre}
                                 </option>
@@ -218,7 +221,7 @@ export default function Form({ tarifa, proveedores, puertos }) {
                             }
                         >
                             <option value="">—</option>
-                            {puertosFiltrados.map((p) => (
+                            {puertos.map((p) => (
                                 <option key={p.codigo} value={p.codigo}>
                                     {p.codigo} — {p.nombre}
                                 </option>
@@ -337,7 +340,12 @@ export default function Form({ tarifa, proveedores, puertos }) {
 
                         {data.incluye_fcl && (
                             <div>
-                                <div className="mb-2 flex items-center justify-between">
+                                <datalist id="tipos-contenedor-sugeridos">
+                                    {TIPOS_CONTENEDOR.map((tipo) => (
+                                        <option key={tipo} value={tipo} />
+                                    ))}
+                                </datalist>
+                                <div className="mb-1 flex items-center justify-between">
                                     <h3 className="text-sm font-semibold text-[#042753]">
                                         Costos por Contenedor (FCL)
                                     </h3>
@@ -349,68 +357,80 @@ export default function Form({ tarifa, proveedores, puertos }) {
                                         + Agregar contenedor
                                     </button>
                                 </div>
+                                <p className="mb-2 text-xs text-[#A9ABAE]">
+                                    Escribí el tipo de contenedor tal cual lo vas a usar
+                                    en las cotizaciones para esta ruta (ej. 20 DRY, 40
+                                    HC).
+                                </p>
                                 <div className="space-y-2">
                                     {data.costos_fcl.map((costo, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center gap-2"
-                                        >
-                                            <select
-                                                className={inputClass}
-                                                value={costo.tipo_contenedor}
-                                                onChange={(e) =>
-                                                    actualizarCostoFcl(
-                                                        index,
-                                                        'tipo_contenedor',
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            >
-                                                {TIPOS_CONTENEDOR.map((tipo) => (
-                                                    <option key={tipo} value={tipo}>
-                                                        {tipo}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="Costo"
-                                                className={`${inputClass} max-w-[140px]`}
-                                                value={costo.costo}
-                                                onChange={(e) =>
-                                                    actualizarCostoFcl(
-                                                        index,
-                                                        'costo',
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            />
-                                            <select
-                                                className={`${inputClass} max-w-[110px]`}
-                                                value={costo.moneda}
-                                                onChange={(e) =>
-                                                    actualizarCostoFcl(
-                                                        index,
-                                                        'moneda',
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            >
-                                                {MONEDAS.map((m) => (
-                                                    <option key={m.valor} value={m.valor}>
-                                                        {m.valor}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {data.costos_fcl.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => quitarCostoFcl(index)}
-                                                    className="text-red-600 hover:underline"
+                                        <div key={index}>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    list="tipos-contenedor-sugeridos"
+                                                    placeholder="Ej. 20 DRY"
+                                                    maxLength={50}
+                                                    className={inputClass}
+                                                    value={costo.tipo_contenedor}
+                                                    onChange={(e) =>
+                                                        actualizarCostoFcl(
+                                                            index,
+                                                            'tipo_contenedor',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    placeholder="Costo"
+                                                    className={`${inputClass} max-w-[140px]`}
+                                                    value={costo.costo}
+                                                    onChange={(e) =>
+                                                        actualizarCostoFcl(
+                                                            index,
+                                                            'costo',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <select
+                                                    className={`${inputClass} max-w-[110px]`}
+                                                    value={costo.moneda}
+                                                    onChange={(e) =>
+                                                        actualizarCostoFcl(
+                                                            index,
+                                                            'moneda',
+                                                            e.target.value,
+                                                        )
+                                                    }
                                                 >
-                                                    Quitar
-                                                </button>
+                                                    {MONEDAS.map((m) => (
+                                                        <option key={m.valor} value={m.valor}>
+                                                            {m.valor}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {data.costos_fcl.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => quitarCostoFcl(index)}
+                                                        className="text-red-600 hover:underline"
+                                                    >
+                                                        Quitar
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {errors[`costos_fcl.${index}.tipo_contenedor`] && (
+                                                <p className="mt-1 text-sm text-red-600">
+                                                    {errors[`costos_fcl.${index}.tipo_contenedor`]}
+                                                </p>
+                                            )}
+                                            {errors[`costos_fcl.${index}.costo`] && (
+                                                <p className="mt-1 text-sm text-red-600">
+                                                    {errors[`costos_fcl.${index}.costo`]}
+                                                </p>
                                             )}
                                         </div>
                                     ))}

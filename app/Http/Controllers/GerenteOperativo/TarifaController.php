@@ -181,12 +181,12 @@ class TarifaController extends Controller
             'fecha_inicio_vigencia' => ['required', 'date'],
             'fecha_fin_vigencia' => ['required', 'date', 'after_or_equal:fecha_inicio_vigencia'],
             'costos_fcl' => ['array'],
-            'costos_fcl.*.tipo_contenedor' => ['required', 'string', 'max:20'],
-            'costos_fcl.*.costo' => ['required', 'numeric'],
-            'costos_fcl.*.moneda' => ['required', 'string', 'max:5'],
+            'costos_fcl.*.tipo_contenedor' => ['nullable', 'string', 'max:50'],
+            'costos_fcl.*.costo' => ['nullable', 'numeric'],
+            'costos_fcl.*.moneda' => ['nullable', 'string', 'max:5'],
             'costos_lcl' => ['array'],
-            'costos_lcl.*.costo' => ['required', 'numeric'],
-            'costos_lcl.*.moneda' => ['required', 'string', 'max:5'],
+            'costos_lcl.*.costo' => ['nullable', 'numeric'],
+            'costos_lcl.*.moneda' => ['nullable', 'string', 'max:5'],
             'cargos_adicionales' => ['array'],
             'cargos_adicionales.*.concepto' => ['required', 'string', 'max:100'],
             'cargos_adicionales.*.monto' => ['required', 'numeric'],
@@ -201,12 +201,22 @@ class TarifaController extends Controller
                     $validator->errors()->add('incluye_fcl', 'Seleccioná al menos FCL o LCL.');
                 }
 
-                if ($incluyeFcl && count($request->input('costos_fcl', [])) === 0) {
-                    $validator->errors()->add('costos_fcl', 'Cargá al menos un costo por tipo de contenedor.');
+                if ($incluyeFcl) {
+                    $tieneCosto = collect($request->input('costos_fcl', []))
+                        ->contains(fn ($costo) => filled($costo['costo'] ?? null));
+
+                    if (! $tieneCosto) {
+                        $validator->errors()->add('costos_fcl', 'Cargá al menos un costo por tipo de contenedor.');
+                    }
                 }
 
-                if ($incluyeLcl && count($request->input('costos_lcl', [])) === 0) {
-                    $validator->errors()->add('costos_lcl', 'Cargá al menos un costo LCL.');
+                if ($incluyeLcl) {
+                    $tieneCosto = collect($request->input('costos_lcl', []))
+                        ->contains(fn ($costo) => filled($costo['costo'] ?? null));
+
+                    if (! $tieneCosto) {
+                        $validator->errors()->add('costos_lcl', 'Cargá al menos un costo LCL.');
+                    }
                 }
             } elseif ($modo === 'Aereo' && ! $request->filled('costo_base')) {
                 $validator->errors()->add('costo_base', 'La tarifa por kilo es obligatoria para Aéreo.');
@@ -237,10 +247,16 @@ class TarifaController extends Controller
         $tarifa['costo_tramite'] = $esFclTerrestre ? ($validated['costo_tramite'] ?? null) : null;
         $tarifa['moneda_tramite'] = $esFclTerrestre ? ($validated['moneda_tramite'] ?? null) : null;
 
+        $soloConCosto = fn ($costo) => filled($costo['costo'] ?? null);
+
         return [
             'tarifa' => $tarifa,
-            'costos_fcl' => $incluyeFcl ? ($validated['costos_fcl'] ?? []) : [],
-            'costos_lcl' => $incluyeLcl ? ($validated['costos_lcl'] ?? []) : [],
+            'costos_fcl' => $incluyeFcl
+                ? collect($validated['costos_fcl'] ?? [])->filter($soloConCosto)->values()->all()
+                : [],
+            'costos_lcl' => $incluyeLcl
+                ? collect($validated['costos_lcl'] ?? [])->filter($soloConCosto)->values()->all()
+                : [],
             'cargos_adicionales' => $validated['cargos_adicionales'] ?? [],
         ];
     }

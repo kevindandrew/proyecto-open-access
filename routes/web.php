@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Comercial'])
         Route::get('cotizaciones', [GerenteComercialCotizacionController::class, 'index'])->name('cotizaciones.index');
         Route::get('cotizaciones/nueva', [GerenteComercialCotizacionController::class, 'create'])->name('cotizaciones.create');
         Route::get('cotizaciones/tarifas-disponibles', [GerenteComercialCotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
+        Route::post('cotizaciones/solicitar-tarifa', [GerenteComercialCotizacionController::class, 'solicitarTarifa'])->name('cotizaciones.solicitar-tarifa');
         Route::post('cotizaciones', [GerenteComercialCotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [GerenteComercialCotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [GerenteComercialCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
@@ -67,6 +68,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
 
         Route::get('cotizaciones/nueva', [CotizacionController::class, 'create'])->name('cotizaciones.create');
         Route::get('cotizaciones/tarifas-disponibles', [CotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
+        Route::post('cotizaciones/solicitar-tarifa', [CotizacionController::class, 'solicitarTarifa'])->name('cotizaciones.solicitar-tarifa');
         Route::post('cotizaciones', [CotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [CotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [CotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
@@ -113,6 +115,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('cotizaciones', [GerenteOperativoCotizacionController::class, 'index'])->name('cotizaciones.index');
         Route::get('cotizaciones/nueva', [GerenteOperativoCotizacionController::class, 'create'])->name('cotizaciones.create');
         Route::get('cotizaciones/tarifas-disponibles', [GerenteOperativoCotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
+        Route::post('cotizaciones/solicitar-tarifa', [GerenteOperativoCotizacionController::class, 'solicitarTarifa'])->name('cotizaciones.solicitar-tarifa');
         Route::post('cotizaciones', [GerenteOperativoCotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [GerenteOperativoCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');

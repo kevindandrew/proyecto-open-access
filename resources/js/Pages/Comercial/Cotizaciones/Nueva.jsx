@@ -13,6 +13,7 @@ export default function Nueva({ puertos, conceptosCostoExtra, origen }) {
                 origen={origen}
                 rutaBuscarCliente="comercial.clientes.buscar"
                 rutaTarifasDisponibles="comercial.cotizaciones.tarifas-disponibles"
+                rutaSolicitarTarifa="comercial.cotizaciones.solicitar-tarifa"
                 rutaStore="comercial.cotizaciones.store"
             />
         </ComercialLayout>

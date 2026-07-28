@@ -76,6 +76,23 @@ class CotizacionController extends Controller
         return response()->json(TarifaLookup::disponibles($data));
     }
 
+    public function solicitarTarifa(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id_cliente' => ['nullable', 'integer', 'exists:clientes,id_cliente'],
+            'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
+            'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
+            'id_pol' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
+            'id_pod' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
+        ]);
+
+        $comercial = Auth::user()->empleado;
+
+        SolicitudTarifaRegistrador::registrar($data, $data['id_cliente'] ?? null, $comercial->id_empleado);
+
+        return response()->json(['mensaje' => 'Solicitud registrada correctamente.']);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -96,7 +113,7 @@ class CotizacionController extends Controller
             'fecha_validez' => ['required', 'date'],
             'dias_transito' => ['nullable', 'integer'],
             'contenedores' => ['array'],
-            'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:10'],
+            'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:50'],
             'contenedores.*.cantidad' => ['required', 'integer', 'min:1'],
             'detalle' => ['required', 'array', 'min:1'],
             'detalle.*.descripcion' => ['required', 'string', 'max:200'],

@@ -15,6 +15,7 @@ use App\Models\PuertoAeropuerto;
 use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
+use App\Support\SolicitudTarifaRegistrador;
 use App\Support\TarifaLookup;
 use App\Support\TiposTransportePorModo;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -52,6 +54,23 @@ class CotizacionController extends Controller
         return response()->json(TarifaLookup::disponibles($data));
     }
 
+    public function solicitarTarifa(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id_cliente' => ['nullable', 'integer', 'exists:clientes,id_cliente'],
+            'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
+            'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
+            'id_pol' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
+            'id_pod' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
+        ]);
+
+        $empleado = Auth::user()->empleado;
+
+        SolicitudTarifaRegistrador::registrar($data, $data['id_cliente'] ?? null, $empleado->id_empleado);
+
+        return response()->json(['mensaje' => 'Solicitud registrada correctamente.']);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -72,7 +91,7 @@ class CotizacionController extends Controller
             'fecha_validez' => ['required', 'date'],
             'dias_transito' => ['nullable', 'integer'],
             'contenedores' => ['array'],
-            'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:10'],
+            'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:50'],
             'contenedores.*.cantidad' => ['required', 'integer', 'min:1'],
             'detalle' => ['required', 'array', 'min:1'],
             'detalle.*.descripcion' => ['required', 'string', 'max:200'],
@@ -86,6 +105,21 @@ class CotizacionController extends Controller
         $comercialAsignado = $cliente->id_comercial
             ? Empleado::find($cliente->id_comercial)
             : Auth::user()->empleado;
+
+        $filtrosRuta = [
+            'modo_transporte' => $data['modo_transporte'],
+            'tipo_servicio' => $data['tipo_servicio'] ?? null,
+            'id_pol' => $data['id_pol'] ?? null,
+            'id_pod' => $data['id_pod'] ?? null,
+        ];
+
+        if (! TarifaLookup::existeParaRuta($filtrosRuta)) {
+            SolicitudTarifaRegistrador::registrar($filtrosRuta, $data['id_cliente'], $comercialAsignado->id_empleado);
+
+            throw ValidationException::withMessages([
+                'tarifa' => 'No existe una tarifa cargada para esta ruta. Cargala en Tarifas antes de crear esta cotización.',
+            ]);
+        }
 
         $cotizacion = DB::transaction(function () use ($data, $comercialAsignado) {
             $cotizacion = Cotizacion::create([

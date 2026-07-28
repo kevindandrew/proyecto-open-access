@@ -1,7 +1,6 @@
 import AyudaTermino from '@/Components/AyudaTermino';
 import { INCOTERMS_INFO, TIPO_CONTENEDOR_INFO } from '@/constants/glosario';
 import { MONEDAS } from '@/constants/monedas';
-import { TIPOS_CONTENEDOR } from '@/constants/tiposContenedor';
 import { useForm } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
@@ -12,6 +11,7 @@ const INCOTERMS = ['FOB', 'EXW', 'CIF', 'CFR', 'DDP'];
 const TIPO_PUERTO_POR_MODO = {
     Maritimo: 'Puerto',
     Aereo: 'Aeropuerto',
+    Terrestre: 'Frontera',
 };
 
 function fechaValidezPorDefecto() {
@@ -165,13 +165,24 @@ function PasoCliente({ data, setData, errors, clearErrors, rutaBuscarCliente }) 
 }
 
 function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
-    const puertosFiltrados = useMemo(() => {
+    // El Origen (POL) se filtra por el tipo que corresponde al modo (Puerto/
+    // Aeropuerto/Frontera) — importa por dónde sale la carga. El Destino (POD) no
+    // se filtra: el punto de entrega final (ej. La Paz) suele ser el mismo sin
+    // importar el modo, así que restringirlo por tipo lo dejaría inseleccionable.
+    // Si el origen ya viene precargado (ej. continuación de una cotización
+    // marítima hacia un tramo terrestre) se mantiene visible aunque su tipo no
+    // coincida con el del modo actual.
+    const puertosOrigenFiltrados = useMemo(() => {
         const tipoRequerido = TIPO_PUERTO_POR_MODO[data.modo_transporte];
 
-        return tipoRequerido
-            ? puertos.filter((puerto) => puerto.tipo === tipoRequerido)
-            : puertos;
-    }, [puertos, data.modo_transporte]);
+        if (!tipoRequerido) {
+            return puertos;
+        }
+
+        return puertos.filter(
+            (puerto) => puerto.tipo === tipoRequerido || puerto.codigo === data.id_pol,
+        );
+    }, [puertos, data.modo_transporte, data.id_pol]);
 
     return (
         <div className="space-y-4">
@@ -258,7 +269,7 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                         }}
                     >
                         <option value="">—</option>
-                        {puertosFiltrados.map((puerto) => (
+                        {puertosOrigenFiltrados.map((puerto) => (
                             <option key={puerto.codigo} value={puerto.codigo}>
                                 {puerto.codigo} — {puerto.nombre}
                             </option>
@@ -280,7 +291,7 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                         }}
                     >
                         <option value="">—</option>
-                        {puertosFiltrados.map((puerto) => (
+                        {puertos.map((puerto) => (
                             <option key={puerto.codigo} value={puerto.codigo}>
                                 {puerto.codigo} — {puerto.nombre}
                             </option>
@@ -310,15 +321,71 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
     );
 }
 
-function PasoCarga({ data, setData, errors, clearErrors }) {
+function BotonSolicitarTarifa({ data, rutaSolicitarTarifa }) {
+    const [enviando, setEnviando] = useState(false);
+    const [enviado, setEnviado] = useState(false);
+
+    if (!rutaSolicitarTarifa) {
+        return null;
+    }
+
+    const solicitar = () => {
+        setEnviando(true);
+        axios
+            .post(route(rutaSolicitarTarifa), {
+                id_cliente: data.id_cliente || undefined,
+                modo_transporte: data.modo_transporte,
+                tipo_servicio: data.tipo_servicio || undefined,
+                id_pol: data.id_pol || undefined,
+                id_pod: data.id_pod || undefined,
+            })
+            .then(() => setEnviado(true))
+            .finally(() => setEnviando(false));
+    };
+
+    if (enviado) {
+        return (
+            <p className="text-sm font-medium text-[#71BFA6]">
+                ✓ Se envió la solicitud a Gerente Operativo.
+            </p>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={solicitar}
+            disabled={enviando}
+            className="rounded-md bg-[#042753] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+            {enviando ? 'Enviando...' : 'Solicitar Tarifa a Gerente Operativo'}
+        </button>
+    );
+}
+
+function PasoCarga({
+    data,
+    setData,
+    errors,
+    clearErrors,
+    tiposContenedorDisponibles,
+    cargandoTarifas,
+    consultadoTarifas,
+    rutaSolicitarTarifa,
+}) {
     const esFCL = data.tipo_servicio === 'FCL';
+    const hayTiposDisponibles = tiposContenedorDisponibles.length > 0;
 
     const agregarContenedor = () => {
         setData({
             ...data,
             contenedores: [
                 ...data.contenedores,
-                { tipo_contenedor: '20 DRY', cantidad: 1 },
+                {
+                    id: crypto.randomUUID(),
+                    tipo_contenedor: tiposContenedorDisponibles[0] ?? '',
+                    cantidad: 1,
+                },
             ],
         });
     };
@@ -343,86 +410,116 @@ function PasoCarga({ data, setData, errors, clearErrors }) {
                 <div>
                     <div className="mb-2 flex items-center justify-between">
                         <label className={labelClass}>Contenedores</label>
-                        <button
-                            type="button"
-                            onClick={agregarContenedor}
-                            className="text-sm font-medium text-[#71BFA6] hover:underline"
-                        >
-                            + Agregar línea
-                        </button>
-                    </div>
-                    <p className="mb-2 text-xs text-[#A9ABAE]">
-                        DRY = contenedor estándar · HC = High Cube (más alto, más volumen)
-                    </p>
-
-                    <div className="space-y-2">
-                        {data.contenedores.map((contenedor, index) => (
-                            <div key={index}>
-                                <div className="flex items-center gap-2">
-                                    <select
-                                        className={inputClass}
-                                        value={contenedor.tipo_contenedor}
-                                        onChange={(e) =>
-                                            actualizarContenedor(
-                                                index,
-                                                'tipo_contenedor',
-                                                e.target.value,
-                                            )
-                                        }
-                                    >
-                                        {TIPOS_CONTENEDOR.map((tipo) => (
-                                            <option
-                                                key={tipo}
-                                                value={tipo}
-                                                title={TIPO_CONTENEDOR_INFO[tipo].explicacion}
-                                            >
-                                                {tipo} ({TIPO_CONTENEDOR_INFO[tipo].nombre})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        placeholder="Cantidad"
-                                        className={`${inputClass} max-w-[120px]`}
-                                        value={contenedor.cantidad}
-                                        onChange={(e) =>
-                                            actualizarContenedor(
-                                                index,
-                                                'cantidad',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            quitarContenedor(index)
-                                        }
-                                        className="text-red-600 hover:underline"
-                                    >
-                                        Quitar
-                                    </button>
-                                </div>
-                                <CampoError
-                                    mensaje={
-                                        errors[
-                                            `contenedores.${index}.tipo_contenedor`
-                                        ] ??
-                                        errors[
-                                            `contenedores.${index}.cantidad`
-                                        ]
-                                    }
-                                />
-                            </div>
-                        ))}
-
-                        {data.contenedores.length === 0 && (
-                            <p className="text-sm text-[#A9ABAE]">
-                                Agrega al menos una línea de contenedor.
-                            </p>
+                        {hayTiposDisponibles && (
+                            <button
+                                type="button"
+                                onClick={agregarContenedor}
+                                className="text-sm font-medium text-[#71BFA6] hover:underline"
+                            >
+                                + Agregar línea
+                            </button>
                         )}
                     </div>
+
+                    {cargandoTarifas && (
+                        <p className="text-sm text-[#A9ABAE]">
+                            Buscando tipos de contenedor disponibles para esta ruta...
+                        </p>
+                    )}
+
+                    {!cargandoTarifas && consultadoTarifas && !hayTiposDisponibles && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+                            <p className="mb-3 text-sm text-amber-800">
+                                Gerente Operativo todavía no cargó ninguna tarifa FCL
+                                para esta ruta, así que no hay tipos de contenedor para
+                                elegir.
+                            </p>
+                            <BotonSolicitarTarifa
+                                data={data}
+                                rutaSolicitarTarifa={rutaSolicitarTarifa}
+                            />
+                        </div>
+                    )}
+
+                    {hayTiposDisponibles && (
+                        <>
+                            <p className="mb-2 text-xs text-[#A9ABAE]">
+                                Tipos de contenedor cargados por Gerente Operativo para
+                                esta ruta.
+                            </p>
+
+                            <div className="space-y-2">
+                                {data.contenedores.map((contenedor, index) => (
+                                    <div key={contenedor.id ?? index}>
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                className={inputClass}
+                                                value={contenedor.tipo_contenedor}
+                                                onChange={(e) =>
+                                                    actualizarContenedor(
+                                                        index,
+                                                        'tipo_contenedor',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                {tiposContenedorDisponibles.map((tipo) => (
+                                                    <option
+                                                        key={tipo}
+                                                        value={tipo}
+                                                        title={TIPO_CONTENEDOR_INFO[tipo]?.explicacion}
+                                                    >
+                                                        {tipo}
+                                                        {TIPO_CONTENEDOR_INFO[tipo] &&
+                                                            ` (${TIPO_CONTENEDOR_INFO[tipo].nombre})`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                placeholder="Cantidad"
+                                                className={`${inputClass} max-w-[120px]`}
+                                                value={contenedor.cantidad}
+                                                onChange={(e) =>
+                                                    actualizarContenedor(
+                                                        index,
+                                                        'cantidad',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    quitarContenedor(index)
+                                                }
+                                                className="text-red-600 hover:underline"
+                                            >
+                                                Quitar
+                                            </button>
+                                        </div>
+                                        <CampoError
+                                            mensaje={
+                                                errors[
+                                                    `contenedores.${index}.tipo_contenedor`
+                                                ] ??
+                                                errors[
+                                                    `contenedores.${index}.cantidad`
+                                                ]
+                                            }
+                                        />
+                                    </div>
+                                ))}
+
+                                {data.contenedores.length === 0 && (
+                                    <p className="text-sm text-[#A9ABAE]">
+                                        Agrega al menos una línea de contenedor.
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             ) : (
                 <div className="grid grid-cols-2 gap-4">
@@ -481,37 +578,15 @@ function PasoCarga({ data, setData, errors, clearErrors }) {
     );
 }
 
-function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles, permiteTarifaInexistente }) {
-    const [tarifas, setTarifas] = useState([]);
-    const [cargando, setCargando] = useState(false);
-    const [consultado, setConsultado] = useState(false);
-
-    useEffect(() => {
-        if (!data.id_pol || !data.id_pod) {
-            setTarifas([]);
-            setConsultado(false);
-            return;
-        }
-
-        setCargando(true);
-        setConsultado(false);
-
-        axios
-            .get(route(rutaTarifasDisponibles), {
-                params: {
-                    modo_transporte: data.modo_transporte,
-                    id_pol: data.id_pol,
-                    id_pod: data.id_pod,
-                    tipo_servicio: data.tipo_servicio || undefined,
-                },
-            })
-            .then((response) => setTarifas(response.data))
-            .finally(() => {
-                setCargando(false);
-                setConsultado(true);
-            });
-    }, [data.modo_transporte, data.id_pol, data.id_pod, data.tipo_servicio]);
-
+function TarifasDisponibles({
+    data,
+    onAplicar,
+    tarifas,
+    cargando,
+    consultado,
+    permiteTarifaInexistente,
+    rutaSolicitarTarifa,
+}) {
     if (!data.id_pol || !data.id_pod) {
         return null;
     }
@@ -533,12 +608,18 @@ function TarifasDisponibles({ data, onAplicar, rutaTarifasDisponibles, permiteTa
             )}
 
             {!cargando && consultado && tarifas.length === 0 && (
-                <p className="text-sm text-[#A9ABAE]">
-                    No hay ninguna tarifa cargada para esta ruta.{' '}
-                    {permiteTarifaInexistente
-                        ? 'Podés completar los costos manualmente abajo — como Gerente Comercial, se avisará a Gerente Operativo para que la cargue.'
-                        : 'No vas a poder crear esta cotización hasta que Gerente Operativo cargue una tarifa para esta ruta. Al confirmar, se le va a avisar automáticamente.'}
-                </p>
+                <div className="space-y-3">
+                    <p className="text-sm text-[#A9ABAE]">
+                        No hay ninguna tarifa cargada para esta ruta.{' '}
+                        {permiteTarifaInexistente
+                            ? 'Podés completar los costos manualmente abajo — como Gerente Comercial, se avisará a Gerente Operativo para que la cargue.'
+                            : 'No vas a poder crear esta cotización hasta que Gerente Operativo cargue una tarifa para esta ruta.'}
+                    </p>
+                    <BotonSolicitarTarifa
+                        data={data}
+                        rutaSolicitarTarifa={rutaSolicitarTarifa}
+                    />
+                </div>
             )}
 
             <div className="space-y-2">
@@ -677,9 +758,12 @@ function PasoCostos({
     setData,
     errors,
     clearErrors,
-    rutaTarifasDisponibles,
+    tarifasRuta,
+    cargandoTarifas,
+    consultadoTarifas,
     conceptosCostoExtra,
     permiteTarifaInexistente,
+    rutaSolicitarTarifa,
 }) {
     const aplicarTarifa = (tarifa) => {
         const lineasNuevas = [];
@@ -699,6 +783,8 @@ function PasoCostos({
                         costo_unitario: costoFila.costo,
                         base_calculo: contenedor.cantidad,
                         moneda: costoFila.moneda,
+                        bloqueada: true,
+                        vinculo: { tipo: 'contenedor', contenedorId: contenedor.id },
                     });
                 }
             });
@@ -710,6 +796,7 @@ function PasoCostos({
                     costo_unitario: tarifa.costo_tramite,
                     base_calculo: 1,
                     moneda: tarifa.moneda_tramite,
+                    bloqueada: true,
                 });
             }
         } else if (data.tipo_servicio === 'LCL') {
@@ -725,6 +812,8 @@ function PasoCostos({
                         costo_unitario: costoFila.costo,
                         base_calculo: data.volumen_cbm || 1,
                         moneda: costoFila.moneda,
+                        bloqueada: true,
+                        vinculo: { tipo: 'volumen_cbm' },
                     });
                 });
         } else if (tarifa.costo_base) {
@@ -734,6 +823,8 @@ function PasoCostos({
                 costo_unitario: tarifa.costo_base,
                 base_calculo: data.peso_kg || 1,
                 moneda: tarifa.moneda,
+                bloqueada: true,
+                vinculo: { tipo: 'peso_kg' },
             });
         }
 
@@ -744,6 +835,7 @@ function PasoCostos({
                 costo_unitario: cargo.monto,
                 base_calculo: 1,
                 moneda: cargo.moneda,
+                bloqueada: true,
             });
         });
 
@@ -759,8 +851,13 @@ function PasoCostos({
                 ),
                 ...lineasNuevas,
             ],
+            fecha_validez: tarifa.fecha_fin_vigencia || data.fecha_validez,
+            dias_transito:
+                tarifa.dias_transito !== null && tarifa.dias_transito !== undefined
+                    ? tarifa.dias_transito
+                    : data.dias_transito,
         });
-        clearErrors('detalle');
+        clearErrors('detalle', 'fecha_validez', 'dias_transito');
     };
 
     const agregarLinea = () => {
@@ -793,9 +890,41 @@ function PasoCostos({
         clearErrors(`detalle.${index}.${campo}`, 'detalle');
     };
 
+    // Para líneas generadas desde una tarifa, la Base Cálculo no es una copia
+    // aparte: se lee y se escribe directo sobre el dato de origen (contenedor,
+    // volumen o peso), así el paso 3 y esta tabla nunca quedan desincronizados.
+    const valorBaseCalculo = (linea) => {
+        if (!linea.vinculo) return linea.base_calculo;
+
+        if (linea.vinculo.tipo === 'contenedor') {
+            const contenedor = data.contenedores.find(
+                (c) => c.id === linea.vinculo.contenedorId,
+            );
+            return contenedor ? contenedor.cantidad : linea.base_calculo;
+        }
+
+        return data[linea.vinculo.tipo] ?? linea.base_calculo;
+    };
+
+    const actualizarBaseCalculoVinculada = (linea, valor) => {
+        if (linea.vinculo.tipo === 'contenedor') {
+            setData({
+                ...data,
+                contenedores: data.contenedores.map((c) =>
+                    c.id === linea.vinculo.contenedorId
+                        ? { ...c, cantidad: valor }
+                        : c,
+                ),
+            });
+            return;
+        }
+
+        setData({ ...data, [linea.vinculo.tipo]: valor });
+    };
+
     const costoTotal = (linea) => {
         const unitario = parseFloat(linea.costo_unitario) || 0;
-        const base = parseFloat(linea.base_calculo) || 0;
+        const base = parseFloat(valorBaseCalculo(linea)) || 0;
         return (unitario * base).toFixed(2);
     };
 
@@ -808,8 +937,11 @@ function PasoCostos({
             <TarifasDisponibles
                 data={data}
                 onAplicar={aplicarTarifa}
-                rutaTarifasDisponibles={rutaTarifasDisponibles}
+                tarifas={tarifasRuta}
+                cargando={cargandoTarifas}
+                consultado={consultadoTarifas}
                 permiteTarifaInexistente={permiteTarifaInexistente}
+                rutaSolicitarTarifa={rutaSolicitarTarifa}
             />
 
             {errors.tarifa && (
@@ -858,22 +990,42 @@ function PasoCostos({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {data.detalle.map((linea, index) => (
+                            {data.detalle.map((linea, index) => {
+                                const bloqueada = Boolean(linea.bloqueada);
+                                const inputBloqueadoClass =
+                                    'w-full min-w-[160px] rounded-md border-gray-200 bg-gray-100 text-sm text-[#042753]';
+
+                                return (
                                 <tr key={index} className="align-top">
                                     <td className="px-3 py-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Ej. Ocean Freight"
-                                            className="w-full min-w-[160px] rounded-md border-gray-300 text-sm"
-                                            value={linea.descripcion}
-                                            onChange={(e) =>
-                                                actualizarLinea(
-                                                    index,
-                                                    'descripcion',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
+                                        <div className="flex items-center gap-1">
+                                            {bloqueada && (
+                                                <span
+                                                    title="Cargado desde una tarifa oficial — no editable"
+                                                    className="text-xs text-[#A9ABAE]"
+                                                >
+                                                    🔒
+                                                </span>
+                                            )}
+                                            <input
+                                                type="text"
+                                                placeholder="Ej. Ocean Freight"
+                                                readOnly={bloqueada}
+                                                className={
+                                                    bloqueada
+                                                        ? inputBloqueadoClass
+                                                        : 'w-full min-w-[160px] rounded-md border-gray-300 text-sm'
+                                                }
+                                                value={linea.descripcion}
+                                                onChange={(e) =>
+                                                    actualizarLinea(
+                                                        index,
+                                                        'descripcion',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
                                         <CampoError
                                             mensaje={
                                                 errors[
@@ -886,7 +1038,12 @@ function PasoCostos({
                                         <input
                                             type="text"
                                             placeholder="Per Container"
-                                            className="w-full min-w-[140px] rounded-md border-gray-300 text-sm"
+                                            readOnly={bloqueada}
+                                            className={
+                                                bloqueada
+                                                    ? inputBloqueadoClass
+                                                    : 'w-full min-w-[140px] rounded-md border-gray-300 text-sm'
+                                            }
                                             value={linea.tipo_tarifa_unidad}
                                             onChange={(e) =>
                                                 actualizarLinea(
@@ -908,7 +1065,12 @@ function PasoCostos({
                                         <input
                                             type="number"
                                             step="0.01"
-                                            className="w-28 rounded-md border-gray-300 text-right text-sm"
+                                            readOnly={bloqueada}
+                                            className={
+                                                bloqueada
+                                                    ? `${inputBloqueadoClass} w-28 text-right`
+                                                    : 'w-28 rounded-md border-gray-300 text-right text-sm'
+                                            }
                                             value={linea.costo_unitario}
                                             onChange={(e) =>
                                                 actualizarLinea(
@@ -930,14 +1092,24 @@ function PasoCostos({
                                         <input
                                             type="number"
                                             step="0.001"
+                                            title={
+                                                linea.vinculo
+                                                    ? 'Sincronizado con el paso 3 (Carga)'
+                                                    : undefined
+                                            }
                                             className="w-24 rounded-md border-gray-300 text-right text-sm"
-                                            value={linea.base_calculo}
+                                            value={valorBaseCalculo(linea)}
                                             onChange={(e) =>
-                                                actualizarLinea(
-                                                    index,
-                                                    'base_calculo',
-                                                    e.target.value,
-                                                )
+                                                linea.vinculo
+                                                    ? actualizarBaseCalculoVinculada(
+                                                          linea,
+                                                          e.target.value,
+                                                      )
+                                                    : actualizarLinea(
+                                                          index,
+                                                          'base_calculo',
+                                                          e.target.value,
+                                                      )
                                             }
                                         />
                                         <CampoError
@@ -950,7 +1122,12 @@ function PasoCostos({
                                     </td>
                                     <td className="px-3 py-2">
                                         <select
-                                            className="w-28 rounded-md border-gray-300 text-sm"
+                                            disabled={bloqueada}
+                                            className={
+                                                bloqueada
+                                                    ? 'w-28 rounded-md border-gray-200 bg-gray-100 text-sm text-[#042753]'
+                                                    : 'w-28 rounded-md border-gray-300 text-sm'
+                                            }
                                             value={linea.moneda}
                                             onChange={(e) =>
                                                 actualizarLinea(
@@ -989,7 +1166,8 @@ function PasoCostos({
                                         </button>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                         <tfoot>
                             <tr className="border-t-2 border-gray-200">
@@ -1058,6 +1236,7 @@ export default function NuevaCotizacionWizard({
     puertos,
     rutaBuscarCliente,
     rutaTarifasDisponibles,
+    rutaSolicitarTarifa,
     rutaStore,
     conceptosCostoExtra = [],
     permiteTarifaInexistente = false,
@@ -1065,7 +1244,7 @@ export default function NuevaCotizacionWizard({
 }) {
     const [paso, setPaso] = useState(origen ? 2 : 1);
 
-    const { data, setData, post, processing, errors, clearErrors } = useForm({
+    const { data, setData, post, transform, processing, errors, clearErrors } = useForm({
         id_cliente: origen?.id_cliente ?? '',
         cliente_nombre: origen?.cliente_nombre ?? '',
         modo_transporte: origen ? 'Terrestre' : 'Maritimo',
@@ -1090,6 +1269,50 @@ export default function NuevaCotizacionWizard({
             },
         ],
     });
+
+    const [tarifasRuta, setTarifasRuta] = useState([]);
+    const [cargandoTarifas, setCargandoTarifas] = useState(false);
+    const [consultadoTarifas, setConsultadoTarifas] = useState(false);
+
+    useEffect(() => {
+        if (!data.id_pol || !data.id_pod) {
+            setTarifasRuta([]);
+            setConsultadoTarifas(false);
+            return;
+        }
+
+        setCargandoTarifas(true);
+        setConsultadoTarifas(false);
+
+        axios
+            .get(route(rutaTarifasDisponibles), {
+                params: {
+                    modo_transporte: data.modo_transporte,
+                    id_pol: data.id_pol,
+                    id_pod: data.id_pod,
+                    tipo_servicio: data.tipo_servicio || undefined,
+                },
+            })
+            .then((response) => setTarifasRuta(response.data))
+            .finally(() => {
+                setCargandoTarifas(false);
+                setConsultadoTarifas(true);
+            });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data.modo_transporte, data.id_pol, data.id_pod, data.tipo_servicio]);
+
+    const tiposContenedorDisponibles = useMemo(() => {
+        const tipos = new Set();
+        tarifasRuta.forEach((tarifa) => {
+            tarifa.costos.forEach((costo) => {
+                if (costo.tipo_servicio === 'FCL') {
+                    tipos.add(costo.tipo_contenedor);
+                }
+            });
+        });
+        return Array.from(tipos);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tarifasRuta]);
 
     useEffect(() => {
         const claves = Object.keys(errors);
@@ -1147,6 +1370,29 @@ export default function NuevaCotizacionWizard({
     };
 
     const confirmar = () => {
+        // Las líneas de detalle vinculadas a un contenedor/volumen/peso muestran
+        // su Base Cálculo en vivo (ver valorBaseCalculo en PasoCostos), pero el
+        // dato guardado en detalle puede haber quedado desactualizado si se editó
+        // el origen después de aplicar la tarifa. Se resuelve acá, justo antes de enviar.
+        transform((formData) => ({
+            ...formData,
+            detalle: formData.detalle.map((linea) => {
+                if (!linea.vinculo) return linea;
+
+                let baseCalculo = linea.base_calculo;
+                if (linea.vinculo.tipo === 'contenedor') {
+                    const contenedor = formData.contenedores.find(
+                        (c) => c.id === linea.vinculo.contenedorId,
+                    );
+                    baseCalculo = contenedor ? contenedor.cantidad : linea.base_calculo;
+                } else {
+                    baseCalculo = formData[linea.vinculo.tipo] ?? linea.base_calculo;
+                }
+
+                return { ...linea, base_calculo: baseCalculo };
+            }),
+        }));
+
         post(route(rutaStore));
     };
 
@@ -1194,6 +1440,10 @@ export default function NuevaCotizacionWizard({
                         setData={setData}
                         errors={errors}
                         clearErrors={clearErrors}
+                        tiposContenedorDisponibles={tiposContenedorDisponibles}
+                        cargandoTarifas={cargandoTarifas}
+                        consultadoTarifas={consultadoTarifas}
+                        rutaSolicitarTarifa={rutaSolicitarTarifa}
                     />
                 )}
                 {paso === 4 && (
@@ -1202,9 +1452,12 @@ export default function NuevaCotizacionWizard({
                         setData={setData}
                         errors={errors}
                         clearErrors={clearErrors}
-                        rutaTarifasDisponibles={rutaTarifasDisponibles}
+                        tarifasRuta={tarifasRuta}
+                        cargandoTarifas={cargandoTarifas}
+                        consultadoTarifas={consultadoTarifas}
                         conceptosCostoExtra={conceptosCostoExtra}
                         permiteTarifaInexistente={permiteTarifaInexistente}
+                        rutaSolicitarTarifa={rutaSolicitarTarifa}
                     />
                 )}
 

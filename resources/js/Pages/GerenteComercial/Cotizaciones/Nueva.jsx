@@ -14,6 +14,7 @@ export default function Nueva({ puertos, conceptosCostoExtra, origen }) {
                 permiteTarifaInexistente
                 rutaBuscarCliente="gerente-comercial.clientes.buscar"
                 rutaTarifasDisponibles="gerente-comercial.cotizaciones.tarifas-disponibles"
+                rutaSolicitarTarifa="gerente-comercial.cotizaciones.solicitar-tarifa"
                 rutaStore="gerente-comercial.cotizaciones.store"
             />
         </GerenteComercialLayout>
