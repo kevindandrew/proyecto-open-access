@@ -9,8 +9,11 @@ use App\Http\Controllers\GerenteComercial\CotizacionController as GerenteComerci
 use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
 use App\Http\Controllers\GerenteOperativo\ConceptoCostoExtraController;
 use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperativoCotizacionController;
+use App\Http\Controllers\GerenteOperativo\EmbarqueContenedorController;
 use App\Http\Controllers\GerenteOperativo\EmbarqueController;
+use App\Http\Controllers\GerenteOperativo\EmbarqueCostoController;
 use App\Http\Controllers\GerenteOperativo\GastoDestinoController;
+use App\Http\Controllers\GerenteOperativo\HouseBlController;
 use App\Http\Controllers\GerenteOperativo\PersonalController;
 use App\Http\Controllers\GerenteOperativo\ProveedorController;
 use App\Http\Controllers\GerenteOperativo\PuertoController;
@@ -18,6 +21,7 @@ use App\Http\Controllers\GerenteOperativo\ReporteController;
 use App\Http\Controllers\GerenteOperativo\SolicitudTarifaController;
 use App\Http\Controllers\GerenteOperativo\TarifaController;
 use App\Http\Controllers\GerenteOperativoController;
+use App\Http\Controllers\Operativo\EmbarqueContenedorController as OperativoEmbarqueContenedorController;
 use App\Http\Controllers\Operativo\EmbarqueController as OperativoEmbarqueController;
 use App\Http\Controllers\OperativoController;
 use App\Http\Controllers\ProfileController;
@@ -87,6 +91,13 @@ Route::middleware(['auth', 'verified', 'role.empleado:Operativo'])
 
         Route::get('embarques/{embarque}', [OperativoEmbarqueController::class, 'show'])->name('embarques.show');
         Route::patch('embarques/{embarque}/estado', [OperativoEmbarqueController::class, 'cambiarEstado'])->name('embarques.cambiar-estado');
+        Route::patch('embarques/{embarque}/transporte', [OperativoEmbarqueController::class, 'actualizarTransporte'])->name('embarques.actualizar-transporte');
+        Route::patch('embarques/{embarque}/instrucciones-terrestre', [OperativoEmbarqueController::class, 'actualizarInstruccionesTerrestre'])->name('embarques.actualizar-instrucciones-terrestre');
+        Route::patch('embarques/{embarque}/informacion-carga', [OperativoEmbarqueController::class, 'actualizarInformacionCarga'])->name('embarques.actualizar-informacion-carga');
+
+        Route::post('embarques/{embarque}/contenedores', [OperativoEmbarqueContenedorController::class, 'store'])->name('embarques.contenedores.store');
+        Route::patch('contenedores/{contenedor}', [OperativoEmbarqueContenedorController::class, 'update'])->name('contenedores.update');
+        Route::delete('contenedores/{contenedor}', [OperativoEmbarqueContenedorController::class, 'destroy'])->name('contenedores.destroy');
     });
 
 Route::middleware('auth')->group(function () {
@@ -144,6 +155,22 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('embarques/{embarque}/gastos', [GastoDestinoController::class, 'index'])->name('embarques.gastos.index');
         Route::post('embarques/{embarque}/gastos', [GastoDestinoController::class, 'store'])->name('embarques.gastos.store');
         Route::patch('gastos/{gasto}/pagar', [GastoDestinoController::class, 'marcarPagado'])->name('gastos.pagar');
+
+        Route::post('embarques/{embarque}/houses', [HouseBlController::class, 'store'])->name('embarques.houses.store');
+        Route::patch('houses/{house}', [HouseBlController::class, 'update'])->name('houses.update');
+        Route::delete('houses/{house}', [HouseBlController::class, 'destroy'])->name('houses.destroy');
+
+        Route::post('embarques/{embarque}/costos', [EmbarqueCostoController::class, 'store'])->name('embarques.costos.store');
+        Route::patch('costos/{costo}', [EmbarqueCostoController::class, 'update'])->name('costos.update');
+        Route::delete('costos/{costo}', [EmbarqueCostoController::class, 'destroy'])->name('costos.destroy');
+
+        Route::patch('embarques/{embarque}/transporte', [EmbarqueController::class, 'actualizarTransporte'])->name('embarques.actualizar-transporte');
+        Route::patch('embarques/{embarque}/instrucciones-terrestre', [EmbarqueController::class, 'actualizarInstruccionesTerrestre'])->name('embarques.actualizar-instrucciones-terrestre');
+        Route::patch('embarques/{embarque}/informacion-carga', [EmbarqueController::class, 'actualizarInformacionCarga'])->name('embarques.actualizar-informacion-carga');
+
+        Route::post('embarques/{embarque}/contenedores', [EmbarqueContenedorController::class, 'store'])->name('embarques.contenedores.store');
+        Route::patch('contenedores/{contenedor}', [EmbarqueContenedorController::class, 'update'])->name('contenedores.update');
+        Route::delete('contenedores/{contenedor}', [EmbarqueContenedorController::class, 'destroy'])->name('contenedores.destroy');
     });
 
 require __DIR__.'/auth.php';

@@ -19,6 +19,9 @@ class Cotizacion extends Model
         'id_cliente',
         'id_comercial',
         'modo_transporte',
+        'tipo_embarque',
+        'id_agente_origen',
+        'id_naviera_aerolinea',
         'tipo_servicio',
         'incoterm',
         'id_pol',
@@ -61,6 +64,16 @@ class Cotizacion extends Model
     public function pod(): BelongsTo
     {
         return $this->belongsTo(PuertoAeropuerto::class, 'id_pod', 'codigo');
+    }
+
+    public function agenteOrigen(): BelongsTo
+    {
+        return $this->belongsTo(Proveedor::class, 'id_agente_origen', 'id_proveedor');
+    }
+
+    public function navieraAerolinea(): BelongsTo
+    {
+        return $this->belongsTo(Proveedor::class, 'id_naviera_aerolinea', 'id_proveedor');
     }
 
     public function contenedores(): HasMany

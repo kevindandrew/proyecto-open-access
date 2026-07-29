@@ -2,6 +2,12 @@ import AyudaTermino from '@/Components/AyudaTermino';
 import { INCOTERMS_INFO, TIPO_SERVICIO_INFO } from '@/constants/glosario';
 import { Link } from '@inertiajs/react';
 
+const TIPO_EMBARQUE_LABELS = {
+    IMPO: 'Importación',
+    EXPO: 'Exportación',
+    DOM: 'Doméstico',
+};
+
 function Campo({ label, value, info }) {
     return (
         <div>
@@ -41,6 +47,10 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                     <Campo label="Cliente" value={cotizacion.cliente} />
                     <Campo label="Modo de Transporte" value={cotizacion.modo_transporte} />
                     <Campo
+                        label="Tipo de Embarque"
+                        value={TIPO_EMBARQUE_LABELS[cotizacion.tipo_embarque] ?? cotizacion.tipo_embarque}
+                    />
+                    <Campo
                         label="Tipo de Servicio"
                         value={cotizacion.tipo_servicio}
                         info={TIPO_SERVICIO_INFO[cotizacion.tipo_servicio]}
@@ -53,6 +63,8 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                     <Campo label="POL" value={cotizacion.pol} />
                     <Campo label="POD" value={cotizacion.pod} />
                     <Campo label="Destino Final" value={cotizacion.destino_final} />
+                    <Campo label="Agente de Origen" value={cotizacion.agente_origen} />
+                    <Campo label="Naviera / Aerolínea" value={cotizacion.naviera_aerolinea} />
                     <Campo label="Fecha de Emisión" value={cotizacion.fecha_emision} />
                     <Campo label="Fecha de Validez" value={cotizacion.fecha_validez} />
                     <Campo label="Días de Tránsito" value={cotizacion.dias_transito} />

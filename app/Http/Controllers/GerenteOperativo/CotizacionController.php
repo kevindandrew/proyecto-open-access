@@ -39,6 +39,10 @@ class CotizacionController extends Controller
             'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
             'conceptosCostoExtra' => ConceptoCostoExtra::where('activo', true)->orderBy('nombre')->get(['id_concepto', 'nombre']),
             'origen' => PrefillCotizacionTerrestre::desde($request->integer('desde_cotizacion') ?: null),
+            'proveedoresAgenteOrigen' => Proveedor::where('tipo', 'Agente_Origen')
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->get(['id_proveedor', 'nombre']),
         ]);
     }
 
@@ -76,6 +80,14 @@ class CotizacionController extends Controller
         $data = $request->validate([
             'id_cliente' => ['required', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
+            'tipo_embarque' => ['required', Rule::in(['IMPO', 'EXPO', 'DOM'])],
+            'id_agente_origen' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
+            'id_naviera_aerolinea' => [
+                'nullable',
+                'integer',
+                Rule::exists('proveedores', 'id_proveedor')
+                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($request->input('modo_transporte')))),
+            ],
             'tipo_servicio' => [
                 Rule::requiredIf(fn () => in_array($request->input('modo_transporte'), ['Maritimo', 'Terrestre'], true)),
                 'nullable',
@@ -127,6 +139,9 @@ class CotizacionController extends Controller
                 'id_cliente' => $data['id_cliente'],
                 'id_comercial' => $comercialAsignado->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
+                'tipo_embarque' => $data['tipo_embarque'],
+                'id_agente_origen' => $data['id_agente_origen'] ?? null,
+                'id_naviera_aerolinea' => $data['id_naviera_aerolinea'] ?? null,
                 'tipo_servicio' => in_array($data['modo_transporte'], ['Maritimo', 'Terrestre'], true) ? ($data['tipo_servicio'] ?? null) : null,
                 'incoterm' => $data['incoterm'] ?? null,
                 'id_pol' => $data['id_pol'] ?? null,
@@ -194,7 +209,7 @@ class CotizacionController extends Controller
 
     public function show(Cotizacion $cotizacion): Response
     {
-        $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
+        $cotizacion->load(['cliente', 'comercial', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
 
         return Inertia::render('GerenteOperativo/Cotizaciones/Show', [
             'cotizacion' => [
@@ -203,6 +218,9 @@ class CotizacionController extends Controller
                 'cliente' => $cotizacion->cliente?->razon_social,
                 'comercial' => $cotizacion->comercial?->nombre_completo,
                 'modo_transporte' => $cotizacion->modo_transporte,
+                'tipo_embarque' => $cotizacion->tipo_embarque,
+                'agente_origen' => $cotizacion->agenteOrigen?->nombre,
+                'naviera_aerolinea' => $cotizacion->navieraAerolinea?->nombre,
                 'tipo_servicio' => $cotizacion->tipo_servicio,
                 'incoterm' => $cotizacion->incoterm,
                 'pol' => $cotizacion->pol?->nombre,
@@ -232,14 +250,6 @@ class CotizacionController extends Controller
                 'costo_total' => $linea->costo_total,
             ]),
             'total' => $cotizacion->detalle->sum('costo_total'),
-            'proveedoresAgenteOrigen' => Proveedor::where('tipo', 'Agente_Origen')
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->get(['id_proveedor', 'nombre']),
-            'proveedoresTransporte' => Proveedor::whereIn('tipo', TiposTransportePorModo::para($cotizacion->modo_transporte))
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->get(['id_proveedor', 'nombre']),
         ]);
     }
 
@@ -311,7 +321,7 @@ class CotizacionController extends Controller
             ->with('success', "Cotización marcada como {$data['estado']}.");
     }
 
-    public function convertirEnEmbarque(Request $request, Cotizacion $cotizacion): RedirectResponse
+    public function convertirEnEmbarque(Cotizacion $cotizacion): RedirectResponse
     {
         if ($cotizacion->estado !== 'Aceptado') {
             return redirect()
@@ -325,33 +335,37 @@ class CotizacionController extends Controller
                 ->with('error', 'Esta cotización ya fue convertida en un embarque.');
         }
 
-        $data = $request->validate([
-            'consignatario' => ['nullable', 'string', 'max:200'],
-            'id_agente_origen' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
-            'id_naviera_aerolinea' => [
-                'nullable',
-                'integer',
-                Rule::exists('proveedores', 'id_proveedor')
-                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($cotizacion->modo_transporte))),
-            ],
-        ]);
+        $cotizacion->loadMissing('cliente', 'contenedores');
 
-        $embarque = DB::transaction(function () use ($data, $cotizacion) {
+        $embarque = DB::transaction(function () use ($cotizacion) {
             $embarque = Embarque::create([
                 'numero_file' => GeneradorNumeroFile::generar(),
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'id_cliente' => $cotizacion->id_cliente,
-                'consignatario' => $data['consignatario'] ?? null,
+                'consignatario' => $cotizacion->cliente?->consignatario_nombre,
                 'id_comercial' => $cotizacion->id_comercial,
                 'id_operativo' => null,
-                'id_agente_origen' => $data['id_agente_origen'] ?? null,
-                'id_naviera_aerolinea' => $data['id_naviera_aerolinea'] ?? null,
+                'id_agente_origen' => $cotizacion->id_agente_origen,
+                'id_naviera_aerolinea' => $cotizacion->id_naviera_aerolinea,
                 'modo_transporte' => $cotizacion->modo_transporte,
+                'tipo_servicio' => $cotizacion->tipo_servicio,
+                'tipo_embarque' => $cotizacion->tipo_embarque,
+                'oficina_venta' => 'La Paz',
+                'oficina_operacional' => 'La Paz',
                 'id_pol' => $cotizacion->id_pol,
                 'id_pod' => $cotizacion->id_pod,
                 'destino_final' => $cotizacion->destino_final,
+                'peso_kg' => $cotizacion->peso_kg,
+                'volumen_cbm' => $cotizacion->volumen_cbm,
                 'estado_embarque' => 'Confirmado_Origen',
             ]);
+
+            foreach ($cotizacion->contenedores as $contenedor) {
+                $embarque->contenedores()->create([
+                    'tipo_contenedor' => $contenedor->tipo_contenedor,
+                    'cantidad' => $contenedor->cantidad,
+                ]);
+            }
 
             $embarque->seguimientos()->create([
                 'fecha' => now(),

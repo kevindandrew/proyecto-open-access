@@ -22,6 +22,8 @@ class SolicitudTarifaController extends Controller
                 'comercial' => $solicitud->comercial?->nombre_completo,
                 'modo_transporte' => $solicitud->modo_transporte,
                 'tipo_servicio' => $solicitud->tipo_servicio,
+                'id_pol' => $solicitud->id_pol,
+                'id_pod' => $solicitud->id_pod,
                 'pol' => $solicitud->pol?->nombre,
                 'pod' => $solicitud->pod?->nombre,
                 'estado' => $solicitud->estado,

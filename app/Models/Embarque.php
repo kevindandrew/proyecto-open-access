@@ -16,6 +16,7 @@ class Embarque extends Model
 
     protected $fillable = [
         'numero_file',
+        'codigo_house_base',
         'id_cotizacion',
         'id_cliente',
         'consignatario',
@@ -24,6 +25,7 @@ class Embarque extends Model
         'id_agente_origen',
         'id_naviera_aerolinea',
         'modo_transporte',
+        'tipo_servicio',
         'tipo_embarque',
         'oficina_venta',
         'oficina_operacional',
@@ -31,6 +33,21 @@ class Embarque extends Model
         'id_pol',
         'id_pod',
         'destino_final',
+        'peso_kg',
+        'volumen_cbm',
+        'nro_piezas',
+        'unidad_piezas',
+        'peso_bruto',
+        'peso_cobrable',
+        'naturaleza_mercancia',
+        'sobrefacturado',
+        'importe_sobrefacturado',
+        'flete_menor',
+        'porcentaje_reparto',
+        'recinto_aduanero',
+        'tramite_aduanero',
+        'instruccion_tramite_puerto',
+        'pagos_liberacion',
         'etd',
         'eta',
         'nave',
@@ -44,6 +61,8 @@ class Embarque extends Model
         return [
             'etd' => 'date',
             'eta' => 'date',
+            'sobrefacturado' => 'boolean',
+            'flete_menor' => 'boolean',
         ];
     }
 

@@ -61,6 +61,10 @@ class CotizacionController extends Controller
             'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
             'conceptosCostoExtra' => ConceptoCostoExtra::where('activo', true)->orderBy('nombre')->get(['id_concepto', 'nombre']),
             'origen' => PrefillCotizacionTerrestre::desde($request->integer('desde_cotizacion') ?: null),
+            'proveedoresAgenteOrigen' => Proveedor::where('tipo', 'Agente_Origen')
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->get(['id_proveedor', 'nombre']),
         ]);
     }
 
@@ -98,6 +102,14 @@ class CotizacionController extends Controller
         $data = $request->validate([
             'id_cliente' => ['required', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
+            'tipo_embarque' => ['required', Rule::in(['IMPO', 'EXPO', 'DOM'])],
+            'id_agente_origen' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
+            'id_naviera_aerolinea' => [
+                'nullable',
+                'integer',
+                Rule::exists('proveedores', 'id_proveedor')
+                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($request->input('modo_transporte')))),
+            ],
             'tipo_servicio' => [
                 Rule::requiredIf(fn () => in_array($request->input('modo_transporte'), ['Maritimo', 'Terrestre'], true)),
                 'nullable',
@@ -145,6 +157,9 @@ class CotizacionController extends Controller
                 'id_cliente' => $data['id_cliente'],
                 'id_comercial' => $comercialAsignado->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
+                'tipo_embarque' => $data['tipo_embarque'],
+                'id_agente_origen' => $data['id_agente_origen'] ?? null,
+                'id_naviera_aerolinea' => $data['id_naviera_aerolinea'] ?? null,
                 'tipo_servicio' => in_array($data['modo_transporte'], ['Maritimo', 'Terrestre'], true) ? ($data['tipo_servicio'] ?? null) : null,
                 'incoterm' => $data['incoterm'] ?? null,
                 'id_pol' => $data['id_pol'] ?? null,
@@ -187,7 +202,7 @@ class CotizacionController extends Controller
 
     public function show(Cotizacion $cotizacion): Response
     {
-        $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
+        $cotizacion->load(['cliente', 'comercial', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
 
         return Inertia::render('GerenteComercial/Cotizaciones/Show', [
             'cotizacion' => [
@@ -196,6 +211,9 @@ class CotizacionController extends Controller
                 'cliente' => $cotizacion->cliente?->razon_social,
                 'comercial' => $cotizacion->comercial?->nombre_completo,
                 'modo_transporte' => $cotizacion->modo_transporte,
+                'tipo_embarque' => $cotizacion->tipo_embarque,
+                'agente_origen' => $cotizacion->agenteOrigen?->nombre,
+                'naviera_aerolinea' => $cotizacion->navieraAerolinea?->nombre,
                 'tipo_servicio' => $cotizacion->tipo_servicio,
                 'incoterm' => $cotizacion->incoterm,
                 'pol' => $cotizacion->pol?->nombre,
@@ -225,14 +243,6 @@ class CotizacionController extends Controller
                 'costo_total' => $linea->costo_total,
             ]),
             'total' => $cotizacion->detalle->sum('costo_total'),
-            'proveedoresAgenteOrigen' => Proveedor::where('tipo', 'Agente_Origen')
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->get(['id_proveedor', 'nombre']),
-            'proveedoresTransporte' => Proveedor::whereIn('tipo', TiposTransportePorModo::para($cotizacion->modo_transporte))
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->get(['id_proveedor', 'nombre']),
         ]);
     }
 

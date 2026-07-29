@@ -84,7 +84,14 @@ export default function Index({ solicitudes }) {
                                 <td className="px-4 py-3 text-right">
                                     <div className="flex items-center justify-end gap-3">
                                         <Link
-                                            href={route('gerente-operativo.tarifas.create')}
+                                            href={route('gerente-operativo.tarifas.create', {
+                                                modo: s.modo_transporte,
+                                                id_pol: s.id_pol,
+                                                id_pod: s.id_pod,
+                                                tipo_servicio: s.tipo_servicio,
+                                                cliente: s.cliente,
+                                                comercial: s.comercial,
+                                            })}
                                             className="text-xs font-semibold text-[#042753] hover:underline"
                                         >
                                             Cargar Tarifa

@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Operativo;
 use App\Http\Controllers\Controller;
 use App\Models\Embarque;
 use App\Models\EmbarqueContenedor;
+use App\Models\EmbarqueCosto;
+use App\Models\HouseBl;
 use App\Models\SeguimientoEmbarque;
 use App\Support\SecuenciaEstadoEmbarque;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,8 +24,10 @@ class EmbarqueController extends Controller
         $this->autorizar($embarque);
 
         $embarque->load([
-            'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
+            'cotizacion', 'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
+            'houseBls' => fn ($query) => $query->orderBy('id_hbl'),
+            'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
 
@@ -30,6 +35,7 @@ class EmbarqueController extends Controller
             'embarque' => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
+                'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
                 'consignatario' => $embarque->consignatario,
                 'comercial' => $embarque->comercial?->nombre_completo,
@@ -37,25 +43,47 @@ class EmbarqueController extends Controller
                 'agente_origen' => $embarque->agenteOrigen?->nombre,
                 'naviera_aerolinea' => $embarque->navieraAerolinea?->nombre,
                 'modo_transporte' => $embarque->modo_transporte,
+                'tipo_servicio' => $embarque->tipo_servicio,
                 'tipo_embarque' => $embarque->tipo_embarque,
+                'oficina_venta' => $embarque->oficina_venta,
+                'oficina_operacional' => $embarque->oficina_operacional,
                 'mbl' => $embarque->mbl,
                 'pol' => $embarque->pol?->nombre,
                 'pod' => $embarque->pod?->nombre,
                 'destino_final' => $embarque->destino_final,
+                'peso_kg' => $embarque->peso_kg,
+                'volumen_cbm' => $embarque->volumen_cbm,
+                'nro_piezas' => $embarque->nro_piezas,
+                'unidad_piezas' => $embarque->unidad_piezas,
+                'peso_bruto' => $embarque->peso_bruto,
+                'peso_cobrable' => $embarque->peso_cobrable,
+                'naturaleza_mercancia' => $embarque->naturaleza_mercancia,
                 'etd' => $embarque->etd?->toDateString(),
                 'eta' => $embarque->eta?->toDateString(),
                 'nave' => $embarque->nave,
                 'viaje' => $embarque->viaje,
                 'pago_master' => $embarque->pago_master,
+                'sobrefacturado' => $embarque->sobrefacturado,
+                'importe_sobrefacturado' => $embarque->importe_sobrefacturado,
+                'flete_menor' => $embarque->flete_menor,
+                'porcentaje_reparto' => $embarque->porcentaje_reparto,
+                'recinto_aduanero' => $embarque->recinto_aduanero,
+                'tramite_aduanero' => $embarque->tramite_aduanero,
+                'instruccion_tramite_puerto' => $embarque->instruccion_tramite_puerto,
+                'pagos_liberacion' => $embarque->pagos_liberacion,
                 'estado_embarque' => $embarque->estado_embarque,
                 'siguiente_estado' => SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque),
             ],
             'contenedores' => $embarque->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
+                'id_item' => $contenedor->id_item,
                 'tipo_contenedor' => $contenedor->tipo_contenedor,
+                'cantidad' => $contenedor->cantidad,
                 'numero_contenedor' => $contenedor->numero_contenedor,
                 'numero_sello' => $contenedor->numero_sello,
                 'peso_kg' => $contenedor->peso_kg,
                 'volumen_cbm' => $contenedor->volumen_cbm,
+                'descripcion_mercancia' => $contenedor->descripcion_mercancia,
+                'fecha_devolucion' => $contenedor->fecha_devolucion?->toDateString(),
             ]),
             'seguimientos' => $embarque->seguimientos->map(fn (SeguimientoEmbarque $seguimiento) => [
                 'id_seguimiento' => $seguimiento->id_seguimiento,
@@ -64,6 +92,22 @@ class EmbarqueController extends Controller
                 'comentario' => $seguimiento->comentario,
                 'empleado' => $seguimiento->empleadoResponsable?->nombre_completo,
             ]),
+            'houses' => $embarque->houseBls->map(fn (HouseBl $house) => [
+                'id_hbl' => $house->id_hbl,
+                'numero_hbl' => $house->numero_hbl,
+                'condicion_pago' => $house->condicion_pago,
+                'fecha_emision' => $house->fecha_emision?->toDateString(),
+            ]),
+            'costos' => $embarque->costos->map(fn (EmbarqueCosto $costo) => [
+                'id_costo' => $costo->id_costo,
+                'concepto' => $costo->concepto,
+                'proveedor' => $costo->proveedor?->nombre,
+                'costo_compra' => $costo->costo_compra,
+                'costo_venta' => $costo->costo_venta,
+                'moneda' => $costo->moneda,
+            ]),
+            'totalCompra' => $embarque->costos->sum('costo_compra'),
+            'totalVenta' => $embarque->costos->sum('costo_venta'),
         ]);
     }
 
@@ -97,6 +141,67 @@ class EmbarqueController extends Controller
         return redirect()
             ->route('operativo.embarques.show', $embarque->id_embarque)
             ->with('success', "Estado actualizado a \"{$siguiente}\".");
+    }
+
+    public function actualizarTransporte(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $this->autorizar($embarque);
+
+        $data = $request->validate([
+            'mbl' => ['nullable', 'string', 'max:50'],
+            'etd' => ['nullable', 'date'],
+            'eta' => ['nullable', 'date'],
+            'nave' => ['nullable', 'string', 'max:100'],
+            'viaje' => ['nullable', 'string', 'max:30'],
+            'pago_master' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
+        ]);
+
+        $embarque->update($data);
+
+        return redirect()
+            ->route('operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', 'Datos de transporte actualizados correctamente.');
+    }
+
+    public function actualizarInstruccionesTerrestre(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $this->autorizar($embarque);
+
+        $data = $request->validate([
+            'sobrefacturado' => ['boolean'],
+            'importe_sobrefacturado' => ['nullable', 'numeric'],
+            'flete_menor' => ['boolean'],
+            'porcentaje_reparto' => ['nullable', 'string', 'max:20'],
+            'recinto_aduanero' => ['nullable', 'string', 'max:100'],
+            'tramite_aduanero' => ['nullable', 'string', 'max:100'],
+            'instruccion_tramite_puerto' => ['nullable', 'string', 'max:100'],
+            'pagos_liberacion' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $embarque->update($data);
+
+        return redirect()
+            ->route('operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', 'Instrucciones de planificación terrestre actualizadas correctamente.');
+    }
+
+    public function actualizarInformacionCarga(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $this->autorizar($embarque);
+
+        $data = $request->validate([
+            'nro_piezas' => ['nullable', 'integer', 'min:0'],
+            'unidad_piezas' => ['nullable', 'string', 'max:20'],
+            'peso_bruto' => ['nullable', 'numeric'],
+            'peso_cobrable' => ['nullable', 'numeric'],
+            'naturaleza_mercancia' => ['nullable', 'string'],
+        ]);
+
+        $embarque->update($data);
+
+        return redirect()
+            ->route('operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', 'Información de carga actualizada correctamente.');
     }
 
     private function autorizar(Embarque $embarque): void

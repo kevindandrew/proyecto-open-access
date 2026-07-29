@@ -20,6 +20,7 @@ class TarifaLookup
             ->get()
             ->map(fn (Tarifa $tarifa) => [
                 'id_tarifa' => $tarifa->id_tarifa,
+                'id_proveedor' => $tarifa->id_proveedor,
                 'carrier' => $tarifa->proveedor?->nombre,
                 'tipo_servicio' => $tarifa->tipo_servicio,
                 'moneda' => $tarifa->moneda,

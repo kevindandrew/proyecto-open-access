@@ -3,14 +3,7 @@ import CotizacionAcciones from '@/Components/Cotizaciones/CotizacionAcciones';
 import ComercialLayout from '@/Layouts/ComercialLayout';
 import { Head } from '@inertiajs/react';
 
-export default function Show({
-    cotizacion,
-    contenedores,
-    detalle,
-    total,
-    proveedoresAgenteOrigen,
-    proveedoresTransporte,
-}) {
+export default function Show({ cotizacion, contenedores, detalle, total }) {
     return (
         <ComercialLayout header={`Cotización ${cotizacion.numero_referencia}`}>
             <Head title={`Cotización ${cotizacion.numero_referencia}`} />
@@ -21,8 +14,6 @@ export default function Show({
                 rutaConvertir="comercial.cotizaciones.convertir"
                 rutaVerEmbarque="comercial.embarques.show"
                 rutaPdf="comercial.cotizaciones.pdf"
-                proveedoresAgenteOrigen={proveedoresAgenteOrigen}
-                proveedoresTransporte={proveedoresTransporte}
             />
 
             <CotizacionDetalle

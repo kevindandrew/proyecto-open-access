@@ -14,6 +14,12 @@ const TIPO_PUERTO_POR_MODO = {
     Terrestre: 'Frontera',
 };
 
+const TIPOS_EMBARQUE = [
+    { valor: 'IMPO', etiqueta: 'Importación' },
+    { valor: 'EXPO', etiqueta: 'Exportación' },
+    { valor: 'DOM', etiqueta: 'Doméstico' },
+];
+
 function fechaValidezPorDefecto() {
     const fecha = new Date();
     fecha.setDate(fecha.getDate() + 15);
@@ -164,7 +170,14 @@ function PasoCliente({ data, setData, errors, clearErrors, rutaBuscarCliente }) 
     );
 }
 
-function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
+function PasoRuta({
+    data,
+    setData,
+    errors,
+    clearErrors,
+    puertos,
+    proveedoresAgenteOrigen,
+}) {
     // El Origen (POL) se filtra por el tipo que corresponde al modo (Puerto/
     // Aeropuerto/Frontera) — importa por dónde sale la carga. El Destino (POD) no
     // se filtra: el punto de entrega final (ej. La Paz) suele ser el mismo sin
@@ -201,8 +214,9 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                                     : '',
                             id_pol: '',
                             id_pod: '',
+                            id_naviera_aerolinea: '',
                         });
-                        clearErrors('modo_transporte', 'id_pol', 'id_pod');
+                        clearErrors('modo_transporte', 'id_pol', 'id_pod', 'id_naviera_aerolinea');
                     }}
                 >
                     <option value="Maritimo">Marítimo</option>
@@ -210,6 +224,26 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                     <option value="Terrestre">Terrestre</option>
                 </select>
                 <CampoError mensaje={errors.modo_transporte} />
+            </div>
+
+            <div>
+                <label className={labelClass}>Tipo de Embarque</label>
+                <select
+                    className={inputClass}
+                    value={data.tipo_embarque}
+                    onChange={(e) => {
+                        setData({ ...data, tipo_embarque: e.target.value });
+                        clearErrors('tipo_embarque');
+                    }}
+                >
+                    <option value="">Selecciona un tipo</option>
+                    {TIPOS_EMBARQUE.map((tipo) => (
+                        <option key={tipo.valor} value={tipo.valor}>
+                            {tipo.etiqueta}
+                        </option>
+                    ))}
+                </select>
+                <CampoError mensaje={errors.tipo_embarque} />
             </div>
 
             {(data.modo_transporte === 'Maritimo' || data.modo_transporte === 'Terrestre') && (
@@ -317,6 +351,31 @@ function PasoRuta({ data, setData, errors, clearErrors, puertos }) {
                 />
                 <CampoError mensaje={errors.destino_final} />
             </div>
+
+            <div>
+                <label className={labelClass}>Agente de Origen</label>
+                <select
+                    className={inputClass}
+                    value={data.id_agente_origen}
+                    onChange={(e) => {
+                        setData({ ...data, id_agente_origen: e.target.value });
+                        clearErrors('id_agente_origen');
+                    }}
+                >
+                    <option value="">—</option>
+                    {proveedoresAgenteOrigen.map((proveedor) => (
+                        <option key={proveedor.id_proveedor} value={proveedor.id_proveedor}>
+                            {proveedor.nombre}
+                        </option>
+                    ))}
+                </select>
+                <CampoError mensaje={errors.id_agente_origen} />
+            </div>
+
+            <p className="text-xs text-[#A9ABAE]">
+                La Naviera / Aerolínea / Transportista se define sola en el paso de
+                Costos, según la tarifa que elijas usar — no hace falta elegirla acá.
+            </p>
         </div>
     );
 }
@@ -856,8 +915,9 @@ function PasoCostos({
                 tarifa.dias_transito !== null && tarifa.dias_transito !== undefined
                     ? tarifa.dias_transito
                     : data.dias_transito,
+            id_naviera_aerolinea: tarifa.id_proveedor ?? data.id_naviera_aerolinea,
         });
-        clearErrors('detalle', 'fecha_validez', 'dias_transito');
+        clearErrors('detalle', 'fecha_validez', 'dias_transito', 'id_naviera_aerolinea');
     };
 
     const agregarLinea = () => {
@@ -949,6 +1009,20 @@ function PasoCostos({
                     {errors.tarifa}
                 </div>
             )}
+
+            {data.id_naviera_aerolinea && (
+                <p className="text-sm text-[#042753]">
+                    Naviera / Aerolínea / Transportista:{' '}
+                    <span className="font-semibold">
+                        {tarifasRuta.find((t) => t.id_proveedor === data.id_naviera_aerolinea)
+                            ?.carrier ?? '—'}
+                    </span>
+                    <span className="ml-1 text-xs text-[#A9ABAE]">
+                        (según la tarifa usada)
+                    </span>
+                </p>
+            )}
+            <CampoError mensaje={errors.id_naviera_aerolinea} />
 
             <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -1240,6 +1314,7 @@ export default function NuevaCotizacionWizard({
     rutaStore,
     conceptosCostoExtra = [],
     permiteTarifaInexistente = false,
+    proveedoresAgenteOrigen = [],
     origen = null,
 }) {
     const [paso, setPaso] = useState(origen ? 2 : 1);
@@ -1248,6 +1323,9 @@ export default function NuevaCotizacionWizard({
         id_cliente: origen?.id_cliente ?? '',
         cliente_nombre: origen?.cliente_nombre ?? '',
         modo_transporte: origen ? 'Terrestre' : 'Maritimo',
+        tipo_embarque: '',
+        id_agente_origen: '',
+        id_naviera_aerolinea: '',
         tipo_servicio: '',
         incoterm: '',
         id_pol: origen?.id_pol ?? '',
@@ -1323,6 +1401,8 @@ export default function NuevaCotizacionWizard({
             if (numeroPaso === 2) {
                 return [
                     'modo_transporte',
+                    'tipo_embarque',
+                    'id_agente_origen',
                     'tipo_servicio',
                     'incoterm',
                     'id_pol',
@@ -1342,7 +1422,8 @@ export default function NuevaCotizacionWizard({
                     clave.startsWith('detalle') ||
                     clave === 'fecha_validez' ||
                     clave === 'dias_transito' ||
-                    clave === 'tarifa'
+                    clave === 'tarifa' ||
+                    clave === 'id_naviera_aerolinea'
                 );
             }
             return false;
@@ -1360,7 +1441,7 @@ export default function NuevaCotizacionWizard({
 
     const puedeAvanzar = () => {
         if (paso === 1) return Boolean(data.id_cliente);
-        if (paso === 2) return Boolean(data.modo_transporte);
+        if (paso === 2) return Boolean(data.modo_transporte) && Boolean(data.tipo_embarque);
         if (paso === 3)
             return data.tipo_servicio === 'FCL'
                 ? data.contenedores.length > 0
@@ -1432,6 +1513,7 @@ export default function NuevaCotizacionWizard({
                         errors={errors}
                         clearErrors={clearErrors}
                         puertos={puertos}
+                        proveedoresAgenteOrigen={proveedoresAgenteOrigen}
                     />
                 )}
                 {paso === 3 && (

@@ -16,6 +16,7 @@ class EmbarqueContenedor extends Model
     protected $fillable = [
         'id_embarque',
         'tipo_contenedor',
+        'cantidad',
         'numero_contenedor',
         'numero_sello',
         'peso_kg',

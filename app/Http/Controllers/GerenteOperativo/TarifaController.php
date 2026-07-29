@@ -32,13 +32,36 @@ class TarifaController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('GerenteOperativo/Tarifas/Form', [
             'tarifa' => null,
             'proveedores' => $this->proveedoresOptions(),
-            'puertos' => $this->puertosOptions(),
+            'puertos' => $this->puertosOptions([
+                $request->string('id_pol')->toString(),
+                $request->string('id_pod')->toString(),
+            ]),
+            'prefill' => $this->prefillDesdeSolicitud($request),
         ]);
+    }
+
+    private function prefillDesdeSolicitud(Request $request): ?array
+    {
+        if (! $request->filled('modo') && ! $request->filled('id_pol') && ! $request->filled('id_pod')) {
+            return null;
+        }
+
+        $tipoServicio = $request->string('tipo_servicio')->toString();
+
+        return [
+            'modo' => $request->string('modo')->toString() ?: 'Maritimo',
+            'id_origen' => $request->string('id_pol')->toString(),
+            'id_destino' => $request->string('id_pod')->toString(),
+            'incluye_fcl' => $tipoServicio === 'FCL',
+            'incluye_lcl' => $tipoServicio === 'LCL',
+            'cliente' => $request->string('cliente')->toString() ?: null,
+            'comercial' => $request->string('comercial')->toString() ?: null,
+        ];
     }
 
     private function proveedoresOptions(?int $incluirId = null)

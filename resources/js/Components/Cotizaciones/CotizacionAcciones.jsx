@@ -1,5 +1,4 @@
 import { COTIZACION_ESTADO_STYLES } from '@/constants/cotizacionEstados';
-import ConvertirEnEmbarqueModal from '@/Components/Cotizaciones/ConvertirEnEmbarqueModal';
 import MotivoRechazoModal from '@/Components/Cotizaciones/MotivoRechazoModal';
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -10,14 +9,17 @@ export default function CotizacionAcciones({
     rutaConvertir,
     rutaVerEmbarque,
     rutaPdf,
-    proveedoresAgenteOrigen,
-    proveedoresTransporte,
 }) {
-    const [modalAbierto, setModalAbierto] = useState(false);
     const [modalRechazoAbierto, setModalRechazoAbierto] = useState(false);
 
     const marcarEstado = (estado) => {
         router.patch(route(rutaCambiarEstado, cotizacion.id_cotizacion), { estado });
+    };
+
+    const convertirEnEmbarque = () => {
+        if (window.confirm('¿Confirmás convertir esta cotización en un embarque? Se copiarán automáticamente los datos ya cargados.')) {
+            router.post(route(rutaConvertir, cotizacion.id_cotizacion));
+        }
     };
 
     return (
@@ -68,7 +70,7 @@ export default function CotizacionAcciones({
                     </Link>
                 ) : (
                     <button
-                        onClick={() => setModalAbierto(true)}
+                        onClick={convertirEnEmbarque}
                         disabled={cotizacion.estado !== 'Aceptado'}
                         className="rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
                     >
@@ -76,17 +78,6 @@ export default function CotizacionAcciones({
                     </button>
                 ))}
             </div>
-
-            {rutaConvertir && (
-                <ConvertirEnEmbarqueModal
-                    open={modalAbierto}
-                    onClose={() => setModalAbierto(false)}
-                    cotizacion={cotizacion}
-                    rutaConvertir={rutaConvertir}
-                    proveedoresAgenteOrigen={proveedoresAgenteOrigen}
-                    proveedoresTransporte={proveedoresTransporte}
-                />
-            )}
 
             <MotivoRechazoModal
                 open={modalRechazoAbierto}

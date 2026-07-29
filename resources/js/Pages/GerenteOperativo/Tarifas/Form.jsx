@@ -10,16 +10,16 @@ const TIPO_PUERTO_POR_MODO = {
     Terrestre: 'Frontera',
 };
 
-export default function Form({ tarifa, proveedores, puertos }) {
+export default function Form({ tarifa, proveedores, puertos, prefill }) {
     const isEditing = Boolean(tarifa);
 
     const { data, setData, post, put, processing, errors } = useForm({
         id_proveedor: tarifa?.id_proveedor ?? '',
-        id_origen: tarifa?.id_origen ?? '',
-        id_destino: tarifa?.id_destino ?? '',
-        modo: tarifa?.modo ?? 'Maritimo',
-        incluye_fcl: tarifa?.incluye_fcl ?? false,
-        incluye_lcl: tarifa?.incluye_lcl ?? false,
+        id_origen: tarifa?.id_origen ?? prefill?.id_origen ?? '',
+        id_destino: tarifa?.id_destino ?? prefill?.id_destino ?? '',
+        modo: tarifa?.modo ?? prefill?.modo ?? 'Maritimo',
+        incluye_fcl: tarifa?.incluye_fcl ?? prefill?.incluye_fcl ?? false,
+        incluye_lcl: tarifa?.incluye_lcl ?? prefill?.incluye_lcl ?? false,
         dias_transito: tarifa?.dias_transito ?? '',
         costo_base: tarifa?.costo_base ?? '',
         costo_tramite: tarifa?.costo_tramite ?? '',
@@ -131,6 +131,20 @@ export default function Form({ tarifa, proveedores, puertos }) {
             header={isEditing ? 'Editar Tarifa' : 'Nueva Tarifa'}
         >
             <Head title={isEditing ? 'Editar Tarifa' : 'Nueva Tarifa'} />
+
+            {!isEditing && prefill && (
+                <div className="mb-4 max-w-3xl rounded-md bg-[#71BFA6]/10 px-4 py-3 text-sm text-[#042753]">
+                    Cargando la tarifa que{' '}
+                    {prefill.comercial ? <strong>{prefill.comercial}</strong> : 'un comercial'}
+                    {prefill.cliente && (
+                        <>
+                            {' '}
+                            solicitó para <strong>{prefill.cliente}</strong>
+                        </>
+                    )}
+                    . Ruta, modo y tipo de servicio ya vienen completados.
+                </div>
+            )}
 
             <form
                 onSubmit={submit}
