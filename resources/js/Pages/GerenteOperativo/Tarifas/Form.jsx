@@ -10,6 +10,16 @@ const TIPO_PUERTO_POR_MODO = {
     Terrestre: 'Frontera',
 };
 
+// El Destino se filtra igual que el Origen para Marítimo/Aéreo, porque el tramo
+// internacional siempre termina en un puerto/aeropuerto real (nunca llega
+// directo a La Paz — a Bolivia no llega barco). Terrestre no tiene entrada acá
+// a propósito: ese es el único tramo que sí termina en el destino final real,
+// que puede ser cualquier tipo de punto.
+const TIPO_PUERTO_DESTINO_POR_MODO = {
+    Maritimo: 'Puerto',
+    Aereo: 'Aeropuerto',
+};
+
 export default function Form({ tarifa, proveedores, puertos, prefill }) {
     const isEditing = Boolean(tarifa);
 
@@ -60,6 +70,19 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                 puerto.tipo === tipoRequerido || puerto.codigo === data.id_origen,
         );
     }, [puertos, data.modo, data.id_origen]);
+
+    const puertosDestinoFiltrados = useMemo(() => {
+        const tipoRequerido = TIPO_PUERTO_DESTINO_POR_MODO[data.modo];
+
+        if (!tipoRequerido) {
+            return puertos;
+        }
+
+        return puertos.filter(
+            (puerto) =>
+                puerto.tipo === tipoRequerido || puerto.codigo === data.id_destino,
+        );
+    }, [puertos, data.modo, data.id_destino]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -235,7 +258,7 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                             }
                         >
                             <option value="">—</option>
-                            {puertos.map((p) => (
+                            {puertosDestinoFiltrados.map((p) => (
                                 <option key={p.codigo} value={p.codigo}>
                                     {p.codigo} — {p.nombre}
                                 </option>

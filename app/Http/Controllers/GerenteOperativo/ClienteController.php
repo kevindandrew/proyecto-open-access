@@ -91,7 +91,7 @@ class ClienteController extends Controller
 
         $clientes = Cliente::when($q !== '', fn ($query) => $query->where('razon_social', 'ilike', "%{$q}%"))
             ->orderBy('razon_social')
-            ->limit(10)
+            ->limit(50)
             ->get(['id_cliente', 'razon_social', 'nit']);
 
         return response()->json($clientes);

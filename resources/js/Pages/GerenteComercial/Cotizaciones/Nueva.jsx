@@ -6,7 +6,6 @@ export default function Nueva({
     puertos,
     conceptosCostoExtra,
     origen,
-    proveedoresAgenteOrigen,
 }) {
     return (
         <GerenteComercialLayout header="Nueva Cotización">
@@ -16,10 +15,10 @@ export default function Nueva({
                 puertos={puertos}
                 conceptosCostoExtra={conceptosCostoExtra}
                 origen={origen}
-                proveedoresAgenteOrigen={proveedoresAgenteOrigen}
                 permiteTarifaInexistente
                 rutaBuscarCliente="gerente-comercial.clientes.buscar"
                 rutaTarifasDisponibles="gerente-comercial.cotizaciones.tarifas-disponibles"
+                rutaTarifasAgenteDisponibles="gerente-comercial.cotizaciones.tarifas-agente-disponibles"
                 rutaSolicitarTarifa="gerente-comercial.cotizaciones.solicitar-tarifa"
                 rutaStore="gerente-comercial.cotizaciones.store"
             />

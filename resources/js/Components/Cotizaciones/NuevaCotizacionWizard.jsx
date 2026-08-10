@@ -14,6 +14,15 @@ const TIPO_PUERTO_POR_MODO = {
     Terrestre: 'Frontera',
 };
 
+// El Destino se filtra igual que el Origen para Marítimo/Aéreo, porque el tramo
+// internacional siempre termina en un puerto/aeropuerto real (nunca llega
+// directo a La Paz). Terrestre no tiene entrada acá a propósito: ese es el
+// único tramo que sí termina en el destino final real, de cualquier tipo.
+const TIPO_PUERTO_DESTINO_POR_MODO = {
+    Maritimo: 'Puerto',
+    Aereo: 'Aeropuerto',
+};
+
 const TIPOS_EMBARQUE = [
     { valor: 'IMPO', etiqueta: 'Importación' },
     { valor: 'EXPO', etiqueta: 'Exportación' },
@@ -85,7 +94,7 @@ function PasoCliente({ data, setData, errors, clearErrors, rutaBuscarCliente }) 
     const [buscando, setBuscando] = useState(false);
 
     useEffect(() => {
-        if (data.id_cliente || busqueda.trim().length < 2) {
+        if (data.id_cliente) {
             setResultados([]);
             return;
         }
@@ -126,14 +135,14 @@ function PasoCliente({ data, setData, errors, clearErrors, rutaBuscarCliente }) 
             <div className="relative mt-1">
                 <input
                     type="text"
-                    placeholder="Buscar cliente por razón social..."
+                    placeholder="Elegí de la lista o escribí para filtrar..."
                     className={inputClass}
                     value={busqueda}
                     disabled={Boolean(data.id_cliente)}
                     onChange={(e) => setBusqueda(e.target.value)}
                 />
                 {resultados.length > 0 && (
-                    <ul className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+                    <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
                         {resultados.map((cliente) => (
                             <li key={cliente.id_cliente}>
                                 <button
@@ -176,15 +185,12 @@ function PasoRuta({
     errors,
     clearErrors,
     puertos,
-    proveedoresAgenteOrigen,
 }) {
     // El Origen (POL) se filtra por el tipo que corresponde al modo (Puerto/
-    // Aeropuerto/Frontera) — importa por dónde sale la carga. El Destino (POD) no
-    // se filtra: el punto de entrega final (ej. La Paz) suele ser el mismo sin
-    // importar el modo, así que restringirlo por tipo lo dejaría inseleccionable.
-    // Si el origen ya viene precargado (ej. continuación de una cotización
-    // marítima hacia un tramo terrestre) se mantiene visible aunque su tipo no
-    // coincida con el del modo actual.
+    // Aeropuerto/Frontera) — importa por dónde sale la carga. Si el origen ya
+    // viene precargado (ej. continuación de una cotización marítima hacia un
+    // tramo terrestre) se mantiene visible aunque su tipo no coincida con el
+    // del modo actual.
     const puertosOrigenFiltrados = useMemo(() => {
         const tipoRequerido = TIPO_PUERTO_POR_MODO[data.modo_transporte];
 
@@ -196,6 +202,22 @@ function PasoRuta({
             (puerto) => puerto.tipo === tipoRequerido || puerto.codigo === data.id_pol,
         );
     }, [puertos, data.modo_transporte, data.id_pol]);
+
+    // El Destino (POD) se filtra igual para Marítimo/Aéreo — el tramo
+    // internacional siempre termina en un puerto/aeropuerto real, nunca llega
+    // directo al destino final (La Paz). Para Terrestre no se filtra: ese es el
+    // tramo que sí llega al destino final real, que puede ser cualquier tipo.
+    const puertosDestinoFiltrados = useMemo(() => {
+        const tipoRequerido = TIPO_PUERTO_DESTINO_POR_MODO[data.modo_transporte];
+
+        if (!tipoRequerido) {
+            return puertos;
+        }
+
+        return puertos.filter(
+            (puerto) => puerto.tipo === tipoRequerido || puerto.codigo === data.id_pod,
+        );
+    }, [puertos, data.modo_transporte, data.id_pod]);
 
     return (
         <div className="space-y-4">
@@ -325,7 +347,7 @@ function PasoRuta({
                         }}
                     >
                         <option value="">—</option>
-                        {puertos.map((puerto) => (
+                        {puertosDestinoFiltrados.map((puerto) => (
                             <option key={puerto.codigo} value={puerto.codigo}>
                                 {puerto.codigo} — {puerto.nombre}
                             </option>
@@ -352,29 +374,10 @@ function PasoRuta({
                 <CampoError mensaje={errors.destino_final} />
             </div>
 
-            <div>
-                <label className={labelClass}>Agente de Origen</label>
-                <select
-                    className={inputClass}
-                    value={data.id_agente_origen}
-                    onChange={(e) => {
-                        setData({ ...data, id_agente_origen: e.target.value });
-                        clearErrors('id_agente_origen');
-                    }}
-                >
-                    <option value="">—</option>
-                    {proveedoresAgenteOrigen.map((proveedor) => (
-                        <option key={proveedor.id_proveedor} value={proveedor.id_proveedor}>
-                            {proveedor.nombre}
-                        </option>
-                    ))}
-                </select>
-                <CampoError mensaje={errors.id_agente_origen} />
-            </div>
-
             <p className="text-xs text-[#A9ABAE]">
-                La Naviera / Aerolínea / Transportista se define sola en el paso de
-                Costos, según la tarifa que elijas usar — no hace falta elegirla acá.
+                El Agente de Origen y la Naviera / Aerolínea / Transportista se definen
+                solos en el paso de Costos, según las tarifas que elijas usar — no hace
+                falta elegirlos acá.
             </p>
         </div>
     );
@@ -820,10 +823,38 @@ function PasoCostos({
     tarifasRuta,
     cargandoTarifas,
     consultadoTarifas,
+    tarifasAgenteRuta,
+    cargandoTarifasAgente,
     conceptosCostoExtra,
     permiteTarifaInexistente,
     rutaSolicitarTarifa,
 }) {
+    const aplicarTarifaAgente = (tarifaAgente) => {
+        const lineasNuevas = tarifaAgente.costos.map((costo) => ({
+            descripcion: costo.concepto,
+            tipo_tarifa_unidad: 'Flat',
+            costo_unitario: costo.costo,
+            base_calculo: 1,
+            moneda: costo.moneda,
+            bloqueada: true,
+        }));
+
+        if (lineasNuevas.length === 0) {
+            return;
+        }
+
+        setData({
+            ...data,
+            detalle: [
+                ...data.detalle.filter((linea) => linea.descripcion || linea.costo_unitario),
+                ...lineasNuevas,
+            ],
+            id_agente_origen: tarifaAgente.id_proveedor ?? data.id_agente_origen,
+        });
+        clearErrors('detalle', 'id_agente_origen');
+    };
+
+
     const aplicarTarifa = (tarifa) => {
         const lineasNuevas = [];
 
@@ -1023,6 +1054,80 @@ function PasoCostos({
                 </p>
             )}
             <CampoError mensaje={errors.id_naviera_aerolinea} />
+
+            {data.id_pol && data.id_pod && (
+                <div className="mb-6 rounded-lg border border-[#71BFA6]/40 bg-[#71BFA6]/5 p-4">
+                    <h3 className="text-sm font-semibold text-[#042753]">
+                        Tarifas de Agente disponibles para esta ruta
+                    </h3>
+                    <p className="mb-3 text-xs text-[#A9ABAE]">
+                        Conceptos que cobra el agente de origen — opcional, usalas solo si
+                        corresponde para este embarque.
+                    </p>
+
+                    {cargandoTarifasAgente && (
+                        <p className="text-sm text-[#A9ABAE]">Buscando tarifas de agente...</p>
+                    )}
+
+                    {!cargandoTarifasAgente && tarifasAgenteRuta.length === 0 && (
+                        <p className="text-sm text-[#A9ABAE]">
+                            No hay tarifas de agente cargadas para esta ruta.
+                        </p>
+                    )}
+
+                    <div className="space-y-2">
+                        {tarifasAgenteRuta.map((tarifaAgente) => (
+                            <div
+                                key={tarifaAgente.id_tarifa_agente}
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-3 py-2"
+                            >
+                                <div>
+                                    <p className="text-sm font-medium text-[#042753]">
+                                        {tarifaAgente.agente}
+                                    </p>
+                                    <p className="text-xs text-[#A9ABAE]">
+                                        {tarifaAgente.costos.map((c) => c.concepto).join(', ')} ·
+                                        Vigente hasta {tarifaAgente.fecha_fin_vigencia}
+                                    </p>
+                                </div>
+                                <div className="flex flex-shrink-0 items-center gap-2">
+                                    {tarifaAgente.estado === 'Vencida' && (
+                                        <span className="rounded px-2 py-1 text-xs font-semibold bg-red-100 text-red-700">
+                                            Vencida
+                                        </span>
+                                    )}
+                                    {tarifaAgente.estado === 'Por Vencer' && (
+                                        <span className="rounded px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-700">
+                                            Por Vencer
+                                        </span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => aplicarTarifaAgente(tarifaAgente)}
+                                        className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
+                                    >
+                                        Usar esta tarifa
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {data.id_agente_origen && (
+                <p className="text-sm text-[#042753]">
+                    Agente de Origen:{' '}
+                    <span className="font-semibold">
+                        {tarifasAgenteRuta.find((t) => t.id_proveedor === data.id_agente_origen)
+                            ?.agente ?? '—'}
+                    </span>
+                    <span className="ml-1 text-xs text-[#A9ABAE]">
+                        (según la tarifa usada)
+                    </span>
+                </p>
+            )}
+            <CampoError mensaje={errors.id_agente_origen} />
 
             <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -1310,11 +1415,11 @@ export default function NuevaCotizacionWizard({
     puertos,
     rutaBuscarCliente,
     rutaTarifasDisponibles,
+    rutaTarifasAgenteDisponibles,
     rutaSolicitarTarifa,
     rutaStore,
     conceptosCostoExtra = [],
     permiteTarifaInexistente = false,
-    proveedoresAgenteOrigen = [],
     origen = null,
 }) {
     const [paso, setPaso] = useState(origen ? 2 : 1);
@@ -1379,6 +1484,30 @@ export default function NuevaCotizacionWizard({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data.modo_transporte, data.id_pol, data.id_pod, data.tipo_servicio]);
 
+    const [tarifasAgenteRuta, setTarifasAgenteRuta] = useState([]);
+    const [cargandoTarifasAgente, setCargandoTarifasAgente] = useState(false);
+
+    useEffect(() => {
+        if (!data.id_pol || !data.id_pod || !rutaTarifasAgenteDisponibles) {
+            setTarifasAgenteRuta([]);
+            return;
+        }
+
+        setCargandoTarifasAgente(true);
+
+        axios
+            .get(route(rutaTarifasAgenteDisponibles), {
+                params: {
+                    modo_transporte: data.modo_transporte,
+                    id_pol: data.id_pol,
+                    id_pod: data.id_pod,
+                },
+            })
+            .then((response) => setTarifasAgenteRuta(response.data))
+            .finally(() => setCargandoTarifasAgente(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data.modo_transporte, data.id_pol, data.id_pod]);
+
     const tiposContenedorDisponibles = useMemo(() => {
         const tipos = new Set();
         tarifasRuta.forEach((tarifa) => {
@@ -1402,7 +1531,6 @@ export default function NuevaCotizacionWizard({
                 return [
                     'modo_transporte',
                     'tipo_embarque',
-                    'id_agente_origen',
                     'tipo_servicio',
                     'incoterm',
                     'id_pol',
@@ -1423,7 +1551,8 @@ export default function NuevaCotizacionWizard({
                     clave === 'fecha_validez' ||
                     clave === 'dias_transito' ||
                     clave === 'tarifa' ||
-                    clave === 'id_naviera_aerolinea'
+                    clave === 'id_naviera_aerolinea' ||
+                    clave === 'id_agente_origen'
                 );
             }
             return false;
@@ -1483,7 +1612,8 @@ export default function NuevaCotizacionWizard({
 
             {origen && (
                 <div className="mb-4 rounded-md bg-[#71BFA6]/10 px-4 py-3 text-sm text-[#042753]">
-                    Creando cotización terrestre a partir de la cotización marítima{' '}
+                    Creando cotización terrestre a partir de la cotización{' '}
+                    {origen.modo_transporte_origen === 'Aereo' ? 'aérea' : 'marítima'}{' '}
                     <strong>#{origen.id_cotizacion_origen}</strong>. El cliente y el
                     puerto de origen ya vienen completados.
                 </div>
@@ -1513,7 +1643,6 @@ export default function NuevaCotizacionWizard({
                         errors={errors}
                         clearErrors={clearErrors}
                         puertos={puertos}
-                        proveedoresAgenteOrigen={proveedoresAgenteOrigen}
                     />
                 )}
                 {paso === 3 && (
@@ -1537,6 +1666,8 @@ export default function NuevaCotizacionWizard({
                         tarifasRuta={tarifasRuta}
                         cargandoTarifas={cargandoTarifas}
                         consultadoTarifas={consultadoTarifas}
+                        tarifasAgenteRuta={tarifasAgenteRuta}
+                        cargandoTarifasAgente={cargandoTarifasAgente}
                         conceptosCostoExtra={conceptosCostoExtra}
                         permiteTarifaInexistente={permiteTarifaInexistente}
                         rutaSolicitarTarifa={rutaSolicitarTarifa}

@@ -10,12 +10,12 @@ use App\Models\CotizacionContenedor;
 use App\Models\CotizacionDetalle;
 use App\Models\Embarque;
 use App\Models\Empleado;
-use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
 use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
 use App\Support\SolicitudTarifaRegistrador;
+use App\Support\TarifaAgenteLookup;
 use App\Support\TarifaLookup;
 use App\Support\TiposTransportePorModo;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -39,10 +39,6 @@ class CotizacionController extends Controller
             'puertos' => PuertoAeropuerto::where('activo', true)->orderBy('nombre')->get(['codigo', 'nombre', 'tipo']),
             'conceptosCostoExtra' => ConceptoCostoExtra::where('activo', true)->orderBy('nombre')->get(['id_concepto', 'nombre']),
             'origen' => PrefillCotizacionTerrestre::desde($request->integer('desde_cotizacion') ?: null),
-            'proveedoresAgenteOrigen' => Proveedor::where('tipo', 'Agente_Origen')
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->get(['id_proveedor', 'nombre']),
         ]);
     }
 
@@ -56,6 +52,17 @@ class CotizacionController extends Controller
         ]);
 
         return response()->json(TarifaLookup::disponibles($data));
+    }
+
+    public function tarifasAgenteDisponibles(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
+            'id_pol' => ['nullable', 'string'],
+            'id_pod' => ['nullable', 'string'],
+        ]);
+
+        return response()->json(TarifaAgenteLookup::disponibles($data));
     }
 
     public function solicitarTarifa(Request $request): JsonResponse

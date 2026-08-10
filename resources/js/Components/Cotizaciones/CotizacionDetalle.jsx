@@ -22,7 +22,9 @@ function Campo({ label, value, info }) {
 
 export default function CotizacionDetalle({ cotizacion, contenedores, detalle, total, rutaCrearTerrestre }) {
     const puedeCrearTerrestre =
-        rutaCrearTerrestre && cotizacion.modo_transporte === 'Maritimo' && cotizacion.estado === 'Aceptado';
+        rutaCrearTerrestre &&
+        (cotizacion.modo_transporte === 'Maritimo' || cotizacion.modo_transporte === 'Aereo') &&
+        cotizacion.estado === 'Aceptado';
 
     return (
         <div className="space-y-6">
@@ -36,7 +38,8 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                             href={route(rutaCrearTerrestre, { desde_cotizacion: cotizacion.id_cotizacion })}
                             className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
                         >
-                            + Crear Cotización Terrestre desde este puerto
+                            + Crear Cotización Terrestre desde este{' '}
+                            {cotizacion.modo_transporte === 'Aereo' ? 'aeropuerto' : 'puerto'}
                         </Link>
                     )}
                 </div>
