@@ -16,7 +16,7 @@ class PrefillCotizacionTerrestre
 
         $modosOrigenValidos = ['Maritimo', 'Aereo'];
 
-        if (! $origen || ! in_array($origen->modo_transporte, $modosOrigenValidos, true) || $origen->estado !== 'Aceptado' || ! $origen->id_pod) {
+        if (! $origen || ! in_array($origen->modo_transporte, $modosOrigenValidos, true) || ! $origen->id_pod) {
             return null;
         }
 
@@ -26,7 +26,6 @@ class PrefillCotizacionTerrestre
             'id_cliente' => $origen->id_cliente,
             'cliente_nombre' => $origen->cliente?->razon_social,
             'id_pol' => $origen->id_pod,
-            'destino_final' => $origen->destino_final,
         ];
     }
 }

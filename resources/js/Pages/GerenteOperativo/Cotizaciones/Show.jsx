@@ -22,6 +22,7 @@ export default function Show({ cotizacion, contenedores, detalle, total }) {
                 detalle={detalle}
                 total={total}
                 rutaCrearTerrestre="gerente-operativo.cotizaciones.create"
+                rutaVerCotizacion="gerente-operativo.cotizaciones.show"
             />
         </GerenteOperativoLayout>
     );

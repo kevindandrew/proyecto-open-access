@@ -1,9 +1,10 @@
 import AyudaTermino from '@/Components/AyudaTermino';
 import { INCOTERMS_INFO, TIPO_CONTENEDOR_INFO } from '@/constants/glosario';
 import { MONEDAS } from '@/constants/monedas';
+import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const PASOS = ['Cliente', 'Ruta y Transporte', 'Carga', 'Costos y Resumen'];
 const INCOTERMS = ['FOB', 'EXW', 'CIF', 'CFR', 'DDP'];
@@ -357,23 +358,6 @@ function PasoRuta({
                 </div>
             </div>
 
-            <div>
-                <label className={labelClass}>Destino Final</label>
-                <input
-                    type="text"
-                    className={inputClass}
-                    value={data.destino_final}
-                    onChange={(e) => {
-                        setData({
-                            ...data,
-                            destino_final: e.target.value,
-                        });
-                        clearErrors('destino_final');
-                    }}
-                />
-                <CampoError mensaje={errors.destino_final} />
-            </div>
-
             <p className="text-xs text-[#A9ABAE]">
                 El Agente de Origen y la Naviera / Aerolínea / Transportista se definen
                 solos en el paso de Costos, según las tarifas que elijas usar — no hace
@@ -434,6 +418,7 @@ function PasoCarga({
     cargandoTarifas,
     consultadoTarifas,
     rutaSolicitarTarifa,
+    onReintentarTarifas,
 }) {
     const esFCL = data.tipo_servicio === 'FCL';
     const hayTiposDisponibles = tiposContenedorDisponibles.length > 0;
@@ -494,12 +479,24 @@ function PasoCarga({
                             <p className="mb-3 text-sm text-amber-800">
                                 Gerente Operativo todavía no cargó ninguna tarifa FCL
                                 para esta ruta, así que no hay tipos de contenedor para
-                                elegir.
+                                elegir. Esto se vuelve a revisar solo cada 20 segundos —
+                                no hace falta recargar la página.
                             </p>
-                            <BotonSolicitarTarifa
-                                data={data}
-                                rutaSolicitarTarifa={rutaSolicitarTarifa}
-                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <BotonSolicitarTarifa
+                                    data={data}
+                                    rutaSolicitarTarifa={rutaSolicitarTarifa}
+                                />
+                                {onReintentarTarifas && (
+                                    <button
+                                        type="button"
+                                        onClick={onReintentarTarifas}
+                                        className="rounded-md border border-[#042753] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:bg-[#042753]/5"
+                                    >
+                                        Buscar de nuevo ahora
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -540,6 +537,8 @@ function PasoCarga({
                                             <input
                                                 type="number"
                                                 min="1"
+                                                step="1"
+                                                onKeyDown={bloquearNotacionCientifica}
                                                 placeholder="Cantidad"
                                                 className={`${inputClass} max-w-[120px]`}
                                                 value={contenedor.cantidad}
@@ -590,6 +589,7 @@ function PasoCarga({
                         <input
                             type="number"
                             step="0.01"
+                            onKeyDown={bloquearNotacionCientifica}
                             className={inputClass}
                             value={data.peso_kg}
                             onChange={(e) => {
@@ -607,6 +607,7 @@ function PasoCarga({
                         <input
                             type="number"
                             step="0.001"
+                            onKeyDown={bloquearNotacionCientifica}
                             className={inputClass}
                             value={data.volumen_cbm}
                             onChange={(e) => {
@@ -648,6 +649,7 @@ function TarifasDisponibles({
     consultado,
     permiteTarifaInexistente,
     rutaSolicitarTarifa,
+    onReintentar,
 }) {
     if (!data.id_pol || !data.id_pod) {
         return null;
@@ -675,12 +677,25 @@ function TarifasDisponibles({
                         No hay ninguna tarifa cargada para esta ruta.{' '}
                         {permiteTarifaInexistente
                             ? 'Podés completar los costos manualmente abajo — como Gerente Comercial, se avisará a Gerente Operativo para que la cargue.'
-                            : 'No vas a poder crear esta cotización hasta que Gerente Operativo cargue una tarifa para esta ruta.'}
+                            : 'No vas a poder crear esta cotización hasta que Gerente Operativo cargue una tarifa para esta ruta.'}{' '}
+                        Esto se vuelve a revisar solo cada 20 segundos — no hace falta
+                        recargar la página.
                     </p>
-                    <BotonSolicitarTarifa
-                        data={data}
-                        rutaSolicitarTarifa={rutaSolicitarTarifa}
-                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <BotonSolicitarTarifa
+                            data={data}
+                            rutaSolicitarTarifa={rutaSolicitarTarifa}
+                        />
+                        {onReintentar && (
+                            <button
+                                type="button"
+                                onClick={onReintentar}
+                                className="rounded-md border border-[#042753] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:bg-[#042753]/5"
+                            >
+                                Buscar de nuevo ahora
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -716,7 +731,8 @@ function TarifasDisponibles({
                             <button
                                 type="button"
                                 onClick={() => onAplicar(tarifa)}
-                                className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
+                                disabled={tarifa.estado === 'Vencida'}
+                                className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 Usar esta tarifa
                             </button>
@@ -786,6 +802,7 @@ function CostosExtraOpcionales({ data, setData, conceptosCostoExtra }) {
                 <input
                     type="number"
                     step="0.01"
+                    onKeyDown={bloquearNotacionCientifica}
                     placeholder="Monto"
                     className="w-28 rounded-md border-gray-300 text-sm"
                     value={monto}
@@ -828,8 +845,13 @@ function PasoCostos({
     conceptosCostoExtra,
     permiteTarifaInexistente,
     rutaSolicitarTarifa,
+    onReintentarTarifas,
 }) {
     const aplicarTarifaAgente = (tarifaAgente) => {
+        if (tarifaAgente.estado === 'Vencida') {
+            return;
+        }
+
         const lineasNuevas = tarifaAgente.costos.map((costo) => ({
             descripcion: costo.concepto,
             tipo_tarifa_unidad: 'Flat',
@@ -856,6 +878,10 @@ function PasoCostos({
 
 
     const aplicarTarifa = (tarifa) => {
+        if (tarifa.estado === 'Vencida') {
+            return;
+        }
+
         const lineasNuevas = [];
 
         if (data.tipo_servicio === 'FCL' && data.contenedores.length > 0) {
@@ -1033,6 +1059,7 @@ function PasoCostos({
                 consultado={consultadoTarifas}
                 permiteTarifaInexistente={permiteTarifaInexistente}
                 rutaSolicitarTarifa={rutaSolicitarTarifa}
+                onReintentar={onReintentarTarifas}
             />
 
             {errors.tarifa && (
@@ -1104,7 +1131,8 @@ function PasoCostos({
                                     <button
                                         type="button"
                                         onClick={() => aplicarTarifaAgente(tarifaAgente)}
-                                        className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90"
+                                        disabled={tarifaAgente.estado === 'Vencida'}
+                                        className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         Usar esta tarifa
                                     </button>
@@ -1244,6 +1272,7 @@ function PasoCostos({
                                         <input
                                             type="number"
                                             step="0.01"
+                                            onKeyDown={bloquearNotacionCientifica}
                                             readOnly={bloqueada}
                                             className={
                                                 bloqueada
@@ -1270,7 +1299,17 @@ function PasoCostos({
                                     <td className="px-3 py-2">
                                         <input
                                             type="number"
-                                            step="0.001"
+                                            step={
+                                                linea.vinculo?.tipo === 'contenedor'
+                                                    ? '1'
+                                                    : '0.001'
+                                            }
+                                            min={
+                                                linea.vinculo?.tipo === 'contenedor'
+                                                    ? '1'
+                                                    : undefined
+                                            }
+                                            onKeyDown={bloquearNotacionCientifica}
                                             title={
                                                 linea.vinculo
                                                     ? 'Sincronizado con el paso 3 (Carga)'
@@ -1373,27 +1412,54 @@ function PasoCostos({
                 conceptosCostoExtra={conceptosCostoExtra}
             />
 
+            <div className="rounded-lg border border-[#042753]/20 bg-[#042753]/5 p-4">
+                <label className={labelClass}>Comisión OpenAccess (USD)</label>
+                <p className="mb-2 text-xs text-[#A9ABAE]">
+                    Uso interno — el cliente nunca la ve. Se suma al flete cotizado y no
+                    aparece como línea aparte en la cotización ni en el PDF que se le
+                    envía. Siempre en dólares, para evitar descalces por el tipo de
+                    cambio.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        onKeyDown={bloquearNotacionCientifica}
+                        placeholder="Monto en USD"
+                        className="w-40 rounded-md border-gray-300 text-sm"
+                        value={data.comision_openaccess}
+                        onChange={(e) => {
+                            setData({ ...data, comision_openaccess: e.target.value });
+                            clearErrors('comision_openaccess');
+                        }}
+                    />
+                    <span className="text-sm text-[#A9ABAE]">USD</span>
+                </div>
+                <CampoError mensaje={errors.comision_openaccess} />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className={labelClass}>Fecha de Validez</label>
                     <input
                         type="date"
-                        className={inputClass}
+                        readOnly
+                        className="mt-1 block w-full rounded-md border-gray-200 bg-gray-100 text-sm text-[#042753] shadow-sm"
                         value={data.fecha_validez}
-                        onChange={(e) => {
-                            setData({
-                                ...data,
-                                fecha_validez: e.target.value,
-                            });
-                            clearErrors('fecha_validez');
-                        }}
                     />
+                    <p className="mt-1 text-xs text-[#A9ABAE]">
+                        🔒 Se toma de la vigencia de la tarifa aplicada — no es editable.
+                    </p>
                     <CampoError mensaje={errors.fecha_validez} />
                 </div>
                 <div>
                     <label className={labelClass}>Días de Tránsito</label>
                     <input
                         type="number"
+                        min="0"
+                        step="1"
+                        onKeyDown={bloquearNotacionCientifica}
                         className={inputClass}
                         value={data.dias_transito}
                         onChange={(e) => {
@@ -1425,6 +1491,7 @@ export default function NuevaCotizacionWizard({
     const [paso, setPaso] = useState(origen ? 2 : 1);
 
     const { data, setData, post, transform, processing, errors, clearErrors } = useForm({
+        id_cotizacion_origen: origen?.id_cotizacion_origen ?? null,
         id_cliente: origen?.id_cliente ?? '',
         cliente_nombre: origen?.cliente_nombre ?? '',
         modo_transporte: origen ? 'Terrestre' : 'Maritimo',
@@ -1435,13 +1502,13 @@ export default function NuevaCotizacionWizard({
         incoterm: '',
         id_pol: origen?.id_pol ?? '',
         id_pod: '',
-        destino_final: origen?.destino_final ?? '',
         contenedores: [],
         peso_kg: '',
         volumen_cbm: '',
         mercancia_peligrosa: false,
         fecha_validez: fechaValidezPorDefecto(),
         dias_transito: '',
+        comision_openaccess: '',
         detalle: [
             {
                 descripcion: '',
@@ -1457,7 +1524,7 @@ export default function NuevaCotizacionWizard({
     const [cargandoTarifas, setCargandoTarifas] = useState(false);
     const [consultadoTarifas, setConsultadoTarifas] = useState(false);
 
-    useEffect(() => {
+    const buscarTarifasRuta = useCallback(() => {
         if (!data.id_pol || !data.id_pod) {
             setTarifasRuta([]);
             setConsultadoTarifas(false);
@@ -1465,7 +1532,6 @@ export default function NuevaCotizacionWizard({
         }
 
         setCargandoTarifas(true);
-        setConsultadoTarifas(false);
 
         axios
             .get(route(rutaTarifasDisponibles), {
@@ -1483,6 +1549,24 @@ export default function NuevaCotizacionWizard({
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data.modo_transporte, data.id_pol, data.id_pod, data.tipo_servicio]);
+
+    useEffect(() => {
+        setConsultadoTarifas(false);
+        buscarTarifasRuta();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data.modo_transporte, data.id_pol, data.id_pod, data.tipo_servicio]);
+
+    // Si ya se buscó y no apareció ninguna tarifa, se reintenta solo cada 20s —
+    // así, cuando Gerente Operativo la carga, aparece sin que el Comercial
+    // tenga que recargar la página (y perder todo el progreso del wizard).
+    useEffect(() => {
+        if (!data.id_pol || !data.id_pod || !consultadoTarifas || tarifasRuta.length > 0) {
+            return;
+        }
+
+        const intervalo = setInterval(buscarTarifasRuta, 20000);
+        return () => clearInterval(intervalo);
+    }, [data.id_pol, data.id_pod, consultadoTarifas, tarifasRuta.length, buscarTarifasRuta]);
 
     const [tarifasAgenteRuta, setTarifasAgenteRuta] = useState([]);
     const [cargandoTarifasAgente, setCargandoTarifasAgente] = useState(false);
@@ -1535,7 +1619,6 @@ export default function NuevaCotizacionWizard({
                     'incoterm',
                     'id_pol',
                     'id_pod',
-                    'destino_final',
                 ].includes(clave);
             }
             if (numeroPaso === 3) {
@@ -1552,7 +1635,8 @@ export default function NuevaCotizacionWizard({
                     clave === 'dias_transito' ||
                     clave === 'tarifa' ||
                     clave === 'id_naviera_aerolinea' ||
-                    clave === 'id_agente_origen'
+                    clave === 'id_agente_origen' ||
+                    clave === 'comision_openaccess'
                 );
             }
             return false;
@@ -1655,6 +1739,7 @@ export default function NuevaCotizacionWizard({
                         cargandoTarifas={cargandoTarifas}
                         consultadoTarifas={consultadoTarifas}
                         rutaSolicitarTarifa={rutaSolicitarTarifa}
+                        onReintentarTarifas={buscarTarifasRuta}
                     />
                 )}
                 {paso === 4 && (
@@ -1671,6 +1756,7 @@ export default function NuevaCotizacionWizard({
                         conceptosCostoExtra={conceptosCostoExtra}
                         permiteTarifaInexistente={permiteTarifaInexistente}
                         rutaSolicitarTarifa={rutaSolicitarTarifa}
+                        onReintentarTarifas={buscarTarifasRuta}
                     />
                 )}
 

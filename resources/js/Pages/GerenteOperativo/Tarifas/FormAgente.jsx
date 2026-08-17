@@ -1,5 +1,6 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { MONEDAS } from '@/constants/monedas';
+import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
 
@@ -226,6 +227,7 @@ export default function FormAgente({ tarifaAgente, agentes, puertos }) {
                                     <input
                                         type="number"
                                         step="0.01"
+                                        onKeyDown={bloquearNotacionCientifica}
                                         placeholder="Costo"
                                         className={`${inputClass} max-w-[140px]`}
                                         value={costo.costo}
@@ -307,6 +309,7 @@ export default function FormAgente({ tarifaAgente, agentes, puertos }) {
                     <label className={labelClass}>Observaciones</label>
                     <textarea
                         rows={3}
+                        placeholder="Ej. Incluye handling en destino"
                         className={inputClass}
                         value={data.observaciones}
                         onChange={(e) => setData('observaciones', e.target.value)}

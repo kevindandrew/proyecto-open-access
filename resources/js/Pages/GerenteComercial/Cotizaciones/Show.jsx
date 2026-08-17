@@ -20,6 +20,7 @@ export default function Show({ cotizacion, contenedores, detalle, total }) {
                 detalle={detalle}
                 total={total}
                 rutaCrearTerrestre="gerente-comercial.cotizaciones.create"
+                rutaVerCotizacion="gerente-comercial.cotizaciones.show"
             />
         </GerenteComercialLayout>
     );

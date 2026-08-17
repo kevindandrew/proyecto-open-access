@@ -70,10 +70,10 @@
             <td class="valor">{{ $cotizacion['pod'] ?? '—' }}</td>
         </tr>
         <tr>
-            <td class="etiqueta">Destino Final</td>
-            <td class="valor">{{ $cotizacion['destino_final'] ?? '—' }}</td>
             <td class="etiqueta">Mercancía Peligrosa</td>
             <td class="valor">{{ $cotizacion['mercancia_peligrosa'] ? 'Sí' : 'No' }}</td>
+            <td></td>
+            <td></td>
         </tr>
         <tr>
             <td class="etiqueta">Fecha de Emisión</td>
@@ -136,7 +136,7 @@
                     <td>{{ $linea['descripcion'] }}</td>
                     <td>{{ $linea['tipo_tarifa_unidad'] ?? '—' }}</td>
                     <td class="derecha">{{ $linea['costo_unitario'] }}</td>
-                    <td class="derecha">{{ $linea['base_calculo'] }}</td>
+                    <td class="derecha">{{ (float) $linea['base_calculo'] }}</td>
                     <td>{{ $linea['moneda'] }}</td>
                     <td class="derecha">{{ $linea['costo_total'] }}</td>
                 </tr>

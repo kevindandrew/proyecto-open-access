@@ -50,6 +50,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                             <input
                                 id="razon_social"
                                 type="text"
+                                placeholder="Ej. Textiles La Paz Ltda."
                                 className={inputClass}
                                 value={data.razon_social}
                                 onChange={(e) =>
@@ -71,6 +72,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 <input
                                     id="nit"
                                     type="text"
+                                    placeholder="Ej. 1023456011"
                                     className={inputClass}
                                     value={data.nit}
                                     onChange={(e) =>
@@ -110,6 +112,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                             <input
                                 id="direccion"
                                 type="text"
+                                placeholder="Ej. Av. Arce #123, Zona Sur"
                                 className={inputClass}
                                 value={data.direccion}
                                 onChange={(e) =>
@@ -128,6 +131,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                             <input
                                 id="persona_contacto"
                                 type="text"
+                                placeholder="Ej. Juan Pérez"
                                 className={inputClass}
                                 value={data.persona_contacto}
                                 onChange={(e) =>
@@ -150,6 +154,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 <input
                                     id="telefono1"
                                     type="text"
+                                    placeholder="Ej. 22123456"
                                     className={inputClass}
                                     value={data.telefono1}
                                     onChange={(e) =>
@@ -170,6 +175,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 <input
                                     id="celular_whatsapp"
                                     type="text"
+                                    placeholder="Ej. 71234567"
                                     className={inputClass}
                                     value={data.celular_whatsapp}
                                     onChange={(e) =>
@@ -190,6 +196,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 <input
                                     id="email"
                                     type="email"
+                                    placeholder="Ej. contacto@cliente.com"
                                     className={inputClass}
                                     value={data.email}
                                     onChange={(e) =>
@@ -207,6 +214,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 <input
                                     id="correo_factura"
                                     type="email"
+                                    placeholder="Ej. facturacion@cliente.com"
                                     className={inputClass}
                                     value={data.correo_factura}
                                     onChange={(e) =>
@@ -229,6 +237,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                             <input
                                 id="condicion_pago"
                                 type="text"
+                                placeholder="Ej. Contado, Crédito 30 días"
                                 className={inputClass}
                                 value={data.condicion_pago}
                                 onChange={(e) =>

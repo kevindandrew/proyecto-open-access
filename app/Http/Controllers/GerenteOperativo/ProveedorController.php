@@ -4,6 +4,7 @@ namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Proveedor;
+use App\Support\CloudinaryUploader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -45,7 +46,13 @@ class ProveedorController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Proveedor::create($this->validado($request));
+        $data = $this->validado($request);
+
+        if ($request->hasFile('documento_nit')) {
+            $data['documento_nit_url'] = CloudinaryUploader::subir($request->file('documento_nit'), 'open-access/proveedores/documentos');
+        }
+
+        Proveedor::create($data);
 
         return redirect()
             ->route('gerente-operativo.configuracion.proveedores.index')
@@ -69,6 +76,7 @@ class ProveedorController extends Controller
                 'telefono' => $proveedor->telefono,
                 'celular' => $proveedor->celular,
                 'nit' => $proveedor->nit,
+                'documento_nit_url' => $proveedor->documento_nit_url,
                 'email' => $proveedor->email,
                 'activo' => $proveedor->activo,
             ],
@@ -78,7 +86,13 @@ class ProveedorController extends Controller
 
     public function update(Request $request, Proveedor $proveedor): RedirectResponse
     {
-        $proveedor->update($this->validado($request));
+        $data = $this->validado($request);
+
+        $data['documento_nit_url'] = $request->hasFile('documento_nit')
+            ? CloudinaryUploader::subir($request->file('documento_nit'), 'open-access/proveedores/documentos')
+            : $proveedor->documento_nit_url;
+
+        $proveedor->update($data);
 
         return redirect()
             ->route('gerente-operativo.configuracion.proveedores.index')
@@ -109,11 +123,13 @@ class ProveedorController extends Controller
             'telefono' => ['nullable', 'string', 'max:50'],
             'celular' => ['nullable', 'string', 'max:30'],
             'nit' => ['nullable', 'string', 'max:30'],
+            'documento_nit' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'email' => ['nullable', 'email', 'max:200'],
             'activo' => ['boolean'],
         ]);
 
         $data['activo'] = $request->boolean('activo', true);
+        unset($data['documento_nit']);
 
         return $data;
     }

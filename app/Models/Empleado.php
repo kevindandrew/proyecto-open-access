@@ -18,6 +18,9 @@ class Empleado extends Model
     protected $fillable = [
         'nombre_completo',
         'ci',
+        'tipo_documento',
+        'documento_frente_url',
+        'documento_dorso_url',
         'telefono',
         'email',
         'id_rol',

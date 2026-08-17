@@ -26,6 +26,7 @@ class Proveedor extends Model
         'telefono',
         'celular',
         'nit',
+        'documento_nit_url',
         'email',
         'activo',
     ];

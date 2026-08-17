@@ -11,6 +11,7 @@ use App\Models\CotizacionDetalle;
 use App\Models\Embarque;
 use App\Models\Empleado;
 use App\Models\PuertoAeropuerto;
+use App\Support\CotizacionPdfDetalle;
 use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
@@ -85,6 +86,7 @@ class CotizacionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
+            'id_cotizacion_origen' => ['nullable', 'integer', 'exists:cotizaciones,id_cotizacion'],
             'id_cliente' => ['required', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
             'tipo_embarque' => ['required', Rule::in(['IMPO', 'EXPO', 'DOM'])],
@@ -103,12 +105,12 @@ class CotizacionController extends Controller
             'incoterm' => ['nullable', 'string', 'max:10'],
             'id_pol' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'id_pod' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
-            'destino_final' => ['nullable', 'string', 'max:150'],
             'peso_kg' => ['nullable', 'numeric'],
             'volumen_cbm' => ['nullable', 'numeric'],
             'mercancia_peligrosa' => ['boolean'],
             'fecha_validez' => ['required', 'date'],
             'dias_transito' => ['nullable', 'integer'],
+            'comision_openaccess' => ['nullable', 'numeric', 'min:0'],
             'contenedores' => ['array'],
             'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:50'],
             'contenedores.*.cantidad' => ['required', 'integer', 'min:1'],
@@ -116,7 +118,15 @@ class CotizacionController extends Controller
             'detalle.*.descripcion' => ['required', 'string', 'max:200'],
             'detalle.*.tipo_tarifa_unidad' => ['nullable', 'string', 'max:50'],
             'detalle.*.costo_unitario' => ['nullable', 'numeric'],
-            'detalle.*.base_calculo' => ['nullable', 'numeric'],
+            'detalle.*.base_calculo' => ['nullable', 'numeric', function ($attribute, $value, $fail) use ($request) {
+                preg_match('/^detalle\.(\d+)\.base_calculo$/', $attribute, $matches);
+                $indice = $matches[1] ?? null;
+                $unidad = $indice !== null ? $request->input("detalle.{$indice}.tipo_tarifa_unidad") : null;
+
+                if ($unidad === 'Per Container' && $value !== null && floor($value) != $value) {
+                    $fail('La cantidad de contenedores no puede tener decimales.');
+                }
+            }],
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
         ]);
 
@@ -143,6 +153,7 @@ class CotizacionController extends Controller
         $cotizacion = DB::transaction(function () use ($data, $comercialAsignado) {
             $cotizacion = Cotizacion::create([
                 'numero_referencia' => GeneradorNumeroReferencia::generar($comercialAsignado),
+                'id_cotizacion_origen' => $data['id_cotizacion_origen'] ?? null,
                 'id_cliente' => $data['id_cliente'],
                 'id_comercial' => $comercialAsignado->id_empleado,
                 'modo_transporte' => $data['modo_transporte'],
@@ -153,13 +164,14 @@ class CotizacionController extends Controller
                 'incoterm' => $data['incoterm'] ?? null,
                 'id_pol' => $data['id_pol'] ?? null,
                 'id_pod' => $data['id_pod'] ?? null,
-                'destino_final' => $data['destino_final'] ?? null,
                 'fecha_validez' => $data['fecha_validez'],
                 'estado' => 'Cotizado',
                 'peso_kg' => $data['peso_kg'] ?? null,
                 'volumen_cbm' => $data['volumen_cbm'] ?? null,
                 'mercancia_peligrosa' => $data['mercancia_peligrosa'] ?? false,
                 'dias_transito' => $data['dias_transito'] ?? null,
+                'comision_openaccess' => $data['comision_openaccess'] ?? 0,
+                'comision_moneda' => 'USD',
             ]);
 
             foreach ($data['contenedores'] ?? [] as $contenedor) {
@@ -216,12 +228,20 @@ class CotizacionController extends Controller
 
     public function show(Cotizacion $cotizacion): Response
     {
-        $cotizacion->load(['cliente', 'comercial', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod', 'contenedores', 'detalle', 'embarques']);
+        $cotizacion->load(['cliente', 'comercial', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod', 'contenedores', 'detalle', 'embarques', 'origen', 'continuaciones']);
 
         return Inertia::render('GerenteOperativo/Cotizaciones/Show', [
             'cotizacion' => [
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'numero_referencia' => $cotizacion->numero_referencia,
+                'origen' => $cotizacion->origen ? [
+                    'id_cotizacion' => $cotizacion->origen->id_cotizacion,
+                    'numero_referencia' => $cotizacion->origen->numero_referencia,
+                ] : null,
+                'continuaciones' => $cotizacion->continuaciones->map(fn (Cotizacion $c) => [
+                    'id_cotizacion' => $c->id_cotizacion,
+                    'numero_referencia' => $c->numero_referencia,
+                ]),
                 'cliente' => $cotizacion->cliente?->razon_social,
                 'comercial' => $cotizacion->comercial?->nombre_completo,
                 'modo_transporte' => $cotizacion->modo_transporte,
@@ -232,7 +252,6 @@ class CotizacionController extends Controller
                 'incoterm' => $cotizacion->incoterm,
                 'pol' => $cotizacion->pol?->nombre,
                 'pod' => $cotizacion->pod?->nombre,
-                'destino_final' => $cotizacion->destino_final,
                 'fecha_emision' => $cotizacion->fecha_emision->toDateString(),
                 'fecha_validez' => $cotizacion->fecha_validez->toDateString(),
                 'estado' => $cotizacion->estado,
@@ -241,6 +260,8 @@ class CotizacionController extends Controller
                 'volumen_cbm' => $cotizacion->volumen_cbm,
                 'mercancia_peligrosa' => $cotizacion->mercancia_peligrosa,
                 'dias_transito' => $cotizacion->dias_transito,
+                'comision_openaccess' => $cotizacion->comision_openaccess,
+                'comision_moneda' => $cotizacion->comision_moneda,
                 'tiene_embarque' => $cotizacion->embarques->isNotEmpty(),
                 'embarque_id' => $cotizacion->embarques->first()?->id_embarque,
             ],
@@ -260,9 +281,13 @@ class CotizacionController extends Controller
         ]);
     }
 
-    public function pdf(Cotizacion $cotizacion): HttpResponse
+    public function pdf(Request $request, Cotizacion $cotizacion): HttpResponse
     {
         $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle']);
+
+        ['detalle' => $detalleParaPdf, 'total' => $totalParaPdf] = $request->query('vista') === 'resumen'
+            ? CotizacionPdfDetalle::resumenParaCliente($cotizacion)
+            : CotizacionPdfDetalle::paraCliente($cotizacion);
 
         $pdf = Pdf::loadView('pdf.cotizacion', [
             'cotizacion' => [
@@ -274,7 +299,6 @@ class CotizacionController extends Controller
                 'incoterm' => $cotizacion->incoterm,
                 'pol' => $cotizacion->pol?->nombre,
                 'pod' => $cotizacion->pod?->nombre,
-                'destino_final' => $cotizacion->destino_final,
                 'fecha_emision' => $cotizacion->fecha_emision->toDateString(),
                 'fecha_validez' => $cotizacion->fecha_validez->toDateString(),
                 'estado' => $cotizacion->estado,
@@ -288,15 +312,8 @@ class CotizacionController extends Controller
                 'tipo_contenedor' => $item->tipo_contenedor,
                 'cantidad' => $item->cantidad,
             ])->all(),
-            'detalle' => $cotizacion->detalle->map(fn (CotizacionDetalle $linea) => [
-                'descripcion' => $linea->descripcion,
-                'tipo_tarifa_unidad' => $linea->tipo_tarifa_unidad,
-                'costo_unitario' => $linea->costo_unitario,
-                'base_calculo' => $linea->base_calculo,
-                'moneda' => $linea->moneda,
-                'costo_total' => $linea->costo_total,
-            ])->all(),
-            'total' => $cotizacion->detalle->sum('costo_total'),
+            'detalle' => $detalleParaPdf,
+            'total' => $totalParaPdf,
             'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
         ]);
 

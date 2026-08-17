@@ -1,3 +1,4 @@
+import CampoDocumento from '@/Components/CampoDocumento';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { Head, useForm } from '@inertiajs/react';
 
@@ -27,6 +28,7 @@ export default function Form({ proveedor, tipos }) {
         telefono: proveedor?.telefono ?? '',
         celular: proveedor?.celular ?? '',
         nit: proveedor?.nit ?? '',
+        documento_nit: null,
         email: proveedor?.email ?? '',
         activo: proveedor?.activo ?? true,
     });
@@ -54,6 +56,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>Nombre</label>
                         <input
                             type="text"
+                            placeholder="Ej. Mediterranean Shipping Company"
                             className={inputClass}
                             value={data.nombre}
                             onChange={(e) => setData('nombre', e.target.value)}
@@ -82,6 +85,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>Nombre de Fantasía</label>
                         <input
                             type="text"
+                            placeholder="Ej. MSC Bolivia"
                             className={inputClass}
                             value={data.nombre_fantasia}
                             onChange={(e) => setData('nombre_fantasia', e.target.value)}
@@ -103,6 +107,7 @@ export default function Form({ proveedor, tipos }) {
                     <label className={labelClass}>Persona de Contacto</label>
                     <input
                         type="text"
+                        placeholder="Ej. Juan Pérez"
                         className={inputClass}
                         value={data.contacto}
                         onChange={(e) => setData('contacto', e.target.value)}
@@ -113,6 +118,7 @@ export default function Form({ proveedor, tipos }) {
                     <label className={labelClass}>Dirección</label>
                     <input
                         type="text"
+                        placeholder="Ej. Av. Arce #123"
                         className={inputClass}
                         value={data.direccion1}
                         onChange={(e) => setData('direccion1', e.target.value)}
@@ -124,6 +130,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>Ciudad</label>
                         <input
                             type="text"
+                            placeholder="Ej. La Paz"
                             className={inputClass}
                             value={data.ciudad}
                             onChange={(e) => setData('ciudad', e.target.value)}
@@ -133,6 +140,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>País</label>
                         <input
                             type="text"
+                            placeholder="Ej. Bolivia"
                             className={inputClass}
                             value={data.pais}
                             onChange={(e) => setData('pais', e.target.value)}
@@ -145,6 +153,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>Teléfono</label>
                         <input
                             type="text"
+                            placeholder="Ej. 22123456"
                             className={inputClass}
                             value={data.telefono}
                             onChange={(e) => setData('telefono', e.target.value)}
@@ -154,6 +163,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>Celular</label>
                         <input
                             type="text"
+                            placeholder="Ej. 71234567"
                             className={inputClass}
                             value={data.celular}
                             onChange={(e) => setData('celular', e.target.value)}
@@ -166,6 +176,7 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>NIT</label>
                         <input
                             type="text"
+                            placeholder="Ej. 1023456011"
                             className={inputClass}
                             value={data.nit}
                             onChange={(e) => setData('nit', e.target.value)}
@@ -175,12 +186,27 @@ export default function Form({ proveedor, tipos }) {
                         <label className={labelClass}>Email</label>
                         <input
                             type="email"
+                            placeholder="Ej. contacto@msc.com"
                             className={inputClass}
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
                         />
                         {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
                     </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <label className={labelClass}>Documento del NIT (opcional)</label>
+                    <p className="mb-2 text-xs text-[#A9ABAE]">
+                        Se puede completar ahora o más adelante editando este proveedor.
+                    </p>
+                    <CampoDocumento
+                        label="Foto del NIT"
+                        value={data.documento_nit}
+                        onChange={(archivo) => setData('documento_nit', archivo)}
+                        urlActual={proveedor?.documento_nit_url}
+                        error={errors.documento_nit}
+                    />
                 </div>
 
                 {esEdicion && (
@@ -201,7 +227,11 @@ export default function Form({ proveedor, tipos }) {
                         disabled={processing}
                         className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
                     >
-                        {esEdicion ? 'Guardar Cambios' : 'Crear Proveedor'}
+                        {processing
+                            ? 'Subiendo...'
+                            : esEdicion
+                              ? 'Guardar Cambios'
+                              : 'Crear Proveedor'}
                     </button>
                 </div>
             </form>

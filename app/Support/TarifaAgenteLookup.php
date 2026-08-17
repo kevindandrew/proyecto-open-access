@@ -36,6 +36,7 @@ class TarifaAgenteLookup
     {
         return TarifaAgente::whereHas('proveedor', fn ($query) => $query->where('activo', true))
             ->where('modo', $filtros['modo_transporte'])
+            ->where('fecha_fin_vigencia', '>=', Carbon::today())
             ->when($filtros['id_pol'] ?? null, fn ($query, $pol) => $query->where('id_origen', $pol))
             ->when($filtros['id_pod'] ?? null, fn ($query, $pod) => $query->where('id_destino', $pod));
     }

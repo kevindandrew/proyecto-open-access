@@ -26,6 +26,7 @@ export default function ActualizarTransporte({ embarque, rutaActualizar }) {
                 <label className={labelClass}>MBL</label>
                 <input
                     type="text"
+                    placeholder="Ej. MSCUBS123456"
                     className={inputClass}
                     value={data.mbl}
                     onChange={(e) => setData('mbl', e.target.value)}
@@ -59,6 +60,7 @@ export default function ActualizarTransporte({ embarque, rutaActualizar }) {
                 <label className={labelClass}>Nave</label>
                 <input
                     type="text"
+                    placeholder="Ej. MSC Bolivia"
                     className={inputClass}
                     value={data.nave}
                     onChange={(e) => setData('nave', e.target.value)}
@@ -70,6 +72,7 @@ export default function ActualizarTransporte({ embarque, rutaActualizar }) {
                 <label className={labelClass}>Viaje</label>
                 <input
                     type="text"
+                    placeholder="Ej. 123W"
                     className={inputClass}
                     value={data.viaje}
                     onChange={(e) => setData('viaje', e.target.value)}

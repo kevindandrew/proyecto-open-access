@@ -50,6 +50,7 @@ export default function CambiarEstado({ embarque, rutaEstado }) {
                 </label>
                 <textarea
                     rows={2}
+                    placeholder="Agregá un comentario sobre este cambio de estado..."
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
                     value={data.comentario}
                     onChange={(e) => setData('comentario', e.target.value)}

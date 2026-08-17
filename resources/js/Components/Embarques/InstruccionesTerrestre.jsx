@@ -120,6 +120,7 @@ export default function InstruccionesTerrestre({ embarque, rutaActualizar }) {
                     <input
                         type="text"
                         list="opciones-tramite-terrestre"
+                        placeholder="Ej. Despacho Full"
                         className={inputClass}
                         value={data.tramite_aduanero}
                         onChange={(e) => setData('tramite_aduanero', e.target.value)}
@@ -134,6 +135,7 @@ export default function InstruccionesTerrestre({ embarque, rutaActualizar }) {
                     <input
                         type="text"
                         list="opciones-tramite-terrestre"
+                        placeholder="Ej. Desconsolidado en Puerto"
                         className={inputClass}
                         value={data.instruccion_tramite_puerto}
                         onChange={(e) => setData('instruccion_tramite_puerto', e.target.value)}
@@ -150,6 +152,7 @@ export default function InstruccionesTerrestre({ embarque, rutaActualizar }) {
                     <input
                         type="text"
                         list="opciones-tramite-terrestre"
+                        placeholder="Ej. ASPB"
                         className={inputClass}
                         value={data.pagos_liberacion}
                         onChange={(e) => setData('pagos_liberacion', e.target.value)}

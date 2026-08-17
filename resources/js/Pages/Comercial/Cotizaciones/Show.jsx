@@ -14,6 +14,7 @@ export default function Show({ cotizacion, contenedores, detalle, total }) {
                 rutaConvertir="comercial.cotizaciones.convertir"
                 rutaVerEmbarque="comercial.embarques.show"
                 rutaPdf="comercial.cotizaciones.pdf"
+                rutaEditar="comercial.cotizaciones.edit"
             />
 
             <CotizacionDetalle
@@ -22,6 +23,7 @@ export default function Show({ cotizacion, contenedores, detalle, total }) {
                 detalle={detalle}
                 total={total}
                 rutaCrearTerrestre="comercial.cotizaciones.create"
+                rutaVerCotizacion="comercial.cotizaciones.show"
             />
         </ComercialLayout>
     );

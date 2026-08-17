@@ -189,12 +189,12 @@ class TarifaController extends Controller
     {
         $validator = validator($request->all(), [
             'id_proveedor' => ['required', 'integer', 'exists:proveedores,id_proveedor'],
-            'id_origen' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
-            'id_destino' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
+            'id_origen' => ['required', 'string', 'exists:puertos_aeropuertos,codigo'],
+            'id_destino' => ['required', 'string', 'exists:puertos_aeropuertos,codigo'],
             'modo' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
             'incluye_fcl' => ['boolean'],
             'incluye_lcl' => ['boolean'],
-            'dias_transito' => ['nullable', 'integer', 'min:0'],
+            'dias_transito' => ['required', 'integer', 'min:0'],
             'costo_base' => ['nullable', 'numeric'],
             'costo_tramite' => ['nullable', 'numeric'],
             'moneda_tramite' => ['nullable', 'string', 'max:5'],

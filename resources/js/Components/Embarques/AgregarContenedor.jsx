@@ -67,6 +67,7 @@ export default function AgregarContenedor({ embarque, rutaStore }) {
                     <label className={labelClass}>Número Contenedor</label>
                     <input
                         type="text"
+                        placeholder="Ej. MSCU1234567"
                         className={inputClass}
                         value={data.numero_contenedor}
                         onChange={(e) => setData('numero_contenedor', e.target.value)}
@@ -77,6 +78,7 @@ export default function AgregarContenedor({ embarque, rutaStore }) {
                     <label className={labelClass}>Número Sello</label>
                     <input
                         type="text"
+                        placeholder="Ej. SL123456"
                         className={inputClass}
                         value={data.numero_sello}
                         onChange={(e) => setData('numero_sello', e.target.value)}

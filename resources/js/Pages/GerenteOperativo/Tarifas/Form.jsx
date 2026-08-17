@@ -1,6 +1,7 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { MONEDAS } from '@/constants/monedas';
 import { TIPOS_CONTENEDOR } from '@/constants/tiposContenedor';
+import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
 
@@ -175,8 +176,9 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
             >
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <label className={labelClass}>Proveedor</label>
+                        <label className={labelClass}>Proveedor *</label>
                         <select
+                            required
                             className={inputClass}
                             value={data.id_proveedor}
                             onChange={(e) =>
@@ -201,8 +203,9 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Modo</label>
+                        <label className={labelClass}>Modo *</label>
                         <select
+                            required
                             className={inputClass}
                             value={data.modo}
                             onChange={(e) =>
@@ -226,8 +229,9 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Origen</label>
+                        <label className={labelClass}>Origen *</label>
                         <select
+                            required
                             className={inputClass}
                             value={data.id_origen}
                             onChange={(e) =>
@@ -249,8 +253,9 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Destino</label>
+                        <label className={labelClass}>Destino *</label>
                         <select
+                            required
                             className={inputClass}
                             value={data.id_destino}
                             onChange={(e) =>
@@ -272,9 +277,11 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Tipo de Tarifa</label>
+                        <label className={labelClass}>Tipo de Tarifa *</label>
                         <input
                             type="text"
+                            placeholder="Ej. Normal, Spot, Promocional"
+                            required
                             className={inputClass}
                             value={data.tipo_tarifa}
                             onChange={(e) =>
@@ -284,22 +291,31 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Días de Tránsito</label>
+                        <label className={labelClass}>Días de Tránsito *</label>
                         <input
                             type="number"
                             min="0"
+                            step="1"
+                            required
+                            onKeyDown={bloquearNotacionCientifica}
                             className={inputClass}
                             value={data.dias_transito}
                             onChange={(e) =>
                                 setData('dias_transito', e.target.value)
                             }
                         />
+                        {errors.dias_transito && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.dias_transito}
+                            </p>
+                        )}
                     </div>
 
                     {esAereo && (
                         <div>
-                            <label className={labelClass}>Moneda</label>
+                            <label className={labelClass}>Moneda *</label>
                             <select
+                                required
                                 className={inputClass}
                                 value={data.moneda}
                                 onChange={(e) =>
@@ -323,11 +339,13 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     {esAereo && (
                         <div>
                             <label className={labelClass}>
-                                Tarifa por Kilo
+                                Tarifa por Kilo *
                             </label>
                             <input
                                 type="number"
                                 step="0.01"
+                                required
+                                onKeyDown={bloquearNotacionCientifica}
                                 className={inputClass}
                                 value={data.costo_base}
                                 onChange={(e) =>
@@ -345,6 +363,9 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
 
                 {permiteFclLcl && (
                     <div className="space-y-4 border-t border-gray-100 pt-4">
+                        <p className="text-xs text-[#A9ABAE]">
+                            * Elegí al menos uno de los dos.
+                        </p>
                         <div className="flex flex-wrap gap-6">
                             <label className="flex items-center gap-2 text-sm font-medium text-[#042753]">
                                 <input
@@ -421,6 +442,7 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                                                 <input
                                                     type="number"
                                                     step="0.01"
+                                                    onKeyDown={bloquearNotacionCientifica}
                                                     placeholder="Costo"
                                                     className={`${inputClass} max-w-[140px]`}
                                                     value={costo.costo}
@@ -503,6 +525,7 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                                             <input
                                                 type="number"
                                                 step="0.01"
+                                                onKeyDown={bloquearNotacionCientifica}
                                                 placeholder="Costo por m³"
                                                 className={`${inputClass} max-w-[160px]`}
                                                 value={costo.costo}
@@ -560,6 +583,7 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                                     <input
                                         type="number"
                                         step="0.01"
+                                        onKeyDown={bloquearNotacionCientifica}
                                         placeholder="Ej. 150"
                                         className={inputClass}
                                         value={data.costo_tramite}
@@ -594,10 +618,11 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                 <div className="grid grid-cols-1 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
                     <div>
                         <label className={labelClass}>
-                            Inicio de Vigencia
+                            Inicio de Vigencia *
                         </label>
                         <input
                             type="date"
+                            required
                             className={inputClass}
                             value={data.fecha_inicio_vigencia}
                             onChange={(e) =>
@@ -615,9 +640,10 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Fin de Vigencia</label>
+                        <label className={labelClass}>Fin de Vigencia *</label>
                         <input
                             type="date"
+                            required
                             className={inputClass}
                             value={data.fecha_fin_vigencia}
                             onChange={(e) =>
@@ -686,6 +712,7 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                                 <input
                                     type="number"
                                     step="0.01"
+                                    onKeyDown={bloquearNotacionCientifica}
                                     placeholder="Monto"
                                     className={`${inputClass} max-w-[140px]`}
                                     value={cargo.monto}

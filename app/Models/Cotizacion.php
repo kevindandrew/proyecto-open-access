@@ -16,6 +16,7 @@ class Cotizacion extends Model
 
     protected $fillable = [
         'numero_referencia',
+        'id_cotizacion_origen',
         'id_cliente',
         'id_comercial',
         'modo_transporte',
@@ -26,7 +27,6 @@ class Cotizacion extends Model
         'incoterm',
         'id_pol',
         'id_pod',
-        'destino_final',
         'fecha_emision',
         'fecha_validez',
         'estado',
@@ -35,6 +35,8 @@ class Cotizacion extends Model
         'mercancia_peligrosa',
         'dias_transito',
         'motivo_rechazo',
+        'comision_openaccess',
+        'comision_moneda',
     ];
 
     protected function casts(): array
@@ -89,5 +91,15 @@ class Cotizacion extends Model
     public function embarques(): HasMany
     {
         return $this->hasMany(Embarque::class, 'id_cotizacion', 'id_cotizacion');
+    }
+
+    public function origen(): BelongsTo
+    {
+        return $this->belongsTo(Cotizacion::class, 'id_cotizacion_origen', 'id_cotizacion');
+    }
+
+    public function continuaciones(): HasMany
+    {
+        return $this->hasMany(Cotizacion::class, 'id_cotizacion_origen', 'id_cotizacion');
     }
 }

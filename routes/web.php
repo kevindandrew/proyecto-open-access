@@ -78,6 +78,8 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
         Route::post('cotizaciones/solicitar-tarifa', [CotizacionController::class, 'solicitarTarifa'])->name('cotizaciones.solicitar-tarifa');
         Route::post('cotizaciones', [CotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [CotizacionController::class, 'show'])->name('cotizaciones.show');
+        Route::get('cotizaciones/{cotizacion}/editar', [CotizacionController::class, 'edit'])->name('cotizaciones.edit');
+        Route::put('cotizaciones/{cotizacion}', [CotizacionController::class, 'update'])->name('cotizaciones.update');
         Route::patch('cotizaciones/{cotizacion}/estado', [CotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
         Route::post('cotizaciones/{cotizacion}/convertir', [CotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
         Route::get('cotizaciones/{cotizacion}/pdf', [CotizacionController::class, 'pdf'])->name('cotizaciones.pdf');

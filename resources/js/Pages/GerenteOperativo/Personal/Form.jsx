@@ -1,3 +1,4 @@
+import CampoDocumento from '@/Components/CampoDocumento';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { Head, useForm } from '@inertiajs/react';
 
@@ -5,12 +6,19 @@ const inputClass =
     'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]';
 const labelClass = 'text-sm font-medium text-[#042753]';
 
+function CampoError({ mensaje }) {
+    return mensaje ? <p className="mt-1 text-sm text-red-600">{mensaje}</p> : null;
+}
+
 export default function Form({ empleado, roles, jefes }) {
     const esEdicion = Boolean(empleado);
 
     const { data, setData, post, put, processing, errors } = useForm({
         nombre_completo: empleado?.nombre_completo ?? '',
         ci: empleado?.ci ?? '',
+        tipo_documento: empleado?.tipo_documento ?? '',
+        documento_frente: null,
+        documento_dorso: null,
         telefono: empleado?.telefono ?? '',
         email: empleado?.email ?? '',
         id_rol: empleado?.id_rol ?? '',
@@ -23,6 +31,15 @@ export default function Form({ empleado, roles, jefes }) {
         (rol) => String(rol.id_rol) === String(data.id_rol),
     );
     const esOperativo = rolSeleccionado?.nombre_rol === 'Operativo';
+
+    const cambiarTipoDocumento = (valor) => {
+        setData({
+            ...data,
+            tipo_documento: valor,
+            documento_frente: null,
+            documento_dorso: null,
+        });
+    };
 
     const submit = (e) => {
         e.preventDefault();
@@ -42,6 +59,7 @@ export default function Form({ empleado, roles, jefes }) {
 
             <form
                 onSubmit={submit}
+                encType="multipart/form-data"
                 className="max-w-2xl space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
             >
                 {esEdicion && empleado.username && (
@@ -57,17 +75,14 @@ export default function Form({ empleado, roles, jefes }) {
                     <label className={labelClass}>Nombre Completo</label>
                     <input
                         type="text"
+                        placeholder="Ej. María Fernanda Rojas"
                         className={inputClass}
                         value={data.nombre_completo}
                         onChange={(e) =>
                             setData('nombre_completo', e.target.value)
                         }
                     />
-                    {errors.nombre_completo && (
-                        <p className="mt-1 text-sm text-red-600">
-                            {errors.nombre_completo}
-                        </p>
-                    )}
+                    <CampoError mensaje={errors.nombre_completo} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -75,6 +90,7 @@ export default function Form({ empleado, roles, jefes }) {
                         <label className={labelClass}>CI</label>
                         <input
                             type="text"
+                            placeholder="Ej. 1234567 LP"
                             className={inputClass}
                             value={data.ci}
                             onChange={(e) => setData('ci', e.target.value)}
@@ -84,6 +100,7 @@ export default function Form({ empleado, roles, jefes }) {
                         <label className={labelClass}>Teléfono</label>
                         <input
                             type="text"
+                            placeholder="Ej. 71234567"
                             className={inputClass}
                             value={data.telefono}
                             onChange={(e) =>
@@ -93,19 +110,67 @@ export default function Form({ empleado, roles, jefes }) {
                     </div>
                 </div>
 
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <label className={labelClass}>
+                        Documento de Identidad (opcional)
+                    </label>
+                    <p className="mb-2 text-xs text-[#A9ABAE]">
+                        Se puede completar ahora o más adelante editando este
+                        registro.
+                    </p>
+                    <select
+                        className={inputClass}
+                        value={data.tipo_documento}
+                        onChange={(e) => cambiarTipoDocumento(e.target.value)}
+                    >
+                        <option value="">— No cargar por ahora —</option>
+                        <option value="CI">Cédula de Identidad (CI)</option>
+                        <option value="NIT">NIT</option>
+                    </select>
+                    <CampoError mensaje={errors.tipo_documento} />
+
+                    {data.tipo_documento === 'CI' && (
+                        <div className="mt-3 grid grid-cols-2 gap-4">
+                            <CampoDocumento
+                                label="Foto del CI (Frente)"
+                                value={data.documento_frente}
+                                onChange={(archivo) => setData('documento_frente', archivo)}
+                                urlActual={empleado?.documento_frente_url}
+                                error={errors.documento_frente}
+                            />
+                            <CampoDocumento
+                                label="Foto del CI (Dorso)"
+                                value={data.documento_dorso}
+                                onChange={(archivo) => setData('documento_dorso', archivo)}
+                                urlActual={empleado?.documento_dorso_url}
+                                error={errors.documento_dorso}
+                            />
+                        </div>
+                    )}
+
+                    {data.tipo_documento === 'NIT' && (
+                        <div className="mt-3">
+                            <CampoDocumento
+                                label="Foto del NIT"
+                                value={data.documento_frente}
+                                onChange={(archivo) => setData('documento_frente', archivo)}
+                                urlActual={empleado?.documento_frente_url}
+                                error={errors.documento_frente}
+                            />
+                        </div>
+                    )}
+                </div>
+
                 <div>
                     <label className={labelClass}>Email</label>
                     <input
                         type="email"
+                        placeholder="Ej. maria.rojas@openaccess.bo"
                         className={inputClass}
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}
                     />
-                    {errors.email && (
-                        <p className="mt-1 text-sm text-red-600">
-                            {errors.email}
-                        </p>
-                    )}
+                    <CampoError mensaje={errors.email} />
                     {!esEdicion && (
                         <p className="mt-1 text-xs text-[#A9ABAE]">
                             Se usa para recuperar la contraseña — el ingreso
@@ -131,11 +196,7 @@ export default function Form({ empleado, roles, jefes }) {
                                 </option>
                             ))}
                         </select>
-                        {errors.id_rol && (
-                            <p className="mt-1 text-sm text-red-600">
-                                {errors.id_rol}
-                            </p>
-                        )}
+                        <CampoError mensaje={errors.id_rol} />
                     </div>
 
                     {esOperativo && (
@@ -158,11 +219,7 @@ export default function Form({ empleado, roles, jefes }) {
                                 <option value="Aereo">Aéreo</option>
                                 <option value="Terrestre">Terrestre</option>
                             </select>
-                            {errors.especialidad_operativa && (
-                                <p className="mt-1 text-sm text-red-600">
-                                    {errors.especialidad_operativa}
-                                </p>
-                            )}
+                            <CampoError mensaje={errors.especialidad_operativa} />
                         </div>
                     )}
                 </div>
@@ -207,7 +264,11 @@ export default function Form({ empleado, roles, jefes }) {
                         disabled={processing}
                         className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
                     >
-                        {esEdicion ? 'Guardar Cambios' : 'Crear Personal'}
+                        {processing
+                            ? 'Subiendo...'
+                            : esEdicion
+                              ? 'Guardar Cambios'
+                              : 'Crear Personal'}
                     </button>
                 </div>
             </form>

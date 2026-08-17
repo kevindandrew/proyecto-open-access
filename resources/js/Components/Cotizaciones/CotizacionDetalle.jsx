@@ -8,6 +8,15 @@ const TIPO_EMBARQUE_LABELS = {
     DOM: 'Doméstico',
 };
 
+// La base guardada en la base de datos siempre trae 3 decimales (ej. "3.000"
+// para 3 contenedores), lo cual se lee como un número mucho más grande de lo
+// que es. Se recorta a la representación mínima (3, 12.5, etc.) solo para
+// mostrarla — el dato guardado no cambia.
+function formatearBase(valor) {
+    const numero = parseFloat(valor);
+    return Number.isNaN(numero) ? valor : numero.toString();
+}
+
 function Campo({ label, value, info }) {
     return (
         <div>
@@ -20,11 +29,20 @@ function Campo({ label, value, info }) {
     );
 }
 
-export default function CotizacionDetalle({ cotizacion, contenedores, detalle, total, rutaCrearTerrestre }) {
+export default function CotizacionDetalle({
+    cotizacion,
+    contenedores,
+    detalle,
+    total,
+    rutaCrearTerrestre,
+    rutaVerCotizacion,
+}) {
+    const comisionOpenaccess = parseFloat(cotizacion.comision_openaccess) || 0;
+    const totalConComision = (parseFloat(total) || 0) + comisionOpenaccess;
+
     const puedeCrearTerrestre =
         rutaCrearTerrestre &&
-        (cotizacion.modo_transporte === 'Maritimo' || cotizacion.modo_transporte === 'Aereo') &&
-        cotizacion.estado === 'Aceptado';
+        (cotizacion.modo_transporte === 'Maritimo' || cotizacion.modo_transporte === 'Aereo');
 
     return (
         <div className="space-y-6">
@@ -43,6 +61,47 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                         </Link>
                     )}
                 </div>
+
+                {(cotizacion.origen || (cotizacion.continuaciones && cotizacion.continuaciones.length > 0)) && (
+                    <div className="mb-4 space-y-1 rounded-md bg-[#042753]/5 px-3 py-2 text-sm text-[#042753]">
+                        {cotizacion.origen && (
+                            <p>
+                                Continuación de la cotización{' '}
+                                {rutaVerCotizacion ? (
+                                    <Link
+                                        href={route(rutaVerCotizacion, cotizacion.origen.id_cotizacion)}
+                                        className="font-semibold underline"
+                                    >
+                                        {cotizacion.origen.numero_referencia}
+                                    </Link>
+                                ) : (
+                                    <span className="font-semibold">{cotizacion.origen.numero_referencia}</span>
+                                )}
+                            </p>
+                        )}
+                        {cotizacion.continuaciones && cotizacion.continuaciones.length > 0 && (
+                            <p>
+                                Tiene continuación terrestre:{' '}
+                                {cotizacion.continuaciones.map((c, index) => (
+                                    <span key={c.id_cotizacion}>
+                                        {index > 0 && ', '}
+                                        {rutaVerCotizacion ? (
+                                            <Link
+                                                href={route(rutaVerCotizacion, c.id_cotizacion)}
+                                                className="font-semibold underline"
+                                            >
+                                                {c.numero_referencia}
+                                            </Link>
+                                        ) : (
+                                            <span className="font-semibold">{c.numero_referencia}</span>
+                                        )}
+                                    </span>
+                                ))}
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {cotizacion.comercial && (
                         <Campo label="Comercial" value={cotizacion.comercial} />
@@ -65,7 +124,6 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                     />
                     <Campo label="POL" value={cotizacion.pol} />
                     <Campo label="POD" value={cotizacion.pod} />
-                    <Campo label="Destino Final" value={cotizacion.destino_final} />
                     <Campo label="Agente de Origen" value={cotizacion.agente_origen} />
                     <Campo label="Naviera / Aerolínea" value={cotizacion.naviera_aerolinea} />
                     <Campo label="Fecha de Emisión" value={cotizacion.fecha_emision} />
@@ -159,7 +217,7 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                                     <td className="px-3 py-2">{linea.descripcion}</td>
                                     <td className="px-3 py-2">{linea.tipo_tarifa_unidad}</td>
                                     <td className="px-3 py-2 text-right">{linea.costo_unitario}</td>
-                                    <td className="px-3 py-2 text-right">{linea.base_calculo}</td>
+                                    <td className="px-3 py-2 text-right">{formatearBase(linea.base_calculo)}</td>
                                     <td className="px-3 py-2">{linea.moneda}</td>
                                     <td className="px-3 py-2 text-right font-medium text-[#042753]">
                                         {linea.costo_total}
@@ -176,6 +234,29 @@ export default function CotizacionDetalle({ cotizacion, contenedores, detalle, t
                                     {total}
                                 </td>
                             </tr>
+                            {comisionOpenaccess > 0 && (
+                                <>
+                                    <tr>
+                                        <td colSpan={5} className="px-3 py-2 text-right text-sm font-medium text-[#042753]">
+                                            Comisión OpenAccess{' '}
+                                            <span className="text-xs text-[#A9ABAE]">
+                                                (uso interno — el cliente no la ve)
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-right text-sm font-medium text-[#042753]">
+                                            {comisionOpenaccess.toFixed(2)} {cotizacion.comision_moneda}
+                                        </td>
+                                    </tr>
+                                    <tr className="border-t border-gray-200">
+                                        <td colSpan={5} className="px-3 py-2 text-right font-semibold text-[#042753]">
+                                            Total con Comisión
+                                        </td>
+                                        <td className="px-3 py-2 text-right text-lg font-bold text-[#042753]">
+                                            {totalConComision.toFixed(2)}
+                                        </td>
+                                    </tr>
+                                </>
+                            )}
                         </tfoot>
                     </table>
                 </div>

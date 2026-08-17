@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Ciudad;
 use App\Models\Cliente;
 use App\Models\Empleado;
+use App\Support\CloudinaryUploader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,6 +111,14 @@ class ClienteController extends Controller
     {
         $data = $this->validado($request);
 
+        if ($request->hasFile('documento_frente')) {
+            $data['documento_frente_url'] = CloudinaryUploader::subir($request->file('documento_frente'), 'open-access/clientes/documentos');
+        }
+
+        if (($data['tipo_documento'] ?? null) === 'CI' && $request->hasFile('documento_dorso')) {
+            $data['documento_dorso_url'] = CloudinaryUploader::subir($request->file('documento_dorso'), 'open-access/clientes/documentos');
+        }
+
         Cliente::create($data);
 
         return redirect()
@@ -124,6 +133,9 @@ class ClienteController extends Controller
                 'id_cliente' => $cliente->id_cliente,
                 'razon_social' => $cliente->razon_social,
                 'nit' => $cliente->nit,
+                'tipo_documento' => $cliente->tipo_documento,
+                'documento_frente_url' => $cliente->documento_frente_url,
+                'documento_dorso_url' => $cliente->documento_dorso_url,
                 'id_ciudad' => $cliente->id_ciudad,
                 'ciudad_personalizada' => $cliente->ciudad_personalizada,
                 'direccion' => $cliente->direccion,
@@ -150,6 +162,17 @@ class ClienteController extends Controller
     public function update(Request $request, Cliente $cliente): RedirectResponse
     {
         $data = $this->validado($request, $cliente);
+        $tipoDocumento = $data['tipo_documento'] ?? null;
+
+        $data['documento_frente_url'] = $request->hasFile('documento_frente')
+            ? CloudinaryUploader::subir($request->file('documento_frente'), 'open-access/clientes/documentos')
+            : $cliente->documento_frente_url;
+
+        $data['documento_dorso_url'] = match (true) {
+            $tipoDocumento !== 'CI' => null,
+            $request->hasFile('documento_dorso') => CloudinaryUploader::subir($request->file('documento_dorso'), 'open-access/clientes/documentos'),
+            default => $cliente->documento_dorso_url,
+        };
 
         $cliente->update($data);
 
@@ -178,6 +201,9 @@ class ClienteController extends Controller
         $validator = validator($request->all(), [
             'razon_social' => ['required', 'string', 'max:200'],
             'nit' => ['nullable', 'string', 'max:30'],
+            'tipo_documento' => ['nullable', Rule::in(['CI', 'NIT'])],
+            'documento_frente' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'documento_dorso' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'id_ciudad' => ['nullable', 'string'],
             'ciudad_personalizada' => ['nullable', 'string', 'max:100'],
             'direccion' => ['nullable', 'string'],
@@ -197,7 +223,7 @@ class ClienteController extends Controller
             'consignatario_direccion' => ['nullable', 'string'],
             'consignatario_celular' => ['nullable', 'string', 'max:30'],
             'consignatario_correo' => ['nullable', 'email', 'max:120'],
-        ])->after(function (Validator $validator) use ($request) {
+        ])->after(function (Validator $validator) use ($request, $cliente) {
             $idCiudad = $request->input('id_ciudad');
 
             if ($idCiudad === 'OTRO') {
@@ -207,9 +233,22 @@ class ClienteController extends Controller
             } elseif (filled($idCiudad) && ! Ciudad::where('cod_ciudad', $idCiudad)->exists()) {
                 $validator->errors()->add('id_ciudad', 'La ciudad seleccionada no es válida.');
             }
+
+            if ($request->input('tipo_documento') !== 'CI') {
+                return;
+            }
+
+            $tendraFrente = $request->hasFile('documento_frente') || (bool) $cliente?->documento_frente_url;
+            $tendraDorso = $request->hasFile('documento_dorso') || (bool) $cliente?->documento_dorso_url;
+
+            if ($tendraFrente xor $tendraDorso) {
+                $campoFaltante = $tendraFrente ? 'documento_dorso' : 'documento_frente';
+                $validator->errors()->add($campoFaltante, 'Para un CI hace falta la foto de ambos lados (frente y dorso).');
+            }
         });
 
         $validated = $validator->validate();
+        unset($validated['documento_frente'], $validated['documento_dorso']);
 
         if ($validated['id_ciudad'] === 'OTRO') {
             $validated['id_ciudad'] = null;
