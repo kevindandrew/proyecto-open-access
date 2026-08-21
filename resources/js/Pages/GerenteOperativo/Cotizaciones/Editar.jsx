@@ -1,6 +1,6 @@
 import AyudaTermino from '@/Components/AyudaTermino';
 import { INCOTERMS_INFO } from '@/constants/glosario';
-import ComercialLayout from '@/Layouts/ComercialLayout';
+import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -38,11 +38,11 @@ export default function Editar({ cotizacion, lineasFlete }) {
 
     const guardar = (e) => {
         e.preventDefault();
-        put(route('comercial.cotizaciones.update', cotizacion.id_cotizacion));
+        put(route('gerente-operativo.cotizaciones.update', cotizacion.id_cotizacion));
     };
 
     return (
-        <ComercialLayout header={`Editar Cotización ${cotizacion.numero_referencia}`}>
+        <GerenteOperativoLayout header={`Editar Cotización ${cotizacion.numero_referencia}`}>
             <Head title={`Editar Cotización ${cotizacion.numero_referencia}`} />
 
             <form
@@ -134,7 +134,7 @@ export default function Editar({ cotizacion, lineasFlete }) {
 
                 <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                     <Link
-                        href={route('comercial.cotizaciones.show', cotizacion.id_cotizacion)}
+                        href={route('gerente-operativo.cotizaciones.show', cotizacion.id_cotizacion)}
                         className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-[#042753] hover:bg-gray-50"
                     >
                         Cancelar
@@ -148,6 +148,6 @@ export default function Editar({ cotizacion, lineasFlete }) {
                     </button>
                 </div>
             </form>
-        </ComercialLayout>
+        </GerenteOperativoLayout>
     );
 }

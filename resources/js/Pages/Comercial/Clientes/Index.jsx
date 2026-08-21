@@ -1,12 +1,19 @@
+import DocumentosMultiples, { useDocumentosMultiples } from '@/Components/DocumentosMultiples';
 import ComercialLayout from '@/Layouts/ComercialLayout';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
+const TIPOS_DOCUMENTO = [
+    { valor: 'CI', etiqueta: 'Cédula de Identidad (CI)' },
+    { valor: 'NIT', etiqueta: 'NIT' },
+];
+
 function NuevoClienteModal({ open, onClose, ciudades }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         razon_social: '',
         nit: '',
+        documentos: [],
         id_ciudad: '',
         direccion: '',
         persona_contacto: '',
@@ -16,6 +23,8 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
         correo_factura: '',
         condicion_pago: 'Al contado',
     });
+
+    const documentosHandlers = useDocumentosMultiples(data, setData);
 
     const submit = (e) => {
         e.preventDefault();
@@ -37,12 +46,12 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
             <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
             <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-                <DialogPanel className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+                <DialogPanel className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
                     <DialogTitle className="text-lg font-semibold text-[#042753]">
                         Nuevo Cliente
                     </DialogTitle>
 
-                    <form onSubmit={submit} className="mt-4 space-y-3">
+                    <form onSubmit={submit} encType="multipart/form-data" className="mt-4 space-y-3">
                         <div>
                             <label htmlFor="razon_social" className={labelClass}>
                                 Razón Social
@@ -104,6 +113,17 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 </select>
                             </div>
                         </div>
+
+                        <DocumentosMultiples
+                            documentos={data.documentos}
+                            tiposDisponibles={TIPOS_DOCUMENTO}
+                            agregar={documentosHandlers.agregar}
+                            quitar={documentosHandlers.quitar}
+                            cambiarTipo={documentosHandlers.cambiarTipo}
+                            actualizar={documentosHandlers.actualizar}
+                            errores={errors}
+                            descripcion="Se pueden cargar varios documentos (CI, NIT, etc.), ahora o más adelante editando este cliente."
+                        />
 
                         <div>
                             <label htmlFor="direccion" className={labelClass}>

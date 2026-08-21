@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class HouseBl extends Model
 {
@@ -30,5 +31,10 @@ class HouseBl extends Model
     public function embarque(): BelongsTo
     {
         return $this->belongsTo(Embarque::class, 'id_embarque', 'id_embarque');
+    }
+
+    public function contenedores(): BelongsToMany
+    {
+        return $this->belongsToMany(EmbarqueContenedor::class, 'house_bl_contenedor', 'id_hbl', 'id_item');
     }
 }

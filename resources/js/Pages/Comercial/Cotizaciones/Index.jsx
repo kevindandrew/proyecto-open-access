@@ -1,5 +1,5 @@
 import { COTIZACION_ESTADO_STYLES } from '@/constants/cotizacionEstados';
-import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import ComercialLayout from '@/Layouts/ComercialLayout';
 import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import PageHeader from '@/Components/PageHeader';
 import { IconoCotizacionesNav } from '@/Components/NavIcons';
@@ -34,7 +34,7 @@ export default function Index({ cotizaciones }) {
         }
 
         return porEstado.filter((c) =>
-            [c.numero_referencia, c.cliente, c.comercial]
+            [c.numero_referencia, c.cliente]
                 .filter(Boolean)
                 .some((campo) => campo.toLowerCase().includes(termino)),
         );
@@ -49,16 +49,16 @@ export default function Index({ cotizaciones }) {
     }, [cotizaciones]);
 
     return (
-        <GerenteOperativoLayout header="Cotizaciones">
+        <ComercialLayout header="Cotizaciones">
             <Head title="Cotizaciones" />
 
             <PageHeader
                 icon={IconoCotizacionesNav}
                 title="Cotizaciones"
-                subtitle="Todas las cotizaciones generadas por el equipo comercial"
+                subtitle="Tus cotizaciones — las que registraste como Comercial"
             >
                 <Link
-                    href={route('gerente-operativo.cotizaciones.create')}
+                    href={route('comercial.cotizaciones.create')}
                     className="flex items-center gap-1.5 rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 hover:shadow-md active:scale-[0.98]"
                 >
                     <IconoAgregar className="h-4 w-4" />
@@ -86,7 +86,7 @@ export default function Index({ cotizaciones }) {
             <div className="mb-4">
                 <input
                     type="text"
-                    placeholder="Buscar por referencia, cliente o comercial..."
+                    placeholder="Buscar por referencia o cliente..."
                     value={busqueda}
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full max-w-sm rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
@@ -99,7 +99,6 @@ export default function Index({ cotizaciones }) {
                         <tr>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Referencia</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Cliente</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">Comercial</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Modo</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Ruta</th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">Emisión</th>
@@ -116,7 +115,6 @@ export default function Index({ cotizaciones }) {
                                     {c.numero_referencia}
                                 </td>
                                 <td className="px-4 py-3 text-[#042753]">{c.cliente}</td>
-                                <td className="px-4 py-3">{c.comercial ?? '—'}</td>
                                 <td className="px-4 py-3">
                                     <ModoTransporteBadge modo={c.modo_transporte} />
                                 </td>
@@ -144,7 +142,7 @@ export default function Index({ cotizaciones }) {
                                                 as="link"
                                                 variante="editar"
                                                 titulo="Editar cotización"
-                                                href={route('gerente-operativo.cotizaciones.edit', c.id_cotizacion)}
+                                                href={route('comercial.cotizaciones.edit', c.id_cotizacion)}
                                             >
                                                 <IconoEditar className="h-[18px] w-[18px]" />
                                             </BotonIcono>
@@ -153,7 +151,7 @@ export default function Index({ cotizaciones }) {
                                             as="link"
                                             variante="ver"
                                             titulo="Ver detalle"
-                                            href={route('gerente-operativo.cotizaciones.show', c.id_cotizacion)}
+                                            href={route('comercial.cotizaciones.show', c.id_cotizacion)}
                                         >
                                             <IconoVer className="h-[18px] w-[18px]" />
                                         </BotonIcono>
@@ -164,7 +162,7 @@ export default function Index({ cotizaciones }) {
 
                         {filtradas.length === 0 && (
                             <tr>
-                                <td colSpan={10} className="px-4 py-6 text-center text-[#A9ABAE]">
+                                <td colSpan={9} className="px-4 py-6 text-center text-[#A9ABAE]">
                                     No hay cotizaciones para este filtro.
                                 </td>
                             </tr>
@@ -172,6 +170,6 @@ export default function Index({ cotizaciones }) {
                     </tbody>
                 </table>
             </div>
-        </GerenteOperativoLayout>
+        </ComercialLayout>
     );
 }

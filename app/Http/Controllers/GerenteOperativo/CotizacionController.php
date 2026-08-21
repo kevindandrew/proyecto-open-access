@@ -110,7 +110,6 @@ class CotizacionController extends Controller
             'mercancia_peligrosa' => ['boolean'],
             'fecha_validez' => ['required', 'date'],
             'dias_transito' => ['nullable', 'integer'],
-            'comision_openaccess' => ['nullable', 'numeric', 'min:0'],
             'contenedores' => ['array'],
             'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:50'],
             'contenedores.*.cantidad' => ['required', 'integer', 'min:1'],
@@ -128,6 +127,7 @@ class CotizacionController extends Controller
                 }
             }],
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
+            'detalle.*.comision_openaccess' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $cliente = Cliente::findOrFail($data['id_cliente']);
@@ -170,8 +170,6 @@ class CotizacionController extends Controller
                 'volumen_cbm' => $data['volumen_cbm'] ?? null,
                 'mercancia_peligrosa' => $data['mercancia_peligrosa'] ?? false,
                 'dias_transito' => $data['dias_transito'] ?? null,
-                'comision_openaccess' => $data['comision_openaccess'] ?? 0,
-                'comision_moneda' => 'USD',
             ]);
 
             foreach ($data['contenedores'] ?? [] as $contenedor) {
@@ -190,6 +188,7 @@ class CotizacionController extends Controller
                     'base_calculo' => $baseCalculo,
                     'moneda' => $linea['moneda'] ?? 'USD',
                     'costo_total' => $costoUnitario * $baseCalculo,
+                    'comision_openaccess' => $linea['comision_openaccess'] ?? 0,
                 ]);
             }
 
@@ -260,8 +259,6 @@ class CotizacionController extends Controller
                 'volumen_cbm' => $cotizacion->volumen_cbm,
                 'mercancia_peligrosa' => $cotizacion->mercancia_peligrosa,
                 'dias_transito' => $cotizacion->dias_transito,
-                'comision_openaccess' => $cotizacion->comision_openaccess,
-                'comision_moneda' => $cotizacion->comision_moneda,
                 'tiene_embarque' => $cotizacion->embarques->isNotEmpty(),
                 'embarque_id' => $cotizacion->embarques->first()?->id_embarque,
             ],
@@ -276,9 +273,68 @@ class CotizacionController extends Controller
                 'base_calculo' => $linea->base_calculo,
                 'moneda' => $linea->moneda,
                 'costo_total' => $linea->costo_total,
+                'comision_openaccess' => $linea->comision_openaccess,
             ]),
             'total' => $cotizacion->detalle->sum('costo_total'),
         ]);
+    }
+
+    public function edit(Cotizacion $cotizacion): Response
+    {
+        abort_if($cotizacion->estado === 'Aceptado', 403);
+
+        $cotizacion->load('detalle');
+
+        return Inertia::render('GerenteOperativo/Cotizaciones/Editar', [
+            'cotizacion' => [
+                'id_cotizacion' => $cotizacion->id_cotizacion,
+                'numero_referencia' => $cotizacion->numero_referencia,
+                'incoterm' => $cotizacion->incoterm,
+                'mercancia_peligrosa' => $cotizacion->mercancia_peligrosa,
+                'dias_transito' => $cotizacion->dias_transito,
+            ],
+            'lineasFlete' => $cotizacion->detalle
+                ->filter(fn (CotizacionDetalle $linea) => str_starts_with($linea->descripcion, 'Flete'))
+                ->map(fn (CotizacionDetalle $linea) => [
+                    'id_detalle' => $linea->id_detalle,
+                    'descripcion' => $linea->descripcion,
+                    'comision_openaccess' => $linea->comision_openaccess,
+                ])
+                ->values(),
+        ]);
+    }
+
+    public function update(Request $request, Cotizacion $cotizacion): RedirectResponse
+    {
+        abort_if($cotizacion->estado === 'Aceptado', 403);
+
+        $data = $request->validate([
+            'incoterm' => ['nullable', 'string', 'max:10'],
+            'mercancia_peligrosa' => ['boolean'],
+            'dias_transito' => ['nullable', 'integer'],
+            'lineas_flete' => ['array'],
+            'lineas_flete.*.id_detalle' => [
+                'required', 'integer',
+                Rule::exists('cotizacion_detalle', 'id_detalle')->where('id_cotizacion', $cotizacion->id_cotizacion),
+            ],
+            'lineas_flete.*.comision_openaccess' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $cotizacion->update([
+            'incoterm' => $data['incoterm'] ?? null,
+            'mercancia_peligrosa' => $data['mercancia_peligrosa'] ?? false,
+            'dias_transito' => $data['dias_transito'] ?? null,
+        ]);
+
+        foreach ($data['lineas_flete'] ?? [] as $linea) {
+            CotizacionDetalle::where('id_detalle', $linea['id_detalle'])
+                ->where('id_cotizacion', $cotizacion->id_cotizacion)
+                ->update(['comision_openaccess' => $linea['comision_openaccess'] ?? 0]);
+        }
+
+        return redirect()
+            ->route('gerente-operativo.cotizaciones.show', $cotizacion->id_cotizacion)
+            ->with('success', 'Cotización actualizada correctamente.');
     }
 
     public function pdf(Request $request, Cotizacion $cotizacion): HttpResponse
@@ -359,14 +415,18 @@ class CotizacionController extends Controller
                 ->with('error', 'Esta cotización ya fue convertida en un embarque.');
         }
 
-        $cotizacion->loadMissing('cliente', 'contenedores');
+        $cotizacion->loadMissing('cliente', 'contenedores', 'detalle');
 
         $embarque = DB::transaction(function () use ($cotizacion) {
             $embarque = Embarque::create([
                 'numero_file' => GeneradorNumeroFile::generar(),
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'id_cliente' => $cotizacion->id_cliente,
-                'consignatario' => $cotizacion->cliente?->consignatario_nombre,
+                'consignatario_nombre' => $cotizacion->cliente?->consignatario_nombre,
+                'consignatario_nit' => $cotizacion->cliente?->consignatario_nit,
+                'consignatario_direccion' => $cotizacion->cliente?->consignatario_direccion,
+                'consignatario_celular' => $cotizacion->cliente?->consignatario_celular,
+                'consignatario_correo' => $cotizacion->cliente?->consignatario_correo,
                 'id_comercial' => $cotizacion->id_comercial,
                 'id_operativo' => null,
                 'id_agente_origen' => $cotizacion->id_agente_origen,
@@ -388,6 +448,15 @@ class CotizacionController extends Controller
                 $embarque->contenedores()->create([
                     'tipo_contenedor' => $contenedor->tipo_contenedor,
                     'cantidad' => $contenedor->cantidad,
+                ]);
+            }
+
+            foreach ($cotizacion->detalle as $linea) {
+                $embarque->costos()->create([
+                    'concepto' => substr($linea->descripcion, 0, 100),
+                    'costo_compra' => $linea->costo_total,
+                    'costo_venta' => $linea->costo_total + $linea->comision_openaccess,
+                    'moneda' => $linea->moneda,
                 ]);
             }
 

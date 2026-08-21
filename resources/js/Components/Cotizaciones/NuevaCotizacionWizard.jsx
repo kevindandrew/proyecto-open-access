@@ -641,6 +641,24 @@ function PasoCarga({
     );
 }
 
+function resumenMontoTarifa(tarifa) {
+    if (tarifa.costo_base) {
+        return `${tarifa.costo_base} ${tarifa.moneda}/kg`;
+    }
+
+    if (tarifa.costos?.length > 0) {
+        return tarifa.costos
+            .map((costo) =>
+                costo.tipo_servicio === 'FCL'
+                    ? `${costo.tipo_contenedor}: ${costo.costo} ${costo.moneda}`
+                    : `${costo.costo} ${costo.moneda}/m³`,
+            )
+            .join(' · ');
+    }
+
+    return null;
+}
+
 function TarifasDisponibles({
     data,
     onAplicar,
@@ -710,9 +728,13 @@ function TarifasDisponibles({
                                 {tarifa.carrier}
                                 {tarifa.tipo_servicio && ` · ${tarifa.tipo_servicio}`}
                             </p>
+                            {resumenMontoTarifa(tarifa) && (
+                                <p className="text-sm font-semibold text-[#042753]">
+                                    {resumenMontoTarifa(tarifa)}
+                                </p>
+                            )}
                             <p className="text-xs text-[#A9ABAE]">
-                                Vigente hasta {tarifa.fecha_fin_vigencia} ·{' '}
-                                {tarifa.moneda}
+                                Vigente hasta {tarifa.fecha_fin_vigencia}
                                 {tarifa.cargos_adicionales.length > 0 &&
                                     ` · +${tarifa.cargos_adicionales.length} cargo(s) adicional(es)`}
                             </p>
@@ -772,6 +794,7 @@ function CostosExtraOpcionales({ data, setData, conceptosCostoExtra }) {
                     costo_unitario: monto,
                     base_calculo: 1,
                     moneda,
+                    comision_openaccess: '',
                 },
             ],
         });
@@ -859,6 +882,7 @@ function PasoCostos({
             base_calculo: 1,
             moneda: costo.moneda,
             bloqueada: true,
+            comision_openaccess: '',
         }));
 
         if (lineasNuevas.length === 0) {
@@ -901,6 +925,7 @@ function PasoCostos({
                         moneda: costoFila.moneda,
                         bloqueada: true,
                         vinculo: { tipo: 'contenedor', contenedorId: contenedor.id },
+                        comision_openaccess: '',
                     });
                 }
             });
@@ -913,6 +938,7 @@ function PasoCostos({
                     base_calculo: 1,
                     moneda: tarifa.moneda_tramite,
                     bloqueada: true,
+                    comision_openaccess: '',
                 });
             }
         } else if (data.tipo_servicio === 'LCL') {
@@ -930,6 +956,7 @@ function PasoCostos({
                         moneda: costoFila.moneda,
                         bloqueada: true,
                         vinculo: { tipo: 'volumen_cbm' },
+                        comision_openaccess: '',
                     });
                 });
         } else if (tarifa.costo_base) {
@@ -941,6 +968,7 @@ function PasoCostos({
                 moneda: tarifa.moneda,
                 bloqueada: true,
                 vinculo: { tipo: 'peso_kg' },
+                comision_openaccess: '',
             });
         }
 
@@ -952,6 +980,7 @@ function PasoCostos({
                 base_calculo: 1,
                 moneda: cargo.moneda,
                 bloqueada: true,
+                comision_openaccess: '',
             });
         });
 
@@ -988,6 +1017,7 @@ function PasoCostos({
                     costo_unitario: '',
                     base_calculo: 1,
                     moneda: 'USD',
+                    comision_openaccess: '',
                 },
             ],
         });
@@ -1048,6 +1078,12 @@ function PasoCostos({
     const totalGeneral = data.detalle
         .reduce((acc, linea) => acc + parseFloat(costoTotal(linea)), 0)
         .toFixed(2);
+
+    const totalComision = data.detalle
+        .reduce((acc, linea) => acc + (parseFloat(linea.comision_openaccess) || 0), 0)
+        .toFixed(2);
+
+    const totalConComision = (parseFloat(totalGeneral) + parseFloat(totalComision)).toFixed(2);
 
     return (
         <div className="space-y-4">
@@ -1112,8 +1148,12 @@ function PasoCostos({
                                     <p className="text-sm font-medium text-[#042753]">
                                         {tarifaAgente.agente}
                                     </p>
+                                    <p className="text-sm font-semibold text-[#042753]">
+                                        {tarifaAgente.costos
+                                            .map((c) => `${c.concepto}: ${c.costo} ${c.moneda}`)
+                                            .join(' · ')}
+                                    </p>
                                     <p className="text-xs text-[#A9ABAE]">
-                                        {tarifaAgente.costos.map((c) => c.concepto).join(', ')} ·
                                         Vigente hasta {tarifaAgente.fecha_fin_vigencia}
                                     </p>
                                 </div>
@@ -1192,6 +1232,9 @@ function PasoCostos({
                                 </th>
                                 <th className="px-3 py-2 text-right font-semibold text-[#042753]">
                                     Total
+                                </th>
+                                <th className="px-3 py-2 text-right font-semibold text-[#042753]">
+                                    Comisión (USD)
                                 </th>
                                 <th className="px-3 py-2"></th>
                             </tr>
@@ -1373,6 +1416,28 @@ function PasoCostos({
                                         {costoTotal(linea)}
                                     </td>
                                     <td className="px-3 py-2 text-right">
+                                        {linea.descripcion.startsWith('Flete') ? (
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                onKeyDown={bloquearNotacionCientifica}
+                                                placeholder="0.00"
+                                                className="w-24 rounded-md border-gray-300 text-right text-sm"
+                                                value={linea.comision_openaccess}
+                                                onChange={(e) =>
+                                                    actualizarLinea(
+                                                        index,
+                                                        'comision_openaccess',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        ) : (
+                                            <span className="text-[#A9ABAE]">—</span>
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
                                         <button
                                             type="button"
                                             onClick={() =>
@@ -1399,10 +1464,48 @@ function PasoCostos({
                                     {totalGeneral}
                                 </td>
                                 <td></td>
+                                <td></td>
                             </tr>
+                            {parseFloat(totalComision) > 0 && (
+                                <>
+                                    <tr>
+                                        <td
+                                            colSpan={6}
+                                            className="px-3 py-2 text-right text-sm font-medium text-[#042753]"
+                                        >
+                                            Comisión OpenAccess{' '}
+                                            <span className="text-xs text-[#A9ABAE]">
+                                                (uso interno — el cliente no la ve)
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-right text-sm font-medium text-[#042753]">
+                                            {totalComision} USD
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                    <tr className="border-t border-gray-200">
+                                        <td
+                                            colSpan={6}
+                                            className="px-3 py-2 text-right font-semibold text-[#042753]"
+                                        >
+                                            Total con Comisión
+                                        </td>
+                                        <td className="px-3 py-2 text-right text-lg font-bold text-[#042753]">
+                                            {totalConComision}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </>
+                            )}
                         </tfoot>
                     </table>
                 </div>
+                <p className="mt-2 text-xs text-[#A9ABAE]">
+                    La columna "Comisión (USD)" solo aparece en las líneas de Flete —
+                    es de uso interno, siempre en dólares, y nunca aparece en la
+                    cotización ni en el PDF que se le envía al cliente (se suma al
+                    flete de esa misma línea sin mostrarse por separado).
+                </p>
                 <CampoError mensaje={errors.detalle} />
             </div>
 
@@ -1411,33 +1514,6 @@ function PasoCostos({
                 setData={setData}
                 conceptosCostoExtra={conceptosCostoExtra}
             />
-
-            <div className="rounded-lg border border-[#042753]/20 bg-[#042753]/5 p-4">
-                <label className={labelClass}>Comisión OpenAccess (USD)</label>
-                <p className="mb-2 text-xs text-[#A9ABAE]">
-                    Uso interno — el cliente nunca la ve. Se suma al flete cotizado y no
-                    aparece como línea aparte en la cotización ni en el PDF que se le
-                    envía. Siempre en dólares, para evitar descalces por el tipo de
-                    cambio.
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                    <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        onKeyDown={bloquearNotacionCientifica}
-                        placeholder="Monto en USD"
-                        className="w-40 rounded-md border-gray-300 text-sm"
-                        value={data.comision_openaccess}
-                        onChange={(e) => {
-                            setData({ ...data, comision_openaccess: e.target.value });
-                            clearErrors('comision_openaccess');
-                        }}
-                    />
-                    <span className="text-sm text-[#A9ABAE]">USD</span>
-                </div>
-                <CampoError mensaje={errors.comision_openaccess} />
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1508,7 +1584,6 @@ export default function NuevaCotizacionWizard({
         mercancia_peligrosa: false,
         fecha_validez: fechaValidezPorDefecto(),
         dias_transito: '',
-        comision_openaccess: '',
         detalle: [
             {
                 descripcion: '',
@@ -1516,6 +1591,7 @@ export default function NuevaCotizacionWizard({
                 costo_unitario: '',
                 base_calculo: 1,
                 moneda: 'USD',
+                comision_openaccess: '',
             },
         ],
     });
@@ -1635,8 +1711,7 @@ export default function NuevaCotizacionWizard({
                     clave === 'dias_transito' ||
                     clave === 'tarifa' ||
                     clave === 'id_naviera_aerolinea' ||
-                    clave === 'id_agente_origen' ||
-                    clave === 'comision_openaccess'
+                    clave === 'id_agente_origen'
                 );
             }
             return false;

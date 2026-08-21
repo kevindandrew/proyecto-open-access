@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocumentoEmpleado;
 use App\Models\Empleado;
 use App\Models\RoleEmpleado;
 use App\Models\User;
@@ -53,21 +54,26 @@ class PersonalController extends Controller
     {
         $data = $this->validado($request);
 
-        $documentoFrenteUrl = $request->hasFile('documento_frente')
-            ? CloudinaryUploader::subir($request->file('documento_frente'), 'open-access/empleados/documentos')
-            : null;
+        $documentosParaCrear = collect($data['documentos'] ?? [])
+            ->values()
+            ->map(function (array $documento, int $index) use ($request) {
+                return [
+                    'tipo_documento' => $documento['tipo_documento'],
+                    'frente_url' => $request->hasFile("documentos.{$index}.frente")
+                        ? CloudinaryUploader::subir($request->file("documentos.{$index}.frente"), 'open-access/empleados/documentos')
+                        : null,
+                    'dorso_url' => $documento['tipo_documento'] === 'CI' && $request->hasFile("documentos.{$index}.dorso")
+                        ? CloudinaryUploader::subir($request->file("documentos.{$index}.dorso"), 'open-access/empleados/documentos')
+                        : null,
+                ];
+            });
 
-        $documentoDorsoUrl = ($data['tipo_documento'] ?? null) === 'CI' && $request->hasFile('documento_dorso')
-            ? CloudinaryUploader::subir($request->file('documento_dorso'), 'open-access/empleados/documentos')
-            : null;
-
-        $credenciales = DB::transaction(function () use ($data, $documentoFrenteUrl, $documentoDorsoUrl) {
+        $credenciales = DB::transaction(function () use ($data, $documentosParaCrear) {
             $empleado = Empleado::create([
                 'nombre_completo' => $data['nombre_completo'],
                 'ci' => $data['ci'],
-                'tipo_documento' => $data['tipo_documento'] ?? null,
-                'documento_frente_url' => $documentoFrenteUrl,
-                'documento_dorso_url' => $documentoDorsoUrl,
+                'fecha_nacimiento' => $data['fecha_nacimiento'],
+                'fecha_ingreso' => $data['fecha_ingreso'],
                 'telefono' => $data['telefono'],
                 'email' => $data['email'],
                 'id_rol' => $data['id_rol'],
@@ -75,6 +81,10 @@ class PersonalController extends Controller
                 'id_jefe' => $data['id_jefe'],
                 'activo' => true,
             ]);
+
+            foreach ($documentosParaCrear as $documento) {
+                $empleado->documentos()->create($documento);
+            }
 
             $username = GeneradorUsername::generar($empleado->nombre_completo);
             $password = Str::password(10, symbols: false);
@@ -99,14 +109,15 @@ class PersonalController extends Controller
 
     public function edit(Empleado $empleado): Response
     {
+        $empleado->loadMissing('documentos');
+
         return Inertia::render('GerenteOperativo/Personal/Form', [
             'empleado' => [
                 'id_empleado' => $empleado->id_empleado,
                 'nombre_completo' => $empleado->nombre_completo,
                 'ci' => $empleado->ci,
-                'tipo_documento' => $empleado->tipo_documento,
-                'documento_frente_url' => $empleado->documento_frente_url,
-                'documento_dorso_url' => $empleado->documento_dorso_url,
+                'fecha_nacimiento' => $empleado->fecha_nacimiento?->toDateString(),
+                'fecha_ingreso' => $empleado->fecha_ingreso?->toDateString(),
                 'telefono' => $empleado->telefono,
                 'email' => $empleado->email,
                 'id_rol' => $empleado->id_rol,
@@ -114,6 +125,12 @@ class PersonalController extends Controller
                 'id_jefe' => $empleado->id_jefe,
                 'activo' => $empleado->activo,
                 'username' => $empleado->user?->username,
+                'documentos' => $empleado->documentos->map(fn (DocumentoEmpleado $documento) => [
+                    'id_documento' => $documento->id_documento,
+                    'tipo_documento' => $documento->tipo_documento,
+                    'frente_url' => $documento->frente_url,
+                    'dorso_url' => $documento->dorso_url,
+                ]),
             ],
             'roles' => $this->roles(),
             'jefes' => $this->jefesDisponibles($empleado->id_empleado),
@@ -123,36 +140,73 @@ class PersonalController extends Controller
     public function update(Request $request, Empleado $empleado): RedirectResponse
     {
         $data = $this->validado($request, $empleado);
-        $tipoDocumento = $data['tipo_documento'] ?? null;
 
-        $documentoFrenteUrl = $request->hasFile('documento_frente')
-            ? CloudinaryUploader::subir($request->file('documento_frente'), 'open-access/empleados/documentos')
-            : $empleado->documento_frente_url;
+        $documentosResueltos = collect($data['documentos'] ?? [])
+            ->values()
+            ->map(function (array $documento, int $index) use ($request, $empleado) {
+                $existente = ! empty($documento['id_documento'])
+                    ? $empleado->documentos->firstWhere('id_documento', (int) $documento['id_documento'])
+                    : null;
 
-        $documentoDorsoUrl = match (true) {
-            $tipoDocumento !== 'CI' => null,
-            $request->hasFile('documento_dorso') => CloudinaryUploader::subir($request->file('documento_dorso'), 'open-access/empleados/documentos'),
-            default => $empleado->documento_dorso_url,
-        };
+                $frenteUrl = $request->hasFile("documentos.{$index}.frente")
+                    ? CloudinaryUploader::subir($request->file("documentos.{$index}.frente"), 'open-access/empleados/documentos')
+                    : $existente?->frente_url;
 
-        $empleado->update([
-            'nombre_completo' => $data['nombre_completo'],
-            'ci' => $data['ci'],
-            'tipo_documento' => $tipoDocumento,
-            'documento_frente_url' => $documentoFrenteUrl,
-            'documento_dorso_url' => $documentoDorsoUrl,
-            'telefono' => $data['telefono'],
-            'email' => $data['email'],
-            'id_rol' => $data['id_rol'],
-            'especialidad_operativa' => $data['especialidad_operativa'],
-            'id_jefe' => $data['id_jefe'],
-            'activo' => $request->boolean('activo'),
-        ]);
+                $dorsoUrl = match (true) {
+                    $documento['tipo_documento'] !== 'CI' => null,
+                    $request->hasFile("documentos.{$index}.dorso") => CloudinaryUploader::subir($request->file("documentos.{$index}.dorso"), 'open-access/empleados/documentos'),
+                    default => $existente?->dorso_url,
+                };
 
-        $empleado->user?->update([
-            'name' => $data['nombre_completo'],
-            'email' => $data['email'],
-        ]);
+                return [
+                    'id_documento' => $existente?->id_documento,
+                    'tipo_documento' => $documento['tipo_documento'],
+                    'frente_url' => $frenteUrl,
+                    'dorso_url' => $dorsoUrl,
+                ];
+            });
+
+        DB::transaction(function () use ($request, $data, $empleado, $documentosResueltos) {
+            $empleado->update([
+                'nombre_completo' => $data['nombre_completo'],
+                'ci' => $data['ci'],
+                'fecha_nacimiento' => $data['fecha_nacimiento'],
+                'fecha_ingreso' => $data['fecha_ingreso'],
+                'telefono' => $data['telefono'],
+                'email' => $data['email'],
+                'id_rol' => $data['id_rol'],
+                'especialidad_operativa' => $data['especialidad_operativa'],
+                'id_jefe' => $data['id_jefe'],
+                'activo' => $request->boolean('activo'),
+            ]);
+
+            $empleado->user?->update([
+                'name' => $data['nombre_completo'],
+                'email' => $data['email'],
+            ]);
+
+            if (! empty($data['documentos_eliminados'])) {
+                $empleado->documentos()->whereIn('id_documento', $data['documentos_eliminados'])->delete();
+            }
+
+            foreach ($documentosResueltos as $documento) {
+                if ($documento['id_documento']) {
+                    $empleado->documentos()
+                        ->where('id_documento', $documento['id_documento'])
+                        ->update([
+                            'tipo_documento' => $documento['tipo_documento'],
+                            'frente_url' => $documento['frente_url'],
+                            'dorso_url' => $documento['dorso_url'],
+                        ]);
+                } else {
+                    $empleado->documentos()->create([
+                        'tipo_documento' => $documento['tipo_documento'],
+                        'frente_url' => $documento['frente_url'],
+                        'dorso_url' => $documento['dorso_url'],
+                    ]);
+                }
+            }
+        });
 
         return redirect()
             ->route('gerente-operativo.personal.index')
@@ -171,13 +225,20 @@ class PersonalController extends Controller
     private function validado(Request $request, ?Empleado $empleado = null): array
     {
         $idRolOperativo = RoleEmpleado::where('nombre_rol', 'Operativo')->value('id_rol');
+        $empleado?->loadMissing('documentos');
 
         $validator = validator($request->all(), [
             'nombre_completo' => ['required', 'string', 'max:150'],
             'ci' => ['nullable', 'string', 'max:20'],
-            'tipo_documento' => ['nullable', Rule::in(['CI', 'NIT'])],
-            'documento_frente' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'documento_dorso' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'fecha_nacimiento' => ['nullable', 'date', 'before:today'],
+            'fecha_ingreso' => ['nullable', 'date'],
+            'documentos' => ['nullable', 'array'],
+            'documentos.*.id_documento' => ['nullable', 'integer'],
+            'documentos.*.tipo_documento' => ['required', 'string', 'max:50'],
+            'documentos.*.frente' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'documentos.*.dorso' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'documentos_eliminados' => ['nullable', 'array'],
+            'documentos_eliminados.*' => ['integer'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'email' => [
                 'required', 'email', 'max:120',
@@ -192,16 +253,28 @@ class PersonalController extends Controller
             ],
             'id_jefe' => ['nullable', 'integer', 'exists:empleados,id_empleado'],
         ])->after(function (Validator $validator) use ($request, $empleado) {
-            if ($request->input('tipo_documento') !== 'CI') {
-                return;
-            }
+            foreach ($request->input('documentos', []) as $index => $documento) {
+                $tipo = $documento['tipo_documento'] ?? null;
+                $idDocumento = $documento['id_documento'] ?? null;
+                $existente = $idDocumento && $empleado
+                    ? $empleado->documentos->firstWhere('id_documento', (int) $idDocumento)
+                    : null;
 
-            $tendraFrente = $request->hasFile('documento_frente') || (bool) $empleado?->documento_frente_url;
-            $tendraDorso = $request->hasFile('documento_dorso') || (bool) $empleado?->documento_dorso_url;
+                $tendraFrente = $request->hasFile("documentos.{$index}.frente") || (bool) $existente?->frente_url;
 
-            if ($tendraFrente xor $tendraDorso) {
-                $campoFaltante = $tendraFrente ? 'documento_dorso' : 'documento_frente';
-                $validator->errors()->add($campoFaltante, 'Para un CI hace falta la foto de ambos lados (frente y dorso).');
+                if (! $tendraFrente) {
+                    $validator->errors()->add("documentos.{$index}.frente", 'Hace falta subir el archivo de este documento.');
+
+                    continue;
+                }
+
+                if ($tipo === 'CI') {
+                    $tendraDorso = $request->hasFile("documentos.{$index}.dorso") || (bool) $existente?->dorso_url;
+
+                    if (! $tendraDorso) {
+                        $validator->errors()->add("documentos.{$index}.dorso", 'Para un CI hace falta la foto de ambos lados (frente y dorso).');
+                    }
+                }
             }
         });
 

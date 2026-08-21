@@ -14,6 +14,7 @@ export default function Show({ cotizacion, contenedores, detalle, total }) {
                 rutaConvertir="gerente-operativo.cotizaciones.convertir"
                 rutaVerEmbarque="gerente-operativo.embarques.show"
                 rutaPdf="gerente-operativo.cotizaciones.pdf"
+                rutaEditar="gerente-operativo.cotizaciones.edit"
             />
 
             <CotizacionDetalle

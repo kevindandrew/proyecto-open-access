@@ -6,24 +6,46 @@ use App\Http\Controllers\Controller;
 use App\Models\Embarque;
 use App\Models\HouseBl;
 use App\Support\GeneradorCodigoHouse;
+use App\Support\HouseBlPdfDatos;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class HouseBlController extends Controller
 {
-    public function store(Request $request, Embarque $embarque): RedirectResponse
+    public function pdf(HouseBl $house): HttpResponse
     {
-        $data = $request->validate([
-            'condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
-            'fecha_emision' => ['nullable', 'date'],
+        $datos = HouseBlPdfDatos::para($house);
+
+        $pdf = Pdf::loadView('pdf.house_bl', [
+            ...$datos,
+            'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
         ]);
 
-        $embarque->houseBls()->create([
-            'numero_hbl' => GeneradorCodigoHouse::siguienteNumeroHouse($embarque),
-            'condicion_pago' => $data['condicion_pago'] ?? null,
-            'fecha_emision' => $data['fecha_emision'] ?? null,
-        ]);
+        $nombreArchivo = str_replace(['/', '\\'], '-', $house->numero_hbl);
+
+        return $pdf->stream("House-{$nombreArchivo}.pdf");
+    }
+
+    public function store(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $data = $this->validado($request, $embarque);
+
+        DB::transaction(function () use ($embarque, $data) {
+            $house = $embarque->houseBls()->create([
+                'numero_hbl' => 'PENDIENTE',
+                'condicion_pago' => $data['condicion_pago'] ?? null,
+                'fecha_emision' => $data['fecha_emision'] ?? null,
+            ]);
+
+            $house->contenedores()->sync($data['contenedores'] ?? []);
+
+            GeneradorCodigoHouse::renumerar($embarque);
+        });
 
         return redirect()
             ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
@@ -32,12 +54,14 @@ class HouseBlController extends Controller
 
     public function update(Request $request, HouseBl $house): RedirectResponse
     {
-        $data = $request->validate([
-            'condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
-            'fecha_emision' => ['nullable', 'date'],
+        $data = $this->validado($request, $house->embarque);
+
+        $house->update([
+            'condicion_pago' => $data['condicion_pago'] ?? null,
+            'fecha_emision' => $data['fecha_emision'] ?? null,
         ]);
 
-        $house->update($data);
+        $house->contenedores()->sync($data['contenedores'] ?? []);
 
         return redirect()
             ->route('gerente-operativo.embarques.show', $house->id_embarque)
@@ -46,11 +70,29 @@ class HouseBlController extends Controller
 
     public function destroy(HouseBl $house): RedirectResponse
     {
+        $embarque = $house->embarque;
         $idEmbarque = $house->id_embarque;
-        $house->delete();
+
+        DB::transaction(function () use ($house, $embarque) {
+            $house->delete();
+            GeneradorCodigoHouse::renumerar($embarque);
+        });
 
         return redirect()
             ->route('gerente-operativo.embarques.show', $idEmbarque)
             ->with('success', 'House eliminado correctamente.');
+    }
+
+    private function validado(Request $request, Embarque $embarque): array
+    {
+        return $request->validate([
+            'condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
+            'fecha_emision' => ['nullable', 'date'],
+            'contenedores' => ['nullable', 'array'],
+            'contenedores.*' => [
+                'integer',
+                Rule::exists('embarque_contenedores', 'id_item')->where('id_embarque', $embarque->id_embarque),
+            ],
+        ]);
     }
 }

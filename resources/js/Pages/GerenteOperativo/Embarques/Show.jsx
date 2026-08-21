@@ -4,6 +4,7 @@ import AgregarContenedor from '@/Components/Embarques/AgregarContenedor';
 import AgregarCosto from '@/Components/Embarques/AgregarCosto';
 import AgregarHouse from '@/Components/Embarques/AgregarHouse';
 import CambiarEstado from '@/Components/Embarques/CambiarEstado';
+import Consignatario from '@/Components/Embarques/Consignatario';
 import InformacionCarga from '@/Components/Embarques/InformacionCarga';
 import InstruccionesTerrestre from '@/Components/Embarques/InstruccionesTerrestre';
 import EmbarqueDetalle from '@/Components/Embarques/EmbarqueDetalle';
@@ -66,10 +67,16 @@ export default function Show({
                 onEliminarHouse={eliminarHouse}
                 onEliminarCosto={eliminarCosto}
                 onEliminarContenedor={eliminarContenedor}
+                rutaActualizarContenedor="gerente-operativo.contenedores.update"
+                rutaActualizarHouse="gerente-operativo.houses.update"
+                rutaPdfHouse="gerente-operativo.houses.pdf"
+                rutaActualizarCosto="gerente-operativo.costos.update"
+                proveedores={proveedores}
                 accionesHouses={
                     <AgregarHouse
                         embarque={embarque}
                         rutaStore="gerente-operativo.embarques.houses.store"
+                        contenedoresDisponibles={contenedores}
                     />
                 }
                 accionesCostos={
@@ -83,6 +90,12 @@ export default function Show({
                     <AgregarContenedor
                         embarque={embarque}
                         rutaStore="gerente-operativo.embarques.contenedores.store"
+                    />
+                }
+                accionesConsignatario={
+                    <Consignatario
+                        embarque={embarque}
+                        rutaActualizar="gerente-operativo.embarques.actualizar-consignatario"
                     />
                 }
                 accionesTransporte={

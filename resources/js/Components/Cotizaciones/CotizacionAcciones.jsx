@@ -34,7 +34,7 @@ export default function CotizacionAcciones({
             </span>
 
             <div className="flex items-center gap-3">
-                {rutaEditar && cotizacion.estado === 'Cotizado' && (
+                {rutaEditar && cotizacion.estado !== 'Aceptado' && (
                     <Link
                         href={route(rutaEditar, cotizacion.id_cotizacion)}
                         className="rounded-md border border-[#042753] px-4 py-2 text-sm font-semibold text-[#042753] hover:bg-[#042753]/5"

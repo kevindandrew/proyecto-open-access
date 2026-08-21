@@ -26,7 +26,6 @@ class Proveedor extends Model
         'telefono',
         'celular',
         'nit',
-        'documento_nit_url',
         'email',
         'activo',
     ];
@@ -56,5 +55,10 @@ class Proveedor extends Model
     public function embarqueCostos(): HasMany
     {
         return $this->hasMany(EmbarqueCosto::class, 'id_proveedor', 'id_proveedor');
+    }
+
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(DocumentoProveedor::class, 'id_proveedor', 'id_proveedor');
     }
 }

@@ -8,6 +8,7 @@ use App\Models\EmbarqueContenedor;
 use App\Models\EmbarqueCosto;
 use App\Models\HouseBl;
 use App\Models\SeguimientoEmbarque;
+use App\Support\AlertasEmbarque;
 use App\Support\SecuenciaEstadoEmbarque;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class EmbarqueController extends Controller
         $embarque->load([
             'cotizacion', 'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
-            'houseBls' => fn ($query) => $query->orderBy('id_hbl'),
+            'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores'),
             'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
@@ -37,7 +38,11 @@ class EmbarqueController extends Controller
                 'numero_file' => $embarque->numero_file,
                 'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
-                'consignatario' => $embarque->consignatario,
+                'consignatario_nombre' => $embarque->consignatario_nombre,
+                'consignatario_nit' => $embarque->consignatario_nit,
+                'consignatario_direccion' => $embarque->consignatario_direccion,
+                'consignatario_celular' => $embarque->consignatario_celular,
+                'consignatario_correo' => $embarque->consignatario_correo,
                 'comercial' => $embarque->comercial?->nombre_completo,
                 'operativo' => $embarque->operativo?->nombre_completo,
                 'agente_origen' => $embarque->agenteOrigen?->nombre,
@@ -73,6 +78,10 @@ class EmbarqueController extends Controller
                 'pagos_liberacion' => $embarque->pagos_liberacion,
                 'estado_embarque' => $embarque->estado_embarque,
                 'siguiente_estado' => SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque),
+                'eta_por_vencer' => AlertasEmbarque::etaPorVencer($embarque),
+                'contenedores_vencidos' => AlertasEmbarque::contenedoresVencidos($embarque)
+                    ->map(fn (EmbarqueContenedor $contenedor) => $contenedor->numero_contenedor ?? "Contenedor #{$contenedor->id_item}")
+                    ->values(),
             ],
             'contenedores' => $embarque->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
                 'id_item' => $contenedor->id_item,
@@ -97,6 +106,11 @@ class EmbarqueController extends Controller
                 'numero_hbl' => $house->numero_hbl,
                 'condicion_pago' => $house->condicion_pago,
                 'fecha_emision' => $house->fecha_emision?->toDateString(),
+                'contenedores' => $house->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
+                    'id_item' => $contenedor->id_item,
+                    'numero_contenedor' => $contenedor->numero_contenedor,
+                    'tipo_contenedor' => $contenedor->tipo_contenedor,
+                ]),
             ]),
             'costos' => $embarque->costos->map(fn (EmbarqueCosto $costo) => [
                 'id_costo' => $costo->id_costo,
@@ -202,6 +216,25 @@ class EmbarqueController extends Controller
         return redirect()
             ->route('operativo.embarques.show', $embarque->id_embarque)
             ->with('success', 'Información de carga actualizada correctamente.');
+    }
+
+    public function actualizarConsignatario(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $this->autorizar($embarque);
+
+        $data = $request->validate([
+            'consignatario_nombre' => ['nullable', 'string', 'max:200'],
+            'consignatario_nit' => ['nullable', 'string', 'max:30'],
+            'consignatario_direccion' => ['nullable', 'string'],
+            'consignatario_celular' => ['nullable', 'string', 'max:30'],
+            'consignatario_correo' => ['nullable', 'email', 'max:120'],
+        ]);
+
+        $embarque->update($data);
+
+        return redirect()
+            ->route('operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', 'Consignatario actualizado correctamente.');
     }
 
     private function autorizar(Embarque $embarque): void

@@ -20,9 +20,6 @@ class Cliente extends Model
         'id_comercial',
         'razon_social',
         'nit',
-        'tipo_documento',
-        'documento_frente_url',
-        'documento_dorso_url',
         'id_ciudad',
         'ciudad_personalizada',
         'direccion',
@@ -66,6 +63,11 @@ class Cliente extends Model
     public function embarques(): HasMany
     {
         return $this->hasMany(Embarque::class, 'id_cliente', 'id_cliente');
+    }
+
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(DocumentoCliente::class, 'id_cliente', 'id_cliente');
     }
 
     public function resolveRouteBindingQuery($query, $value, $field = null)

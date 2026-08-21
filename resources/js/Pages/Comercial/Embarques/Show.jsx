@@ -23,6 +23,7 @@ export default function Show({
                 costos={costos}
                 totalCompra={totalCompra}
                 totalVenta={totalVenta}
+                rutaPdfHouse="comercial.houses.pdf"
             />
         </ComercialLayout>
     );

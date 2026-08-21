@@ -35,8 +35,6 @@ class Cotizacion extends Model
         'mercancia_peligrosa',
         'dias_transito',
         'motivo_rechazo',
-        'comision_openaccess',
-        'comision_moneda',
     ];
 
     protected function casts(): array

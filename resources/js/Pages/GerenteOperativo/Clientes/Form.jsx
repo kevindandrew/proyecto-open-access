@@ -1,10 +1,18 @@
-import CampoDocumento from '@/Components/CampoDocumento';
+import DocumentosMultiples, {
+    mapearDocumentosIniciales,
+    useDocumentosMultiples,
+} from '@/Components/DocumentosMultiples';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { Head, useForm } from '@inertiajs/react';
 
 const inputClass =
     'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]';
 const labelClass = 'text-sm font-medium text-[#042753]';
+
+const TIPOS_DOCUMENTO = [
+    { valor: 'CI', etiqueta: 'Cédula de Identidad (CI)' },
+    { valor: 'NIT', etiqueta: 'NIT' },
+];
 
 function CampoError({ mensaje }) {
     return mensaje ? <p className="mt-1 text-sm text-red-600">{mensaje}</p> : null;
@@ -13,12 +21,11 @@ function CampoError({ mensaje }) {
 export default function Form({ cliente, ciudades, comerciales }) {
     const esEdicion = Boolean(cliente);
 
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, transform, processing, errors } = useForm({
         razon_social: cliente?.razon_social ?? '',
         nit: cliente?.nit ?? '',
-        tipo_documento: cliente?.tipo_documento ?? '',
-        documento_frente: null,
-        documento_dorso: null,
+        documentos: mapearDocumentosIniciales(cliente?.documentos),
+        documentos_eliminados: [],
         id_ciudad: cliente?.id_ciudad ?? '',
         direccion: cliente?.direccion ?? '',
         persona_contacto: cliente?.persona_contacto ?? '',
@@ -32,20 +39,17 @@ export default function Form({ cliente, ciudades, comerciales }) {
         activo: cliente?.activo ?? true,
     });
 
-    const cambiarTipoDocumento = (valor) => {
-        setData({
-            ...data,
-            tipo_documento: valor,
-            documento_frente: null,
-            documento_dorso: null,
-        });
-    };
+    const documentosHandlers = useDocumentosMultiples(data, setData);
 
     const submit = (e) => {
         e.preventDefault();
 
         if (esEdicion) {
-            put(route('gerente-operativo.clientes.update', cliente.id_cliente));
+            // PHP no parsea cuerpos multipart en peticiones PUT reales, así que
+            // hay que mandar un POST con _method=put (spoofing) para que los
+            // archivos lleguen — Inertia no hace esta conversión sola.
+            transform((data) => ({ ...data, _method: 'put' }));
+            post(route('gerente-operativo.clientes.update', cliente.id_cliente));
         } else {
             post(route('gerente-operativo.clientes.store'));
         }
@@ -100,53 +104,16 @@ export default function Form({ cliente, ciudades, comerciales }) {
                     </div>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <label className={labelClass}>Documento de Identidad (opcional)</label>
-                    <p className="mb-2 text-xs text-[#A9ABAE]">
-                        Se puede completar ahora o más adelante editando este registro.
-                    </p>
-                    <select
-                        className={inputClass}
-                        value={data.tipo_documento}
-                        onChange={(e) => cambiarTipoDocumento(e.target.value)}
-                    >
-                        <option value="">— No cargar por ahora —</option>
-                        <option value="CI">Cédula de Identidad (CI)</option>
-                        <option value="NIT">NIT</option>
-                    </select>
-                    <CampoError mensaje={errors.tipo_documento} />
-
-                    {data.tipo_documento === 'CI' && (
-                        <div className="mt-3 grid grid-cols-2 gap-4">
-                            <CampoDocumento
-                                label="Foto del CI (Frente)"
-                                value={data.documento_frente}
-                                onChange={(archivo) => setData('documento_frente', archivo)}
-                                urlActual={cliente?.documento_frente_url}
-                                error={errors.documento_frente}
-                            />
-                            <CampoDocumento
-                                label="Foto del CI (Dorso)"
-                                value={data.documento_dorso}
-                                onChange={(archivo) => setData('documento_dorso', archivo)}
-                                urlActual={cliente?.documento_dorso_url}
-                                error={errors.documento_dorso}
-                            />
-                        </div>
-                    )}
-
-                    {data.tipo_documento === 'NIT' && (
-                        <div className="mt-3">
-                            <CampoDocumento
-                                label="Foto del NIT"
-                                value={data.documento_frente}
-                                onChange={(archivo) => setData('documento_frente', archivo)}
-                                urlActual={cliente?.documento_frente_url}
-                                error={errors.documento_frente}
-                            />
-                        </div>
-                    )}
-                </div>
+                <DocumentosMultiples
+                    documentos={data.documentos}
+                    tiposDisponibles={TIPOS_DOCUMENTO}
+                    agregar={documentosHandlers.agregar}
+                    quitar={documentosHandlers.quitar}
+                    cambiarTipo={documentosHandlers.cambiarTipo}
+                    actualizar={documentosHandlers.actualizar}
+                    errores={errors}
+                    descripcion="Se pueden cargar varios documentos (CI, NIT, etc.), ahora o más adelante editando este registro."
+                />
 
                 <div>
                     <label className={labelClass}>Dirección</label>

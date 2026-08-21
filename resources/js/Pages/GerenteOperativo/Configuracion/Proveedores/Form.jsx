@@ -1,4 +1,7 @@
-import CampoDocumento from '@/Components/CampoDocumento';
+import DocumentosMultiples, {
+    mapearDocumentosIniciales,
+    useDocumentosMultiples,
+} from '@/Components/DocumentosMultiples';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { Head, useForm } from '@inertiajs/react';
 
@@ -9,6 +12,12 @@ const TIPO_LABEL = {
     Agente_Origen: 'Agente de Origen',
 };
 
+const TIPOS_DOCUMENTO = [
+    { valor: 'NIT', etiqueta: 'NIT' },
+    { valor: 'Contrato', etiqueta: 'Contrato' },
+    { valor: 'CI', etiqueta: 'Cédula de Identidad (CI)' },
+];
+
 const inputClass =
     'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]';
 const labelClass = 'text-sm font-medium text-[#042753]';
@@ -16,7 +25,7 @@ const labelClass = 'text-sm font-medium text-[#042753]';
 export default function Form({ proveedor, tipos }) {
     const esEdicion = Boolean(proveedor);
 
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, transform, processing, errors } = useForm({
         tipo: proveedor?.tipo ?? tipos[0],
         nombre: proveedor?.nombre ?? '',
         nombre_fantasia: proveedor?.nombre_fantasia ?? '',
@@ -28,16 +37,23 @@ export default function Form({ proveedor, tipos }) {
         telefono: proveedor?.telefono ?? '',
         celular: proveedor?.celular ?? '',
         nit: proveedor?.nit ?? '',
-        documento_nit: null,
+        documentos: mapearDocumentosIniciales(proveedor?.documentos),
+        documentos_eliminados: [],
         email: proveedor?.email ?? '',
         activo: proveedor?.activo ?? true,
     });
+
+    const documentosHandlers = useDocumentosMultiples(data, setData);
 
     const submit = (e) => {
         e.preventDefault();
 
         if (esEdicion) {
-            put(route('gerente-operativo.configuracion.proveedores.update', proveedor.id_proveedor));
+            // PHP no parsea cuerpos multipart en peticiones PUT reales, así que
+            // hay que mandar un POST con _method=put (spoofing) para que los
+            // archivos lleguen — Inertia no hace esta conversión sola.
+            transform((data) => ({ ...data, _method: 'put' }));
+            post(route('gerente-operativo.configuracion.proveedores.update', proveedor.id_proveedor));
         } else {
             post(route('gerente-operativo.configuracion.proveedores.store'));
         }
@@ -195,19 +211,16 @@ export default function Form({ proveedor, tipos }) {
                     </div>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <label className={labelClass}>Documento del NIT (opcional)</label>
-                    <p className="mb-2 text-xs text-[#A9ABAE]">
-                        Se puede completar ahora o más adelante editando este proveedor.
-                    </p>
-                    <CampoDocumento
-                        label="Foto del NIT"
-                        value={data.documento_nit}
-                        onChange={(archivo) => setData('documento_nit', archivo)}
-                        urlActual={proveedor?.documento_nit_url}
-                        error={errors.documento_nit}
-                    />
-                </div>
+                <DocumentosMultiples
+                    documentos={data.documentos}
+                    tiposDisponibles={TIPOS_DOCUMENTO}
+                    agregar={documentosHandlers.agregar}
+                    quitar={documentosHandlers.quitar}
+                    cambiarTipo={documentosHandlers.cambiarTipo}
+                    actualizar={documentosHandlers.actualizar}
+                    errores={errors}
+                    descripcion="Se pueden cargar varios documentos (NIT, contrato, etc.), ahora o más adelante editando este proveedor."
+                />
 
                 {esEdicion && (
                     <label className="flex items-center gap-2 text-sm text-[#042753]">

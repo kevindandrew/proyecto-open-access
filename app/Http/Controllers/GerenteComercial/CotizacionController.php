@@ -132,7 +132,6 @@ class CotizacionController extends Controller
             'mercancia_peligrosa' => ['boolean'],
             'fecha_validez' => ['required', 'date'],
             'dias_transito' => ['nullable', 'integer'],
-            'comision_openaccess' => ['nullable', 'numeric', 'min:0'],
             'contenedores' => ['array'],
             'contenedores.*.tipo_contenedor' => ['required', 'string', 'max:50'],
             'contenedores.*.cantidad' => ['required', 'integer', 'min:1'],
@@ -150,6 +149,7 @@ class CotizacionController extends Controller
                 }
             }],
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
+            'detalle.*.comision_openaccess' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $cliente = Cliente::findOrFail($data['id_cliente']);
@@ -188,8 +188,6 @@ class CotizacionController extends Controller
                 'volumen_cbm' => $data['volumen_cbm'] ?? null,
                 'mercancia_peligrosa' => $data['mercancia_peligrosa'] ?? false,
                 'dias_transito' => $data['dias_transito'] ?? null,
-                'comision_openaccess' => $data['comision_openaccess'] ?? 0,
-                'comision_moneda' => 'USD',
             ]);
 
             foreach ($data['contenedores'] ?? [] as $contenedor) {
@@ -208,6 +206,7 @@ class CotizacionController extends Controller
                     'base_calculo' => $baseCalculo,
                     'moneda' => $linea['moneda'] ?? 'USD',
                     'costo_total' => $costoUnitario * $baseCalculo,
+                    'comision_openaccess' => $linea['comision_openaccess'] ?? 0,
                 ]);
             }
 
@@ -253,8 +252,6 @@ class CotizacionController extends Controller
                 'volumen_cbm' => $cotizacion->volumen_cbm,
                 'mercancia_peligrosa' => $cotizacion->mercancia_peligrosa,
                 'dias_transito' => $cotizacion->dias_transito,
-                'comision_openaccess' => $cotizacion->comision_openaccess,
-                'comision_moneda' => $cotizacion->comision_moneda,
                 'tiene_embarque' => $cotizacion->embarques->isNotEmpty(),
                 'embarque_id' => $cotizacion->embarques->first()?->id_embarque,
             ],
@@ -269,6 +266,7 @@ class CotizacionController extends Controller
                 'base_calculo' => $linea->base_calculo,
                 'moneda' => $linea->moneda,
                 'costo_total' => $linea->costo_total,
+                'comision_openaccess' => $linea->comision_openaccess,
             ]),
             'total' => $cotizacion->detalle->sum('costo_total'),
         ]);

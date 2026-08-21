@@ -11,6 +11,7 @@ use App\Models\HouseBl;
 use App\Models\Proveedor;
 use App\Models\RoleEmpleado;
 use App\Models\SeguimientoEmbarque;
+use App\Support\AlertasEmbarque;
 use App\Support\SecuenciaEstadoEmbarque;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,9 +27,9 @@ class EmbarqueController extends Controller
 
     public function index(Request $request): Response
     {
-        $filtros = $request->only(['id_operativo', 'modo_transporte', 'estado_embarque']);
+        $filtros = $request->only(['id_operativo', 'modo_transporte', 'estado_embarque', 'con_alerta']);
 
-        $embarques = Embarque::with(['cliente', 'operativo'])
+        $embarques = Embarque::with(['cliente', 'operativo', 'contenedores'])
             ->when($filtros['id_operativo'] ?? null, fn ($q, $id) => $q->where('id_operativo', $id))
             ->when($filtros['modo_transporte'] ?? null, fn ($q, $modo) => $q->where('modo_transporte', $modo))
             ->when($filtros['estado_embarque'] ?? null, fn ($q, $estado) => $q->where('estado_embarque', $estado))
@@ -42,7 +43,9 @@ class EmbarqueController extends Controller
                 'modo_transporte' => $embarque->modo_transporte,
                 'eta' => $embarque->eta?->toDateString(),
                 'estado_embarque' => $embarque->estado_embarque,
-            ]);
+                'tiene_alerta' => AlertasEmbarque::tieneAlertas($embarque),
+            ])
+            ->when($request->boolean('con_alerta'), fn ($coleccion) => $coleccion->filter(fn ($e) => $e['tiene_alerta'])->values());
 
         return Inertia::render('GerenteOperativo/Embarques/Index', [
             'embarques' => $embarques,
@@ -60,7 +63,7 @@ class EmbarqueController extends Controller
         $embarque->load([
             'cotizacion', 'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
-            'houseBls' => fn ($query) => $query->orderBy('id_hbl'),
+            'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores'),
             'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
@@ -71,7 +74,11 @@ class EmbarqueController extends Controller
                 'numero_file' => $embarque->numero_file,
                 'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
-                'consignatario' => $embarque->consignatario,
+                'consignatario_nombre' => $embarque->consignatario_nombre,
+                'consignatario_nit' => $embarque->consignatario_nit,
+                'consignatario_direccion' => $embarque->consignatario_direccion,
+                'consignatario_celular' => $embarque->consignatario_celular,
+                'consignatario_correo' => $embarque->consignatario_correo,
                 'comercial' => $embarque->comercial?->nombre_completo,
                 'operativo' => $embarque->operativo?->nombre_completo,
                 'agente_origen' => $embarque->agenteOrigen?->nombre,
@@ -108,6 +115,10 @@ class EmbarqueController extends Controller
                 'estado_embarque' => $embarque->estado_embarque,
                 'siguiente_estado' => SecuenciaEstadoEmbarque::siguiente($embarque->estado_embarque),
                 'id_operativo' => $embarque->id_operativo,
+                'eta_por_vencer' => AlertasEmbarque::etaPorVencer($embarque),
+                'contenedores_vencidos' => AlertasEmbarque::contenedoresVencidos($embarque)
+                    ->map(fn (EmbarqueContenedor $contenedor) => $contenedor->numero_contenedor ?? "Contenedor #{$contenedor->id_item}")
+                    ->values(),
             ],
             'contenedores' => $embarque->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
                 'id_item' => $contenedor->id_item,
@@ -132,10 +143,16 @@ class EmbarqueController extends Controller
                 'numero_hbl' => $house->numero_hbl,
                 'condicion_pago' => $house->condicion_pago,
                 'fecha_emision' => $house->fecha_emision?->toDateString(),
+                'contenedores' => $house->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
+                    'id_item' => $contenedor->id_item,
+                    'numero_contenedor' => $contenedor->numero_contenedor,
+                    'tipo_contenedor' => $contenedor->tipo_contenedor,
+                ]),
             ]),
             'costos' => $embarque->costos->map(fn (EmbarqueCosto $costo) => [
                 'id_costo' => $costo->id_costo,
                 'concepto' => $costo->concepto,
+                'id_proveedor' => $costo->id_proveedor,
                 'proveedor' => $costo->proveedor?->nombre,
                 'costo_compra' => $costo->costo_compra,
                 'costo_venta' => $costo->costo_venta,
@@ -280,5 +297,22 @@ class EmbarqueController extends Controller
         return redirect()
             ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
             ->with('success', 'Información de carga actualizada correctamente.');
+    }
+
+    public function actualizarConsignatario(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $data = $request->validate([
+            'consignatario_nombre' => ['nullable', 'string', 'max:200'],
+            'consignatario_nit' => ['nullable', 'string', 'max:30'],
+            'consignatario_direccion' => ['nullable', 'string'],
+            'consignatario_celular' => ['nullable', 'string', 'max:30'],
+            'consignatario_correo' => ['nullable', 'email', 'max:120'],
+        ]);
+
+        $embarque->update($data);
+
+        return redirect()
+            ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', 'Consignatario actualizado correctamente.');
     }
 }

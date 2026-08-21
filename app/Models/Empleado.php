@@ -18,9 +18,8 @@ class Empleado extends Model
     protected $fillable = [
         'nombre_completo',
         'ci',
-        'tipo_documento',
-        'documento_frente_url',
-        'documento_dorso_url',
+        'fecha_nacimiento',
+        'fecha_ingreso',
         'telefono',
         'email',
         'id_rol',
@@ -33,6 +32,8 @@ class Empleado extends Model
     {
         return [
             'activo' => 'boolean',
+            'fecha_nacimiento' => 'date',
+            'fecha_ingreso' => 'date',
         ];
     }
 
@@ -54,6 +55,11 @@ class Empleado extends Model
     public function user(): HasOne
     {
         return $this->hasOne(User::class, 'empleado_id', 'id_empleado');
+    }
+
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(DocumentoEmpleado::class, 'id_empleado', 'id_empleado');
     }
 
     public function clientesComoComercial(): HasMany

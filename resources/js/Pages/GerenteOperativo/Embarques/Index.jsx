@@ -2,6 +2,7 @@ import { ESTADO_LABELS } from '@/constants/estados';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import PageHeader from '@/Components/PageHeader';
+import { IconoAlerta } from '@/Components/ActionIcons';
 import { IconoEmbarquesNav } from '@/Components/NavIcons';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -72,6 +73,16 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                         </option>
                     ))}
                 </select>
+
+                <label className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-[#042753] shadow-sm">
+                    <input
+                        type="checkbox"
+                        checked={filtros.con_alerta === '1' || filtros.con_alerta === true}
+                        onChange={(e) => aplicarFiltro('con_alerta', e.target.checked ? '1' : undefined)}
+                        className="rounded border-gray-300 text-[#71BFA6] focus:ring-[#71BFA6]"
+                    />
+                    Solo con alertas
+                </label>
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -96,6 +107,7 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">
                                 Estado
                             </th>
+                            <th className="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -135,13 +147,21 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                                     {ESTADO_LABELS[embarque.estado_embarque] ??
                                         embarque.estado_embarque}
                                 </td>
+                                <td className="px-4 py-3">
+                                    {embarque.tiene_alerta && (
+                                        <IconoAlerta
+                                            className="h-5 w-5 text-amber-600"
+                                            title="Este embarque tiene alertas pendientes"
+                                        />
+                                    )}
+                                </td>
                             </tr>
                         ))}
 
                         {embarques.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="px-4 py-6 text-center text-[#A9ABAE]"
                                 >
                                     No hay embarques que coincidan con los

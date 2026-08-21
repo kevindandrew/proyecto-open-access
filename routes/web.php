@@ -3,6 +3,7 @@
 use App\Http\Controllers\Comercial\ClienteController;
 use App\Http\Controllers\Comercial\CotizacionController;
 use App\Http\Controllers\Comercial\EmbarqueController as ComercialEmbarqueController;
+use App\Http\Controllers\Comercial\HouseBlController as ComercialHouseBlController;
 use App\Http\Controllers\ComercialController;
 use App\Http\Controllers\GerenteComercial\ClienteController as GerenteComercialClienteController;
 use App\Http\Controllers\GerenteComercial\CotizacionController as GerenteComercialCotizacionController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\GerenteOperativo\TarifaController;
 use App\Http\Controllers\GerenteOperativoController;
 use App\Http\Controllers\Operativo\EmbarqueContenedorController as OperativoEmbarqueContenedorController;
 use App\Http\Controllers\Operativo\EmbarqueController as OperativoEmbarqueController;
+use App\Http\Controllers\Operativo\HouseBlController as OperativoHouseBlController;
 use App\Http\Controllers\OperativoController;
 use App\Http\Controllers\ProfileController;
 use App\Support\RoleRedirector;
@@ -72,6 +74,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
         Route::get('clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
         Route::post('clientes', [ClienteController::class, 'store'])->name('clientes.store');
 
+        Route::get('cotizaciones', [CotizacionController::class, 'index'])->name('cotizaciones.index');
         Route::get('cotizaciones/nueva', [CotizacionController::class, 'create'])->name('cotizaciones.create');
         Route::get('cotizaciones/tarifas-disponibles', [CotizacionController::class, 'tarifasDisponibles'])->name('cotizaciones.tarifas-disponibles');
         Route::get('cotizaciones/tarifas-agente-disponibles', [CotizacionController::class, 'tarifasAgenteDisponibles'])->name('cotizaciones.tarifas-agente-disponibles');
@@ -86,6 +89,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
 
         Route::get('embarques', [ComercialEmbarqueController::class, 'index'])->name('embarques.index');
         Route::get('embarques/{embarque}', [ComercialEmbarqueController::class, 'show'])->name('embarques.show');
+        Route::get('houses/{house}/pdf', [ComercialHouseBlController::class, 'pdf'])->name('houses.pdf');
     });
 
 Route::middleware(['auth', 'verified', 'role.empleado:Operativo'])
@@ -99,10 +103,13 @@ Route::middleware(['auth', 'verified', 'role.empleado:Operativo'])
         Route::patch('embarques/{embarque}/transporte', [OperativoEmbarqueController::class, 'actualizarTransporte'])->name('embarques.actualizar-transporte');
         Route::patch('embarques/{embarque}/instrucciones-terrestre', [OperativoEmbarqueController::class, 'actualizarInstruccionesTerrestre'])->name('embarques.actualizar-instrucciones-terrestre');
         Route::patch('embarques/{embarque}/informacion-carga', [OperativoEmbarqueController::class, 'actualizarInformacionCarga'])->name('embarques.actualizar-informacion-carga');
+        Route::patch('embarques/{embarque}/consignatario', [OperativoEmbarqueController::class, 'actualizarConsignatario'])->name('embarques.actualizar-consignatario');
 
         Route::post('embarques/{embarque}/contenedores', [OperativoEmbarqueContenedorController::class, 'store'])->name('embarques.contenedores.store');
         Route::patch('contenedores/{contenedor}', [OperativoEmbarqueContenedorController::class, 'update'])->name('contenedores.update');
         Route::delete('contenedores/{contenedor}', [OperativoEmbarqueContenedorController::class, 'destroy'])->name('contenedores.destroy');
+
+        Route::get('houses/{house}/pdf', [OperativoHouseBlController::class, 'pdf'])->name('houses.pdf');
     });
 
 Route::middleware('auth')->group(function () {
@@ -138,6 +145,8 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::post('cotizaciones/solicitar-tarifa', [GerenteOperativoCotizacionController::class, 'solicitarTarifa'])->name('cotizaciones.solicitar-tarifa');
         Route::post('cotizaciones', [GerenteOperativoCotizacionController::class, 'store'])->name('cotizaciones.store');
         Route::get('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'show'])->name('cotizaciones.show');
+        Route::get('cotizaciones/{cotizacion}/editar', [GerenteOperativoCotizacionController::class, 'edit'])->name('cotizaciones.edit');
+        Route::put('cotizaciones/{cotizacion}', [GerenteOperativoCotizacionController::class, 'update'])->name('cotizaciones.update');
         Route::patch('cotizaciones/{cotizacion}/estado', [GerenteOperativoCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
         Route::post('cotizaciones/{cotizacion}/convertir', [GerenteOperativoCotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
         Route::get('cotizaciones/{cotizacion}/pdf', [GerenteOperativoCotizacionController::class, 'pdf'])->name('cotizaciones.pdf');
@@ -168,6 +177,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::post('embarques/{embarque}/houses', [HouseBlController::class, 'store'])->name('embarques.houses.store');
         Route::patch('houses/{house}', [HouseBlController::class, 'update'])->name('houses.update');
         Route::delete('houses/{house}', [HouseBlController::class, 'destroy'])->name('houses.destroy');
+        Route::get('houses/{house}/pdf', [HouseBlController::class, 'pdf'])->name('houses.pdf');
 
         Route::post('embarques/{embarque}/costos', [EmbarqueCostoController::class, 'store'])->name('embarques.costos.store');
         Route::patch('costos/{costo}', [EmbarqueCostoController::class, 'update'])->name('costos.update');
@@ -176,6 +186,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::patch('embarques/{embarque}/transporte', [EmbarqueController::class, 'actualizarTransporte'])->name('embarques.actualizar-transporte');
         Route::patch('embarques/{embarque}/instrucciones-terrestre', [EmbarqueController::class, 'actualizarInstruccionesTerrestre'])->name('embarques.actualizar-instrucciones-terrestre');
         Route::patch('embarques/{embarque}/informacion-carga', [EmbarqueController::class, 'actualizarInformacionCarga'])->name('embarques.actualizar-informacion-carga');
+        Route::patch('embarques/{embarque}/consignatario', [EmbarqueController::class, 'actualizarConsignatario'])->name('embarques.actualizar-consignatario');
 
         Route::post('embarques/{embarque}/contenedores', [EmbarqueContenedorController::class, 'store'])->name('embarques.contenedores.store');
         Route::patch('contenedores/{contenedor}', [EmbarqueContenedorController::class, 'update'])->name('contenedores.update');

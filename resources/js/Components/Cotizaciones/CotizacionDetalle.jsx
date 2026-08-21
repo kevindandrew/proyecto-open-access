@@ -37,7 +37,10 @@ export default function CotizacionDetalle({
     rutaCrearTerrestre,
     rutaVerCotizacion,
 }) {
-    const comisionOpenaccess = parseFloat(cotizacion.comision_openaccess) || 0;
+    const comisionOpenaccess = detalle.reduce(
+        (acc, linea) => acc + (parseFloat(linea.comision_openaccess) || 0),
+        0,
+    );
     const totalConComision = (parseFloat(total) || 0) + comisionOpenaccess;
 
     const puedeCrearTerrestre =
@@ -209,6 +212,9 @@ export default function CotizacionDetalle({
                                 <th className="px-3 py-2 text-right font-semibold text-[#042753]">
                                     Total
                                 </th>
+                                <th className="px-3 py-2 text-right font-semibold text-[#042753]">
+                                    Comisión (USD)
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -222,6 +228,11 @@ export default function CotizacionDetalle({
                                     <td className="px-3 py-2 text-right font-medium text-[#042753]">
                                         {linea.costo_total}
                                     </td>
+                                    <td className="px-3 py-2 text-right text-[#042753]">
+                                        {parseFloat(linea.comision_openaccess) > 0
+                                            ? parseFloat(linea.comision_openaccess).toFixed(2)
+                                            : <span className="text-[#A9ABAE]">—</span>}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -233,18 +244,19 @@ export default function CotizacionDetalle({
                                 <td className="px-3 py-2 text-right text-lg font-bold text-[#71BFA6]">
                                     {total}
                                 </td>
+                                <td></td>
                             </tr>
                             {comisionOpenaccess > 0 && (
                                 <>
                                     <tr>
-                                        <td colSpan={5} className="px-3 py-2 text-right text-sm font-medium text-[#042753]">
+                                        <td colSpan={6} className="px-3 py-2 text-right text-sm font-medium text-[#042753]">
                                             Comisión OpenAccess{' '}
                                             <span className="text-xs text-[#A9ABAE]">
                                                 (uso interno — el cliente no la ve)
                                             </span>
                                         </td>
                                         <td className="px-3 py-2 text-right text-sm font-medium text-[#042753]">
-                                            {comisionOpenaccess.toFixed(2)} {cotizacion.comision_moneda}
+                                            {comisionOpenaccess.toFixed(2)} USD
                                         </td>
                                     </tr>
                                     <tr className="border-t border-gray-200">
@@ -254,6 +266,7 @@ export default function CotizacionDetalle({
                                         <td className="px-3 py-2 text-right text-lg font-bold text-[#042753]">
                                             {totalConComision.toFixed(2)}
                                         </td>
+                                        <td></td>
                                     </tr>
                                 </>
                             )}

@@ -54,7 +54,17 @@ export default function Index({ contadores, ultimasCotizaciones }) {
                 />
             </div>
 
-            <div className="mt-6 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="mt-6 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-[#042753]">Últimas Cotizaciones</h2>
+                <Link
+                    href={route('comercial.cotizaciones.index')}
+                    className="text-sm font-medium text-[#71BFA6] hover:underline"
+                >
+                    Ver todas →
+                </Link>
+            </div>
+
+            <div className="mt-2 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr>

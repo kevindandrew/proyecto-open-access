@@ -1,6 +1,7 @@
 import ActualizarTransporte from '@/Components/Embarques/ActualizarTransporte';
 import AgregarContenedor from '@/Components/Embarques/AgregarContenedor';
 import CambiarEstado from '@/Components/Embarques/CambiarEstado';
+import Consignatario from '@/Components/Embarques/Consignatario';
 import EmbarqueDetalle from '@/Components/Embarques/EmbarqueDetalle';
 import InformacionCarga from '@/Components/Embarques/InformacionCarga';
 import InstruccionesTerrestre from '@/Components/Embarques/InstruccionesTerrestre';
@@ -35,10 +36,18 @@ export default function Show({
                 totalCompra={totalCompra}
                 totalVenta={totalVenta}
                 onEliminarContenedor={eliminarContenedor}
+                rutaActualizarContenedor="operativo.contenedores.update"
+                rutaPdfHouse="operativo.houses.pdf"
                 accionesContenedores={
                     <AgregarContenedor
                         embarque={embarque}
                         rutaStore="operativo.embarques.contenedores.store"
+                    />
+                }
+                accionesConsignatario={
+                    <Consignatario
+                        embarque={embarque}
+                        rutaActualizar="operativo.embarques.actualizar-consignatario"
                     />
                 }
                 accionesTransporte={

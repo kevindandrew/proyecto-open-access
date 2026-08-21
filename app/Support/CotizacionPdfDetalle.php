@@ -7,29 +7,16 @@ use App\Models\CotizacionDetalle;
 
 /**
  * Arma el detalle de costos que se le muestra al cliente en el PDF: nunca
- * incluye la comisión OpenAccess como línea aparte. Si hay comisión cargada
- * (siempre en USD), se suma al costo de una línea que esté también en USD —
- * nunca se mezcla con una línea en otra moneda, para no alterar el monto real
- * por un descalce de tipo de cambio.
+ * incluye la comisión OpenAccess como línea aparte. Cada línea de detalle
+ * puede traer su propia comisión (siempre en USD) — se suma directamente al
+ * costo de esa misma línea si está en USD; si la línea está en otra moneda,
+ * no se mezcla para no alterar el monto real por un descalce de tipo de cambio.
  */
 class CotizacionPdfDetalle
 {
     public static function paraCliente(Cotizacion $cotizacion): array
     {
-        $detalle = self::mapearDetalle($cotizacion);
-        $comision = (float) $cotizacion->comision_openaccess;
-
-        if ($comision > 0 && count($detalle) > 0) {
-            $indice = self::indiceLineaParaComision($detalle, $cotizacion->comision_moneda ?? 'USD');
-
-            if ($indice !== null) {
-                $nuevoTotal = (float) $detalle[$indice]['costo_total'] + $comision;
-                $base = (float) ($detalle[$indice]['base_calculo'] ?: 1);
-
-                $detalle[$indice]['costo_total'] = $nuevoTotal;
-                $detalle[$indice]['costo_unitario'] = round($nuevoTotal / $base, 2);
-            }
-        }
+        $detalle = array_map(fn (array $linea) => self::aplicarComision($linea), self::mapearDetalle($cotizacion));
 
         return [
             'detalle' => $detalle,
@@ -38,16 +25,16 @@ class CotizacionPdfDetalle
     }
 
     /**
-     * Versión resumida: colapsa todos los costos (incluida la comisión) en una
-     * sola línea "Flete", para clientes que no quieren ver el detalle abierto.
+     * Versión resumida: colapsa todos los costos (incluidas las comisiones de
+     * cada línea) en una sola línea "Flete", para clientes que no quieren ver
+     * el detalle abierto.
      */
     public static function resumenParaCliente(Cotizacion $cotizacion): array
     {
         $detalle = self::mapearDetalle($cotizacion);
-        $totalCostos = array_sum(array_column($detalle, 'costo_total'));
-        $comision = (float) $cotizacion->comision_openaccess;
-        $moneda = $detalle[0]['moneda'] ?? ($cotizacion->comision_moneda ?? 'USD');
-        $total = $totalCostos + $comision;
+        $total = array_sum(array_column($detalle, 'costo_total'))
+            + array_sum(array_column($detalle, 'comision_openaccess'));
+        $moneda = $detalle[0]['moneda'] ?? 'USD';
 
         return [
             'detalle' => [[
@@ -71,23 +58,24 @@ class CotizacionPdfDetalle
             'base_calculo' => $linea->base_calculo,
             'moneda' => $linea->moneda,
             'costo_total' => $linea->costo_total,
+            'comision_openaccess' => $linea->comision_openaccess,
         ])->all();
     }
 
-    private static function indiceLineaParaComision(array $detalle, string $monedaComision): ?int
+    private static function aplicarComision(array $linea): array
     {
-        foreach ($detalle as $indice => $linea) {
-            if (str_starts_with($linea['descripcion'], 'Flete') && $linea['moneda'] === $monedaComision) {
-                return $indice;
-            }
+        $comision = (float) $linea['comision_openaccess'];
+
+        if ($comision > 0 && $linea['moneda'] === 'USD') {
+            $nuevoTotal = (float) $linea['costo_total'] + $comision;
+            $base = (float) ($linea['base_calculo'] ?: 1);
+
+            $linea['costo_total'] = $nuevoTotal;
+            $linea['costo_unitario'] = round($nuevoTotal / $base, 2);
         }
 
-        foreach ($detalle as $indice => $linea) {
-            if ($linea['moneda'] === $monedaComision) {
-                return $indice;
-            }
-        }
+        unset($linea['comision_openaccess']);
 
-        return null;
+        return $linea;
     }
 }

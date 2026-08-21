@@ -4,6 +4,7 @@ import { useState } from 'react';
 const navItems = [
     { label: 'Dashboard', routeName: 'comercial.dashboard' },
     { label: 'Clientes', routeName: 'comercial.clientes.index' },
+    { label: 'Cotizaciones', routeName: 'comercial.cotizaciones.index' },
     { label: 'Embarques', routeName: 'comercial.embarques.index' },
 ];
 

@@ -1,3 +1,6 @@
+import ContenedorFila from '@/Components/Embarques/ContenedorFila';
+import CostoFila from '@/Components/Embarques/CostoFila';
+import HouseFila from '@/Components/Embarques/HouseFila';
 import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import { ESTADO_LABELS } from '@/constants/estados';
 
@@ -18,7 +21,7 @@ function Campo({ label, value }) {
     );
 }
 
-function Contenedores({ contenedores, onEliminar }) {
+function Contenedores({ contenedores, onEliminar, rutaActualizar }) {
     if (contenedores.length === 0) {
         return (
             <p className="text-sm text-[#A9ABAE]">
@@ -30,47 +33,18 @@ function Contenedores({ contenedores, onEliminar }) {
     return (
         <div className="space-y-3">
             {contenedores.map((contenedor, index) => (
-                <div
+                <ContenedorFila
                     key={contenedor.id_item ?? index}
-                    className="rounded-md border border-gray-100 bg-gray-50 p-3"
-                >
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-[#042753]">
-                            {contenedor.numero_contenedor ?? 'Sin número'}
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-[#042753]">
-                                {contenedor.cantidad ?? 1}x {contenedor.tipo_contenedor ?? '—'}
-                            </span>
-                            {onEliminar && (
-                                <button
-                                    type="button"
-                                    onClick={() => onEliminar(contenedor)}
-                                    className="text-xs text-red-600 hover:underline"
-                                >
-                                    Quitar
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#A9ABAE] sm:grid-cols-3">
-                        <span>Sello: {contenedor.numero_sello ?? '—'}</span>
-                        <span>Peso: {contenedor.peso_kg ?? '—'} kg</span>
-                        <span>Vol: {contenedor.volumen_cbm ?? '—'} cbm</span>
-                        <span>Fecha Dev: {contenedor.fecha_devolucion ?? '—'}</span>
-                    </div>
-                    {contenedor.descripcion_mercancia && (
-                        <p className="mt-2 text-xs text-[#042753]">
-                            {contenedor.descripcion_mercancia}
-                        </p>
-                    )}
-                </div>
+                    contenedor={contenedor}
+                    rutaActualizar={rutaActualizar}
+                    onEliminar={onEliminar}
+                />
             ))}
         </div>
     );
 }
 
-function Houses({ houses, onEliminar }) {
+function Houses({ houses, onEliminar, rutaActualizar, rutaPdf, contenedoresDisponibles = [] }) {
     if (houses.length === 0) {
         return (
             <p className="text-sm text-[#A9ABAE]">
@@ -78,6 +52,8 @@ function Houses({ houses, onEliminar }) {
             </p>
         );
     }
+
+    const colSpan = rutaActualizar || rutaPdf || onEliminar ? 5 : 4;
 
     return (
         <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -87,41 +63,35 @@ function Houses({ houses, onEliminar }) {
                         Número House
                     </th>
                     <th className="px-3 py-2 text-left font-semibold text-[#042753]">
+                        Contenedores
+                    </th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#042753]">
                         Condición de Pago
                     </th>
                     <th className="px-3 py-2 text-left font-semibold text-[#042753]">
                         Fecha de Emisión
                     </th>
-                    {onEliminar && <th className="px-3 py-2"></th>}
+                    {(rutaActualizar || rutaPdf || onEliminar) && <th className="px-3 py-2"></th>}
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
                 {houses.map((house) => (
-                    <tr key={house.id_hbl}>
-                        <td className="px-3 py-2 font-medium text-[#042753]">
-                            {house.numero_hbl}
-                        </td>
-                        <td className="px-3 py-2">{house.condicion_pago ?? '—'}</td>
-                        <td className="px-3 py-2">{house.fecha_emision ?? '—'}</td>
-                        {onEliminar && (
-                            <td className="px-3 py-2 text-right">
-                                <button
-                                    type="button"
-                                    onClick={() => onEliminar(house)}
-                                    className="text-red-600 hover:underline"
-                                >
-                                    Quitar
-                                </button>
-                            </td>
-                        )}
-                    </tr>
+                    <HouseFila
+                        key={house.id_hbl}
+                        house={house}
+                        contenedoresDisponibles={contenedoresDisponibles}
+                        rutaActualizar={rutaActualizar}
+                        rutaPdf={rutaPdf}
+                        onEliminar={onEliminar}
+                        colSpan={colSpan}
+                    />
                 ))}
             </tbody>
         </table>
     );
 }
 
-function CostosCompraVenta({ costos, totalCompra, totalVenta, onEliminar }) {
+function CostosCompraVenta({ costos, totalCompra, totalVenta, onEliminar, rutaActualizar, proveedores = [] }) {
     const totalProfit = (parseFloat(totalVenta || 0) - parseFloat(totalCompra || 0)).toFixed(2);
 
     if (costos.length === 0) {
@@ -131,6 +101,8 @@ function CostosCompraVenta({ costos, totalCompra, totalVenta, onEliminar }) {
             </p>
         );
     }
+
+    const colSpan = rutaActualizar || onEliminar ? 6 : 5;
 
     return (
         <div className="overflow-x-auto">
@@ -152,29 +124,19 @@ function CostosCompraVenta({ costos, totalCompra, totalVenta, onEliminar }) {
                         <th className="px-3 py-2 text-left font-semibold text-[#042753]">
                             Moneda
                         </th>
-                        {onEliminar && <th className="px-3 py-2"></th>}
+                        {(rutaActualizar || onEliminar) && <th className="px-3 py-2"></th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {costos.map((costo) => (
-                        <tr key={costo.id_costo}>
-                            <td className="px-3 py-2">{costo.concepto}</td>
-                            <td className="px-3 py-2">{costo.proveedor ?? '—'}</td>
-                            <td className="px-3 py-2 text-right">{costo.costo_compra ?? '—'}</td>
-                            <td className="px-3 py-2 text-right">{costo.costo_venta ?? '—'}</td>
-                            <td className="px-3 py-2">{costo.moneda}</td>
-                            {onEliminar && (
-                                <td className="px-3 py-2 text-right">
-                                    <button
-                                        type="button"
-                                        onClick={() => onEliminar(costo)}
-                                        className="text-red-600 hover:underline"
-                                    >
-                                        Quitar
-                                    </button>
-                                </td>
-                            )}
-                        </tr>
+                        <CostoFila
+                            key={costo.id_costo}
+                            costo={costo}
+                            proveedores={proveedores}
+                            rutaActualizar={rutaActualizar}
+                            onEliminar={onEliminar}
+                            colSpan={colSpan}
+                        />
                     ))}
                 </tbody>
                 <tfoot>
@@ -189,10 +151,10 @@ function CostosCompraVenta({ costos, totalCompra, totalVenta, onEliminar }) {
                             {totalVenta}
                         </td>
                         <td></td>
-                        {onEliminar && <td></td>}
+                        {(rutaActualizar || onEliminar) && <td></td>}
                     </tr>
                     <tr>
-                        <td colSpan={onEliminar ? 5 : 4} className="px-3 py-2 text-right font-semibold text-[#042753]">
+                        <td colSpan={(rutaActualizar || onEliminar) ? 5 : 4} className="px-3 py-2 text-right font-semibold text-[#042753]">
                             Total Profit
                         </td>
                         <td className="px-3 py-2 text-lg font-bold text-[#71BFA6]">
@@ -264,21 +226,40 @@ export default function EmbarqueDetalle({
     accionesTransporte = null,
     accionesInstruccionesTerrestre = null,
     accionesInformacionCarga = null,
+    accionesConsignatario = null,
     onEliminarHouse = null,
+    rutaActualizarHouse = null,
+    rutaPdfHouse = null,
     onEliminarCosto = null,
+    rutaActualizarCosto = null,
+    proveedores = [],
     onEliminarContenedor = null,
+    rutaActualizarContenedor = null,
 }) {
+    const hayContenedoresVencidos = embarque.contenedores_vencidos && embarque.contenedores_vencidos.length > 0;
+
     return (
         <>
+            {(embarque.eta_por_vencer || hayContenedoresVencidos) && (
+                <div className="mb-6 space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                    {embarque.eta_por_vencer && (
+                        <p className="text-sm font-medium text-amber-800">
+                            ⚠ La ETA ({embarque.eta}) está por vencer o ya venció y el embarque todavía no está Entregado/Cerrado.
+                        </p>
+                    )}
+                    {hayContenedoresVencidos && (
+                        <p className="text-sm font-medium text-amber-800">
+                            ⚠ Contenedor(es) con plazo de devolución vencido: {embarque.contenedores_vencidos.join(', ')}.
+                        </p>
+                    )}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:grid-cols-2 lg:grid-cols-3">
                 <Campo label="Código de Cotización" value={embarque.numero_referencia_cotizacion} />
                 <Campo label="Oficina de Venta" value={embarque.oficina_venta} />
                 <Campo label="Oficina Operacional" value={embarque.oficina_operacional} />
                 <Campo label="Cliente" value={embarque.cliente} />
-                <Campo
-                    label="Consignatario"
-                    value={embarque.consignatario}
-                />
                 <Campo label="Comercial" value={embarque.comercial} />
                 <Campo label="Operativo" value={embarque.operativo} />
                 <Campo
@@ -320,6 +301,23 @@ export default function EmbarqueDetalle({
                         embarque.estado_embarque
                     }
                 />
+            </div>
+
+            <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-sm font-semibold text-[#042753]">
+                    Consignatario
+                </h3>
+                {accionesConsignatario ?? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <Campo label="Nombre" value={embarque.consignatario_nombre} />
+                        <Campo label="NIT" value={embarque.consignatario_nit} />
+                        <Campo label="Celular" value={embarque.consignatario_celular} />
+                        <div className="sm:col-span-2 lg:col-span-2">
+                            <Campo label="Dirección" value={embarque.consignatario_direccion} />
+                        </div>
+                        <Campo label="Correo" value={embarque.consignatario_correo} />
+                    </div>
+                )}
             </div>
 
             {accionesTransporte && (
@@ -391,7 +389,11 @@ export default function EmbarqueDetalle({
                 <h3 className="mb-4 text-sm font-semibold text-[#042753]">
                     Contenedores
                 </h3>
-                <Contenedores contenedores={contenedores} onEliminar={onEliminarContenedor} />
+                <Contenedores
+                    contenedores={contenedores}
+                    onEliminar={onEliminarContenedor}
+                    rutaActualizar={rutaActualizarContenedor}
+                />
                 {accionesContenedores}
             </div>
 
@@ -399,7 +401,13 @@ export default function EmbarqueDetalle({
                 <h3 className="mb-4 text-sm font-semibold text-[#042753]">
                     Houses (HBL/HAWB)
                 </h3>
-                <Houses houses={houses} onEliminar={onEliminarHouse} />
+                <Houses
+                    houses={houses}
+                    onEliminar={onEliminarHouse}
+                    rutaActualizar={rutaActualizarHouse}
+                    rutaPdf={rutaPdfHouse}
+                    contenedoresDisponibles={contenedores}
+                />
                 {accionesHouses}
             </div>
 
@@ -412,6 +420,8 @@ export default function EmbarqueDetalle({
                     totalCompra={totalCompra}
                     totalVenta={totalVenta}
                     onEliminar={onEliminarCosto}
+                    rutaActualizar={rutaActualizarCosto}
+                    proveedores={proveedores}
                 />
                 {accionesCostos}
             </div>
