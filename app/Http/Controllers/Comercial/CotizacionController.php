@@ -468,15 +468,32 @@ class CotizacionController extends Controller
             ]);
 
             foreach ($cotizacion->contenedores as $contenedor) {
-                $embarque->contenedores()->create([
-                    'tipo_contenedor' => $contenedor->tipo_contenedor,
-                    'cantidad' => $contenedor->cantidad,
-                ]);
+                // Cada contenedor físico es único (numero_contenedor, sello,
+                // etc.), así que se crea una fila por unidad en vez de una
+                // sola fila con cantidad=N — esos datos individuales todavía
+                // no se conocen a esta altura y se completan más adelante.
+                for ($i = 0; $i < $contenedor->cantidad; $i++) {
+                    $embarque->contenedores()->create([
+                        'tipo_contenedor' => $contenedor->tipo_contenedor,
+                        'cantidad' => 1,
+                    ]);
+                }
             }
 
             foreach ($cotizacion->detalle as $linea) {
+                // Proveedor se puede inferir con confianza solo para los dos
+                // casos conocidos: el flete se le paga a la naviera/aerolínea,
+                // el trámite lo gestiona el agente de origen. Las líneas
+                // manuales/personalizadas quedan sin proveedor.
+                $idProveedor = match (true) {
+                    str_starts_with($linea->descripcion, 'Flete') => $cotizacion->id_naviera_aerolinea,
+                    $linea->descripcion === 'Trámite' => $cotizacion->id_agente_origen,
+                    default => null,
+                };
+
                 $embarque->costos()->create([
                     'concepto' => substr($linea->descripcion, 0, 100),
+                    'id_proveedor' => $idProveedor,
                     'costo_compra' => $linea->costo_total,
                     'costo_venta' => $linea->costo_total + $linea->comision_openaccess,
                     'moneda' => $linea->moneda,

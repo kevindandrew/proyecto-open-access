@@ -12,7 +12,6 @@ export default function ContenedorFila({ contenedor, rutaActualizar, onEliminar 
 
     const { data, setData, patch, processing, errors, reset } = useForm({
         tipo_contenedor: contenedor.tipo_contenedor ?? '',
-        cantidad: contenedor.cantidad ?? 1,
         numero_contenedor: contenedor.numero_contenedor ?? '',
         numero_sello: contenedor.numero_sello ?? '',
         peso_kg: contenedor.peso_kg ?? '',
@@ -59,20 +58,6 @@ export default function ContenedorFila({ contenedor, rutaActualizar, onEliminar 
                         />
                         {errors.tipo_contenedor && (
                             <p className="mt-1 text-xs text-red-600">{errors.tipo_contenedor}</p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Cantidad</label>
-                        <input
-                            type="number"
-                            min="1"
-                            className={`${inputClass} w-20`}
-                            value={data.cantidad}
-                            onChange={(e) => setData('cantidad', e.target.value)}
-                        />
-                        {errors.cantidad && (
-                            <p className="mt-1 text-xs text-red-600">{errors.cantidad}</p>
                         )}
                     </div>
 
@@ -170,7 +155,8 @@ export default function ContenedorFila({ contenedor, rutaActualizar, onEliminar 
                 </p>
                 <div className="flex items-center gap-3">
                     <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-[#042753]">
-                        {contenedor.cantidad ?? 1}x {contenedor.tipo_contenedor ?? '—'}
+                        {contenedor.cantidad && contenedor.cantidad !== 1 ? `${contenedor.cantidad}x ` : ''}
+                        {contenedor.tipo_contenedor ?? '—'}
                     </span>
                     {rutaActualizar && (
                         <button

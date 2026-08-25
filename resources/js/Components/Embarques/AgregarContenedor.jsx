@@ -13,6 +13,8 @@ export default function AgregarContenedor({ embarque, rutaStore }) {
         fecha_devolucion: '',
     });
 
+    const esVarios = parseInt(data.cantidad, 10) > 1;
+
     const submit = (e) => {
         e.preventDefault();
 
@@ -63,59 +65,63 @@ export default function AgregarContenedor({ embarque, rutaStore }) {
                     )}
                 </div>
 
-                <div>
-                    <label className={labelClass}>Número Contenedor</label>
-                    <input
-                        type="text"
-                        placeholder="Ej. MSCU1234567"
-                        className={inputClass}
-                        value={data.numero_contenedor}
-                        onChange={(e) => setData('numero_contenedor', e.target.value)}
-                    />
-                </div>
+                {!esVarios && (
+                    <>
+                        <div>
+                            <label className={labelClass}>Número Contenedor</label>
+                            <input
+                                type="text"
+                                placeholder="Ej. MSCU1234567"
+                                className={inputClass}
+                                value={data.numero_contenedor}
+                                onChange={(e) => setData('numero_contenedor', e.target.value)}
+                            />
+                        </div>
 
-                <div>
-                    <label className={labelClass}>Número Sello</label>
-                    <input
-                        type="text"
-                        placeholder="Ej. SL123456"
-                        className={inputClass}
-                        value={data.numero_sello}
-                        onChange={(e) => setData('numero_sello', e.target.value)}
-                    />
-                </div>
+                        <div>
+                            <label className={labelClass}>Número Sello</label>
+                            <input
+                                type="text"
+                                placeholder="Ej. SL123456"
+                                className={inputClass}
+                                value={data.numero_sello}
+                                onChange={(e) => setData('numero_sello', e.target.value)}
+                            />
+                        </div>
 
-                <div>
-                    <label className={labelClass}>Peso (kg)</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        className={`${inputClass} w-24`}
-                        value={data.peso_kg}
-                        onChange={(e) => setData('peso_kg', e.target.value)}
-                    />
-                </div>
+                        <div>
+                            <label className={labelClass}>Peso (kg)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                className={`${inputClass} w-24`}
+                                value={data.peso_kg}
+                                onChange={(e) => setData('peso_kg', e.target.value)}
+                            />
+                        </div>
 
-                <div>
-                    <label className={labelClass}>Volumen (cbm)</label>
-                    <input
-                        type="number"
-                        step="0.001"
-                        className={`${inputClass} w-24`}
-                        value={data.volumen_cbm}
-                        onChange={(e) => setData('volumen_cbm', e.target.value)}
-                    />
-                </div>
+                        <div>
+                            <label className={labelClass}>Volumen (cbm)</label>
+                            <input
+                                type="number"
+                                step="0.001"
+                                className={`${inputClass} w-24`}
+                                value={data.volumen_cbm}
+                                onChange={(e) => setData('volumen_cbm', e.target.value)}
+                            />
+                        </div>
 
-                <div>
-                    <label className={labelClass}>Fecha de Devolución</label>
-                    <input
-                        type="date"
-                        className={inputClass}
-                        value={data.fecha_devolucion}
-                        onChange={(e) => setData('fecha_devolucion', e.target.value)}
-                    />
-                </div>
+                        <div>
+                            <label className={labelClass}>Fecha de Devolución</label>
+                            <input
+                                type="date"
+                                className={inputClass}
+                                value={data.fecha_devolucion}
+                                onChange={(e) => setData('fecha_devolucion', e.target.value)}
+                            />
+                        </div>
+                    </>
+                )}
 
                 <div className="w-full">
                     <label className={labelClass}>Descripción de Mercancía</label>
@@ -128,12 +134,21 @@ export default function AgregarContenedor({ embarque, rutaStore }) {
                     />
                 </div>
 
+                {esVarios && (
+                    <p className="w-full text-xs text-[#A9ABAE]">
+                        Se van a crear {data.cantidad} contenedores separados de tipo{' '}
+                        {data.tipo_contenedor || '—'}. Cada contenedor físico tiene su propio
+                        número y sello, así que esos datos se completan editando cada uno
+                        individualmente una vez creados.
+                    </p>
+                )}
+
                 <button
                     type="submit"
                     disabled={processing}
                     className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
                 >
-                    + Agregar Contenedor
+                    {esVarios ? `+ Agregar ${data.cantidad} Contenedores` : '+ Agregar Contenedor'}
                 </button>
             </div>
         </form>

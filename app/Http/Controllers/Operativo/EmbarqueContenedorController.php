@@ -16,12 +16,27 @@ class EmbarqueContenedorController extends Controller
         $this->autorizar($embarque);
 
         $data = $this->validado($request);
+        $cantidad = max(1, (int) ($data['cantidad'] ?? 1));
 
-        $embarque->contenedores()->create($data);
+        // Cada contenedor físico es único (su propio número, sello, peso,
+        // etc.), así que cantidad > 1 siempre se desdobla en filas separadas
+        // en vez de una sola fila "5x 20 DRY" con un solo número compartido.
+        for ($i = 0; $i < $cantidad; $i++) {
+            $embarque->contenedores()->create([
+                'tipo_contenedor' => $data['tipo_contenedor'] ?? null,
+                'cantidad' => 1,
+                'numero_contenedor' => $cantidad === 1 ? ($data['numero_contenedor'] ?? null) : null,
+                'numero_sello' => $cantidad === 1 ? ($data['numero_sello'] ?? null) : null,
+                'peso_kg' => $cantidad === 1 ? ($data['peso_kg'] ?? null) : null,
+                'volumen_cbm' => $cantidad === 1 ? ($data['volumen_cbm'] ?? null) : null,
+                'descripcion_mercancia' => $data['descripcion_mercancia'] ?? null,
+                'fecha_devolucion' => $cantidad === 1 ? ($data['fecha_devolucion'] ?? null) : null,
+            ]);
+        }
 
         return redirect()
             ->route('operativo.embarques.show', $embarque->id_embarque)
-            ->with('success', 'Contenedor agregado correctamente.');
+            ->with('success', $cantidad > 1 ? "{$cantidad} contenedores agregados correctamente." : 'Contenedor agregado correctamente.');
     }
 
     public function update(Request $request, EmbarqueContenedor $contenedor): RedirectResponse
@@ -29,6 +44,7 @@ class EmbarqueContenedorController extends Controller
         $this->autorizar($contenedor->embarque);
 
         $data = $this->validado($request);
+        unset($data['cantidad']);
 
         $contenedor->update($data);
 
