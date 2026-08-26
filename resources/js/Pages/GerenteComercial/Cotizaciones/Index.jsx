@@ -17,6 +17,25 @@ function formatoMonto(valor) {
     return Number(valor).toLocaleString('es-BO', { maximumFractionDigits: 2 });
 }
 
+// Nunca se suma entre monedas distintas — un monto por cada moneda presente.
+function TotalesCotizacion({ totales }) {
+    const monedas = Object.keys(totales ?? {});
+
+    if (monedas.length === 0) {
+        return '—';
+    }
+
+    return (
+        <div className="space-y-0.5">
+            {monedas.map((moneda) => (
+                <p key={moneda}>
+                    {formatoMonto(totales[moneda])} <span className="text-xs text-[#A9ABAE]">{moneda}</span>
+                </p>
+            ))}
+        </div>
+    );
+}
+
 export default function Index({ cotizaciones }) {
     const [estado, setEstado] = useState('Todas');
     const [busqueda, setBusqueda] = useState('');
@@ -126,7 +145,7 @@ export default function Index({ cotizaciones }) {
                                 <td className="px-4 py-3 text-[#A9ABAE]">{c.fecha_emision}</td>
                                 <td className="px-4 py-3 text-[#A9ABAE]">{c.fecha_validez}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-[#042753]">
-                                    {formatoMonto(c.total)}
+                                    <TotalesCotizacion totales={c.totales} />
                                 </td>
                                 <td className="px-4 py-3">
                                     <span

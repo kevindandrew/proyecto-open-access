@@ -27,6 +27,12 @@
         .footer { margin-top: 24px; font-size: 9px; color: #9ca3af; text-align: center; }
         .terminos { margin: 0; padding-left: 16px; }
         .terminos li { margin-bottom: 5px; text-align: justify; }
+        .observacion { font-size: 9px; font-style: italic; color: #92400e; }
+        .observaciones-caja {
+            margin-top: 8px; padding: 8px; background-color: #fffbeb;
+            border: 1px solid #fde68a; color: #92400e;
+        }
+        .observaciones-caja .terminos { margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -133,7 +139,12 @@
         <tbody>
             @foreach ($detalle as $linea)
                 <tr>
-                    <td>{{ $linea['descripcion'] }}</td>
+                    <td>
+                        {{ $linea['descripcion'] }}
+                        @if (! empty($linea['observaciones']))
+                            <br><span class="observacion">⚠ {{ $linea['observaciones'] }}</span>
+                        @endif
+                    </td>
                     <td>{{ $linea['tipo_tarifa_unidad'] ?? '—' }}</td>
                     <td class="derecha">{{ $linea['costo_unitario'] }}</td>
                     <td class="derecha">{{ (float) $linea['base_calculo'] }}</td>
@@ -143,14 +154,27 @@
             @endforeach
         </tbody>
         <tfoot>
-            <tr class="total-general">
-                <td colspan="5" class="derecha">Total General</td>
-                <td class="derecha">{{ $total }}</td>
-            </tr>
+            @foreach ($totales as $moneda => $monto)
+                <tr class="total-general">
+                    <td colspan="5" class="derecha">Total General ({{ $moneda }})</td>
+                    <td class="derecha">{{ number_format($monto, 2) }}</td>
+                </tr>
+            @endforeach
         </tfoot>
     </table>
 
-    @if ($cotizacion['tipo_servicio'] === 'FCL')
+    @if (count($observaciones) > 0)
+        <div class="observaciones-caja">
+            <strong>Observaciones:</strong>
+            <ul class="terminos">
+                @foreach ($observaciones as $observacion)
+                    <li>{{ $observacion }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    @if ($cotizacion['modo_transporte'] === 'Maritimo' && $cotizacion['tipo_servicio'] === 'FCL')
         <h2>Términos y Condiciones</h2>
         <ol class="terminos">
             <li>Esta cotización es válida hasta {{ $cotizacion['fecha_validez'] }} salvo que se indique lo contrario.</li>
@@ -167,7 +191,7 @@
             <li>Una vez el booking es asignado, en caso de cancelar, modificar o posponer el mismo, pueden aplicarse multas por parte de la naviera, el agente en origen o el transportista.</li>
             <li>En toda cotización EXW, posicionamos el contenedor en bodega del shipper, y el llenado y trincado de la carga dentro del contenedor va por cuenta y responsabilidad del shipper.</li>
         </ol>
-    @elseif ($cotizacion['tipo_servicio'] === 'LCL')
+    @elseif ($cotizacion['modo_transporte'] === 'Maritimo' && $cotizacion['tipo_servicio'] === 'LCL')
         <h2>Términos y Condiciones</h2>
         <ol class="terminos">
             <li>Esta cotización es válida hasta {{ $cotizacion['fecha_validez'] }} salvo que se indique lo contrario.</li>
@@ -183,6 +207,32 @@
             <li>No incluye inspecciones en puertos de origen ni transbordo.</li>
             <li>El tiempo de tránsito que figura en la presente cotización es netamente referencial según lo que informan las líneas navieras.</li>
             <li>Las líneas navieras se reservan la potestad de programar o reprogramar los embarques a conveniencia. Por tanto, Open Access no se compromete al arribo de cargas en fechas específicas.</li>
+        </ol>
+    @elseif ($cotizacion['modo_transporte'] === 'Aereo')
+        <h2>Términos y Condiciones</h2>
+        <ol class="terminos">
+            <li>Esta cotización es válida hasta {{ $cotizacion['fecha_validez'] }} salvo que se indique lo contrario.</li>
+            <li>Toda cotización está sujeta a la disponibilidad de espacio y equipo por parte de las líneas aéreas al momento de la confirmación de la carga.</li>
+            <li>Los recargos de combustible (Fuel Surcharge - FSC) y seguridad (Security Surcharge - SSC) se cobran según la tarifa vigente al momento del vuelo (fecha de emisión de la guía aérea o AWB).</li>
+            <li>Las mercancías peligrosas, carga sobredimensionada y mercancías con temperatura controlada pueden conllevar cargos adicionales.</li>
+            <li>No incluye seguro de mercadería.</li>
+            <li>Términos de pago: día del arribo de la carga, en Dólares Americanos.</li>
+            <li>Todas las tarifas excluyen aranceles, impuestos y tasas gubernamentales en destino, a menos que se indique lo contrario.</li>
+            <li>Open Access Bolivia S.R.L. no se hace responsable por demoras causadas por mal tiempo, cancelaciones de vuelos, huelgas, congestión aeroportuaria o retrasos en la liberación aduanal.</li>
+        </ol>
+    @elseif ($cotizacion['modo_transporte'] === 'Terrestre')
+        <h2>Términos y Condiciones</h2>
+        <ol class="terminos">
+            <li>Esta cotización es válida hasta {{ $cotizacion['fecha_validez'] }} salvo que se indique lo contrario.</li>
+            <li>Las tarifas están sujetas a cambios en función de los ajustes en las tarifas de mercado y las fluctuaciones monetarias.</li>
+            <li>Se aplicarán cargos por demora y detención una vez transcurrido el período gratuito especificado por la línea naviera.</li>
+            <li>La presente cotización solo es válida para un peso hasta 20 toneladas (no incluye la tara del contenedor).</li>
+            <li>Las mercancías peligrosas, carga sobredimensionada y mercancías con temperatura controlada deben ser nuevamente cotizadas.</li>
+            <li>No incluye seguro de mercadería.</li>
+            <li>Términos de pago: al arribo de la carga.</li>
+            <li>Todas las tarifas excluyen aranceles, impuestos y tasas gubernamentales en destino, a menos que se indique lo contrario.</li>
+            <li>No incluye liberaciones de los contenedores que las líneas navieras soliciten para el transporte a Bolivia.</li>
+            <li>El tiempo libre en Aduana de Destino son 48 horas; pasado ese tiempo, la empresa de transporte cobrará por día de estadía.</li>
         </ol>
     @endif
 

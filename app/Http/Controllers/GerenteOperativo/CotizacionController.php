@@ -95,7 +95,7 @@ class CotizacionController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists('proveedores', 'id_proveedor')
-                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($request->input('modo_transporte')))),
+                    ->where(fn ($query) => $query->whereIn('tipo', TiposTransportePorModo::para($request->input('modo_transporte'), $request->input('tipo_servicio')))),
             ],
             'tipo_servicio' => [
                 Rule::requiredIf(fn () => in_array($request->input('modo_transporte'), ['Maritimo', 'Terrestre'], true)),
@@ -128,6 +128,7 @@ class CotizacionController extends Controller
             }],
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
             'detalle.*.comision_openaccess' => ['nullable', 'numeric', 'min:0'],
+            'detalle.*.observaciones' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $cliente = Cliente::findOrFail($data['id_cliente']);
@@ -189,6 +190,7 @@ class CotizacionController extends Controller
                     'moneda' => $linea['moneda'] ?? 'USD',
                     'costo_total' => $costoUnitario * $baseCalculo,
                     'comision_openaccess' => $linea['comision_openaccess'] ?? 0,
+                    'observaciones' => $linea['observaciones'] ?? null,
                 ]);
             }
 
@@ -202,8 +204,7 @@ class CotizacionController extends Controller
 
     public function index(): Response
     {
-        $cotizaciones = Cotizacion::with(['cliente', 'comercial', 'pol', 'pod'])
-            ->withSum('detalle as total', 'costo_total')
+        $cotizaciones = Cotizacion::with(['cliente', 'comercial', 'pol', 'pod', 'detalle:id_detalle,id_cotizacion,moneda,costo_total'])
             ->orderByDesc('fecha_emision')
             ->get()
             ->map(fn (Cotizacion $cotizacion) => [
@@ -216,7 +217,12 @@ class CotizacionController extends Controller
                 'pod' => $cotizacion->pod?->nombre,
                 'fecha_emision' => $cotizacion->fecha_emision->toDateString(),
                 'fecha_validez' => $cotizacion->fecha_validez->toDateString(),
-                'total' => $cotizacion->total,
+                // Nunca se suma entre monedas distintas — un total por cada
+                // moneda que efectivamente aparece en el detalle.
+                'totales' => $cotizacion->detalle
+                    ->groupBy(fn ($linea) => $linea->moneda ?: 'USD')
+                    ->map(fn ($lineas) => $lineas->sum('costo_total'))
+                    ->all(),
                 'estado' => $cotizacion->estado,
             ]);
 
@@ -274,8 +280,8 @@ class CotizacionController extends Controller
                 'moneda' => $linea->moneda,
                 'costo_total' => $linea->costo_total,
                 'comision_openaccess' => $linea->comision_openaccess,
+                'observaciones' => $linea->observaciones,
             ]),
-            'total' => $cotizacion->detalle->sum('costo_total'),
         ]);
     }
 
@@ -341,7 +347,7 @@ class CotizacionController extends Controller
     {
         $cotizacion->load(['cliente', 'comercial', 'pol', 'pod', 'contenedores', 'detalle']);
 
-        ['detalle' => $detalleParaPdf, 'total' => $totalParaPdf] = $request->query('vista') === 'resumen'
+        ['detalle' => $detalleParaPdf, 'totales' => $totalesParaPdf, 'observaciones' => $observacionesParaPdf] = $request->query('vista') === 'resumen'
             ? CotizacionPdfDetalle::resumenParaCliente($cotizacion)
             : CotizacionPdfDetalle::paraCliente($cotizacion);
 
@@ -369,7 +375,8 @@ class CotizacionController extends Controller
                 'cantidad' => $item->cantidad,
             ])->all(),
             'detalle' => $detalleParaPdf,
-            'total' => $totalParaPdf,
+            'totales' => $totalesParaPdf,
+            'observaciones' => $observacionesParaPdf,
             'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
         ]);
 

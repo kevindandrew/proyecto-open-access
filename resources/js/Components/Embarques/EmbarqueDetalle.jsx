@@ -44,7 +44,14 @@ function Contenedores({ contenedores, onEliminar, rutaActualizar }) {
     );
 }
 
-function Houses({ houses, onEliminar, rutaActualizar, rutaPdf, contenedoresDisponibles = [] }) {
+function Houses({
+    houses,
+    onEliminar,
+    rutaActualizar,
+    rutaPdf,
+    contenedoresDisponibles = [],
+    clientes = [],
+}) {
     if (houses.length === 0) {
         return (
             <p className="text-sm text-[#A9ABAE]">
@@ -53,7 +60,7 @@ function Houses({ houses, onEliminar, rutaActualizar, rutaPdf, contenedoresDispo
         );
     }
 
-    const colSpan = rutaActualizar || rutaPdf || onEliminar ? 5 : 4;
+    const colSpan = rutaActualizar || rutaPdf || onEliminar ? 6 : 5;
 
     return (
         <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -64,6 +71,9 @@ function Houses({ houses, onEliminar, rutaActualizar, rutaPdf, contenedoresDispo
                     </th>
                     <th className="px-3 py-2 text-left font-semibold text-[#042753]">
                         Contenedores
+                    </th>
+                    <th className="px-3 py-2 text-left font-semibold text-[#042753]">
+                        Cliente / Consignee
                     </th>
                     <th className="px-3 py-2 text-left font-semibold text-[#042753]">
                         Condición de Pago
@@ -80,6 +90,7 @@ function Houses({ houses, onEliminar, rutaActualizar, rutaPdf, contenedoresDispo
                         key={house.id_hbl}
                         house={house}
                         contenedoresDisponibles={contenedoresDisponibles}
+                        clientes={clientes}
                         rutaActualizar={rutaActualizar}
                         rutaPdf={rutaPdf}
                         onEliminar={onEliminar}
@@ -233,6 +244,7 @@ export default function EmbarqueDetalle({
     onEliminarCosto = null,
     rutaActualizarCosto = null,
     proveedores = [],
+    clientesHouse = [],
     onEliminarContenedor = null,
     rutaActualizarContenedor = null,
 }) {
@@ -407,6 +419,7 @@ export default function EmbarqueDetalle({
                     rutaActualizar={rutaActualizarHouse}
                     rutaPdf={rutaPdfHouse}
                     contenedoresDisponibles={contenedores}
+                    clientes={clientesHouse}
                 />
                 {accionesHouses}
             </div>

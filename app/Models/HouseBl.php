@@ -16,21 +16,29 @@ class HouseBl extends Model
 
     protected $fillable = [
         'id_embarque',
+        'id_cliente',
         'numero_hbl',
         'condicion_pago',
         'fecha_emision',
+        'congelado_en',
     ];
 
     protected function casts(): array
     {
         return [
             'fecha_emision' => 'date',
+            'congelado_en' => 'datetime',
         ];
     }
 
     public function embarque(): BelongsTo
     {
         return $this->belongsTo(Embarque::class, 'id_embarque', 'id_embarque');
+    }
+
+    public function cliente(): BelongsTo
+    {
+        return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
     }
 
     public function contenedores(): BelongsToMany

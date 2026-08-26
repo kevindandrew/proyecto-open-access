@@ -20,6 +20,10 @@
         table.costos td.derecha, table.costos th.derecha { text-align: right; }
         .total-general td { border-top: 2px solid #042753; font-weight: bold; color: #042753; font-size: 12px; }
         .footer { margin-top: 24px; font-size: 9px; color: #9ca3af; text-align: center; }
+        .sello-tipo {
+            display: inline-block; margin-top: 6px; padding: 3px 10px; border: 2px solid #042753;
+            border-radius: 4px; font-size: 12px; font-weight: bold; color: #042753; letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
@@ -28,6 +32,9 @@
             <td>
                 <h1>OPEN ACCESS BOLIVIA S.R.L.</h1>
                 <p class="marca">House Bill of Lading</p>
+                @if (! empty($tipoEtiqueta))
+                    <p><span class="sello-tipo">{{ $tipoEtiqueta }}</span></p>
+                @endif
             </td>
             <td style="text-align: right;">
                 <p><strong>House BL N°:</strong> {{ $house['numero_hbl'] }}</p>

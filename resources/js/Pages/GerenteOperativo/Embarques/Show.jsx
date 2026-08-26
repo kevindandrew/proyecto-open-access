@@ -20,6 +20,7 @@ export default function Show({
     totalCompra,
     totalVenta,
     proveedores,
+    clientes,
     operativosDisponibles,
 }) {
     const eliminarHouse = (house) => {
@@ -72,11 +73,13 @@ export default function Show({
                 rutaPdfHouse="gerente-operativo.houses.pdf"
                 rutaActualizarCosto="gerente-operativo.costos.update"
                 proveedores={proveedores}
+                clientesHouse={clientes}
                 accionesHouses={
                     <AgregarHouse
                         embarque={embarque}
                         rutaStore="gerente-operativo.embarques.houses.store"
                         contenedoresDisponibles={contenedores}
+                        clientes={clientes}
                     />
                 }
                 accionesCostos={

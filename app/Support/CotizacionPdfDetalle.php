@@ -20,33 +20,69 @@ class CotizacionPdfDetalle
 
         return [
             'detalle' => $detalle,
-            'total' => array_sum(array_column($detalle, 'costo_total')),
+            'totales' => self::totalesPorMoneda($detalle),
+            // El detallado ya muestra la observación de cada línea en su
+            // propia fila — no hace falta repetirla en un bloque aparte.
+            'observaciones' => [],
         ];
     }
 
     /**
-     * Versión resumida: colapsa todos los costos (incluidas las comisiones de
-     * cada línea) en una sola línea "Flete", para clientes que no quieren ver
-     * el detalle abierto.
+     * Versión resumida: colapsa los costos en una sola línea "Flete" por cada
+     * moneda presente (nunca se mezclan monedas distintas en una sola línea),
+     * para clientes que no quieren ver el detalle abierto.
      */
     public static function resumenParaCliente(Cotizacion $cotizacion): array
     {
         $detalle = self::mapearDetalle($cotizacion);
-        $total = array_sum(array_column($detalle, 'costo_total'))
-            + array_sum(array_column($detalle, 'comision_openaccess'));
-        $moneda = $detalle[0]['moneda'] ?? 'USD';
+
+        $totalesPorMoneda = self::totalesPorMoneda($detalle);
+
+        // La comisión siempre es en USD, así que se suma únicamente al total
+        // en USD, nunca a otra moneda (misma regla que en el detallado).
+        $totalComision = array_sum(array_column($detalle, 'comision_openaccess'));
+        if ($totalComision > 0) {
+            $totalesPorMoneda['USD'] = ($totalesPorMoneda['USD'] ?? 0) + $totalComision;
+        }
+
+        $detalleResumen = array_map(fn ($moneda, $total) => [
+            'descripcion' => 'Flete',
+            'tipo_tarifa_unidad' => 'Flat',
+            'costo_unitario' => $total,
+            'base_calculo' => 1,
+            'moneda' => $moneda,
+            'costo_total' => $total,
+            'observaciones' => null,
+        ], array_keys($totalesPorMoneda), $totalesPorMoneda);
 
         return [
-            'detalle' => [[
-                'descripcion' => 'Flete',
-                'tipo_tarifa_unidad' => 'Flat',
-                'costo_unitario' => $total,
-                'base_calculo' => 1,
-                'moneda' => $moneda,
-                'costo_total' => $total,
-            ]],
-            'total' => $total,
+            'detalle' => $detalleResumen,
+            'totales' => $totalesPorMoneda,
+            // El resumen colapsa las líneas, así que las observaciones se
+            // muestran aparte en lugar de perderse junto con el detalle.
+            'observaciones' => self::observacionesDistintas($detalle),
         ];
+    }
+
+    private static function observacionesDistintas(array $detalle): array
+    {
+        return array_values(array_unique(array_filter(array_column($detalle, 'observaciones'))));
+    }
+
+    /**
+     * Nunca se suma entre monedas distintas — un total por cada moneda que
+     * efectivamente aparece en el detalle.
+     */
+    private static function totalesPorMoneda(array $detalle): array
+    {
+        $totales = [];
+
+        foreach ($detalle as $linea) {
+            $moneda = $linea['moneda'] ?: 'USD';
+            $totales[$moneda] = ($totales[$moneda] ?? 0) + (float) $linea['costo_total'];
+        }
+
+        return $totales;
     }
 
     private static function mapearDetalle(Cotizacion $cotizacion): array
@@ -59,6 +95,7 @@ class CotizacionPdfDetalle
             'moneda' => $linea->moneda,
             'costo_total' => $linea->costo_total,
             'comision_openaccess' => $linea->comision_openaccess,
+            'observaciones' => $linea->observaciones,
         ])->all();
     }
 

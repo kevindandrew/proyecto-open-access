@@ -14,25 +14,48 @@ class HouseBlPdfDatos
             'embarque.pod',
             'embarque.navieraAerolinea',
             'contenedores',
+            'cliente',
         ]);
 
         $embarque = $house->embarque;
+
+        // Cada house puede ir consignado a un cliente distinto del que figura
+        // en el embarque (ej. un solo master con houses para varios
+        // compradores finales) — si el house tiene su propio cliente
+        // seleccionado, ese es el consignatario que se muestra; si no, se usa
+        // el del embarque como hasta ahora.
+        $consignatario = $house->cliente
+            ? [
+                'nombre' => $house->cliente->razon_social,
+                'nit' => $house->cliente->nit,
+                'direccion' => $house->cliente->direccion,
+                'celular' => $house->cliente->celular_whatsapp ?: $house->cliente->telefono1,
+                'correo' => $house->cliente->email,
+            ]
+            : [
+                'nombre' => $embarque->consignatario_nombre,
+                'nit' => $embarque->consignatario_nit,
+                'direccion' => $embarque->consignatario_direccion,
+                'celular' => $embarque->consignatario_celular,
+                'correo' => $embarque->consignatario_correo,
+            ];
 
         return [
             'house' => [
                 'numero_hbl' => $house->numero_hbl,
                 'condicion_pago' => $house->condicion_pago,
                 'fecha_emision' => $house->fecha_emision?->toDateString(),
+                'congelado_en' => $house->congelado_en?->toDateString(),
             ],
             'embarque' => [
                 'numero_file' => $embarque->numero_file,
                 'mbl' => $embarque->mbl,
                 'cliente' => $embarque->cliente?->razon_social,
-                'consignatario_nombre' => $embarque->consignatario_nombre,
-                'consignatario_nit' => $embarque->consignatario_nit,
-                'consignatario_direccion' => $embarque->consignatario_direccion,
-                'consignatario_celular' => $embarque->consignatario_celular,
-                'consignatario_correo' => $embarque->consignatario_correo,
+                'consignatario_nombre' => $consignatario['nombre'],
+                'consignatario_nit' => $consignatario['nit'],
+                'consignatario_direccion' => $consignatario['direccion'],
+                'consignatario_celular' => $consignatario['celular'],
+                'consignatario_correo' => $consignatario['correo'],
                 'modo_transporte' => $embarque->modo_transporte,
                 'tipo_servicio' => $embarque->tipo_servicio,
                 'pol' => $embarque->pol?->nombre,

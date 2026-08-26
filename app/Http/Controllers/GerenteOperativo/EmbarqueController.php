@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cliente;
 use App\Models\Embarque;
 use App\Models\EmbarqueContenedor;
 use App\Models\EmbarqueCosto;
@@ -63,7 +64,7 @@ class EmbarqueController extends Controller
         $embarque->load([
             'cotizacion', 'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
-            'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores'),
+            'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores', 'cliente'),
             'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
@@ -141,8 +142,11 @@ class EmbarqueController extends Controller
             'houses' => $embarque->houseBls->map(fn (HouseBl $house) => [
                 'id_hbl' => $house->id_hbl,
                 'numero_hbl' => $house->numero_hbl,
+                'id_cliente' => $house->id_cliente,
+                'cliente' => $house->cliente?->razon_social,
                 'condicion_pago' => $house->condicion_pago,
                 'fecha_emision' => $house->fecha_emision?->toDateString(),
+                'congelado_en' => $house->congelado_en?->toDateString(),
                 'contenedores' => $house->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
                     'id_item' => $contenedor->id_item,
                     'numero_contenedor' => $contenedor->numero_contenedor,
@@ -161,6 +165,7 @@ class EmbarqueController extends Controller
             'totalCompra' => $embarque->costos->sum('costo_compra'),
             'totalVenta' => $embarque->costos->sum('costo_venta'),
             'proveedores' => Proveedor::where('activo', true)->orderBy('nombre')->get(['id_proveedor', 'nombre']),
+            'clientes' => Cliente::orderBy('razon_social')->get(['id_cliente', 'razon_social']),
             'operativosDisponibles' => $this->operativosPara($embarque->modo_transporte),
         ]);
     }

@@ -22,6 +22,7 @@ class TarifaAgenteLookup
                 'id_tarifa_agente' => $tarifa->id_tarifa_agente,
                 'id_proveedor' => $tarifa->id_proveedor,
                 'agente' => $tarifa->proveedor?->nombre,
+                'observaciones' => $tarifa->observaciones,
                 'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
                 'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
                 'costos' => $tarifa->costos->map(fn ($costo) => [

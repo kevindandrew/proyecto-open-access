@@ -36,6 +36,65 @@ function fechaValidezPorDefecto() {
     return fecha.toISOString().slice(0, 10);
 }
 
+// Fórmula IATA de peso volumétrico aéreo: (Largo x Ancho x Alto en cm) / 6000.
+// El peso tasable (chargeable weight) es el mayor entre el peso real (báscula)
+// y el peso volumétrico — nunca se cobra por el menor de los dos.
+function calcularPesoTasable(bultos) {
+    let pesoRealTotal = 0;
+    let volumenTotalCm3 = 0;
+
+    bultos.forEach((bulto) => {
+        const cantidad = parseFloat(bulto.cantidad) || 0;
+        const largo = parseFloat(bulto.largo) || 0;
+        const ancho = parseFloat(bulto.ancho) || 0;
+        const alto = parseFloat(bulto.alto) || 0;
+
+        volumenTotalCm3 += largo * ancho * alto * cantidad;
+        pesoRealTotal += parseFloat(bulto.peso_real_kg) || 0;
+    });
+
+    const pesoVolumetrico = volumenTotalCm3 / 6000;
+    const volumenTotalM3 = volumenTotalCm3 / 1_000_000;
+    const pesoTasable = Math.max(pesoRealTotal, pesoVolumetrico);
+
+    return {
+        pesoRealTotal: Math.round(pesoRealTotal * 100) / 100,
+        volumenTotalM3: Math.round(volumenTotalM3 * 1000) / 1000,
+        pesoVolumetrico: Math.round(pesoVolumetrico * 100) / 100,
+        pesoTasable: Math.round(pesoTasable * 100) / 100,
+    };
+}
+
+// Regla marítima LCL (Ton/CBM o "W/M" — Weight or Measurement): se compara el
+// volumen total (Largo x Ancho x Alto en metros) contra el peso total pasado
+// a toneladas (kg / 1000) y se cobra el que resulte mayor, con un mínimo de
+// cobro de 1 Ton/CBM cuando hay carga real cargada.
+function calcularCargaVolumetricaMaritima(bultos) {
+    let pesoRealTotal = 0;
+    let volumenTotalM3 = 0;
+
+    bultos.forEach((bulto) => {
+        const cantidad = parseFloat(bulto.cantidad) || 0;
+        const largo = parseFloat(bulto.largo) || 0;
+        const ancho = parseFloat(bulto.ancho) || 0;
+        const alto = parseFloat(bulto.alto) || 0;
+
+        volumenTotalM3 += largo * ancho * alto * cantidad;
+        pesoRealTotal += parseFloat(bulto.peso_real_kg) || 0;
+    });
+
+    const toneladas = pesoRealTotal / 1000;
+    const mayor = Math.max(volumenTotalM3, toneladas);
+    const cargaVolumetrica = mayor > 0 ? Math.max(mayor, 1) : 0;
+
+    return {
+        pesoRealTotal: Math.round(pesoRealTotal * 100) / 100,
+        volumenTotalM3: Math.round(volumenTotalM3 * 1000) / 1000,
+        toneladas: Math.round(toneladas * 1000) / 1000,
+        cargaVolumetrica: Math.round(cargaVolumetrica * 1000) / 1000,
+    };
+}
+
 const inputClass =
     'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]';
 const labelClass = 'text-sm font-medium text-[#042753]';
@@ -421,7 +480,52 @@ function PasoCarga({
     onReintentarTarifas,
 }) {
     const esFCL = data.tipo_servicio === 'FCL';
+    const esAereo = data.modo_transporte === 'Aereo';
+    const esMaritimoLCL = data.modo_transporte === 'Maritimo' && data.tipo_servicio === 'LCL';
+    const usaBultos = esAereo || esMaritimoLCL;
     const hayTiposDisponibles = tiposContenedorDisponibles.length > 0;
+
+    const recalcularBultos = (bultos) => {
+        if (esAereo) {
+            const { volumenTotalM3, pesoTasable } = calcularPesoTasable(bultos);
+            return { peso_kg: pesoTasable || '', volumen_cbm: volumenTotalM3 || '' };
+        }
+
+        if (esMaritimoLCL) {
+            const { pesoRealTotal, cargaVolumetrica } = calcularCargaVolumetricaMaritima(bultos);
+            return { peso_kg: pesoRealTotal || '', volumen_cbm: cargaVolumetrica || '' };
+        }
+
+        return {};
+    };
+
+    const agregarBulto = () => {
+        setData({
+            ...data,
+            bultos: [
+                ...(data.bultos ?? []),
+                {
+                    id: crypto.randomUUID(),
+                    cantidad: 1,
+                    largo: '',
+                    ancho: '',
+                    alto: '',
+                    peso_real_kg: '',
+                },
+            ],
+        });
+    };
+
+    const actualizarBulto = (index, campo, valor) => {
+        const bultos = [...(data.bultos ?? [])];
+        bultos[index] = { ...bultos[index], [campo]: valor };
+        setData({ ...data, bultos, ...recalcularBultos(bultos) });
+    };
+
+    const quitarBulto = (index) => {
+        const bultos = (data.bultos ?? []).filter((_, i) => i !== index);
+        setData({ ...data, bultos, ...recalcularBultos(bultos) });
+    };
 
     const agregarContenedor = () => {
         setData({
@@ -583,44 +687,271 @@ function PasoCarga({
                     )}
                 </div>
             ) : (
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className={labelClass}>Peso (kg)</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            onKeyDown={bloquearNotacionCientifica}
-                            className={inputClass}
-                            value={data.peso_kg}
-                            onChange={(e) => {
-                                setData({
-                                    ...data,
-                                    peso_kg: e.target.value,
-                                });
-                                clearErrors('peso_kg');
-                            }}
-                        />
-                        <CampoError mensaje={errors.peso_kg} />
+                <>
+                    {usaBultos && (
+                        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                                <label className={labelClass}>
+                                    {esAereo
+                                        ? 'Bultos (para calcular el peso tasable)'
+                                        : 'Bultos (para calcular la carga volumétrica)'}
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={agregarBulto}
+                                    className="text-sm font-medium text-[#71BFA6] hover:underline"
+                                >
+                                    + Agregar bulto
+                                </button>
+                            </div>
+                            {esAereo ? (
+                                <p className="mb-2 text-xs text-[#A9ABAE]">
+                                    Ingresá Largo x Ancho x Alto (cm) y el peso real en báscula de
+                                    cada bulto. El sistema calcula el peso volumétrico (fórmula
+                                    IATA: L x A x A / 6000) y usa el mayor entre el peso real y el
+                                    volumétrico como peso tasable (chargeable weight) — esa es la
+                                    base de cálculo que se usa para la tarifa aérea.
+                                </p>
+                            ) : (
+                                <p className="mb-2 text-xs text-[#A9ABAE]">
+                                    Ingresá Largo x Ancho x Alto (metros) y el peso real de cada
+                                    bulto. El sistema suma el volumen (CBM) y compara contra el
+                                    peso total pasado a toneladas (kg / 1000) — se usa el mayor de
+                                    los dos como carga volumétrica (regla Ton/CBM), con un mínimo
+                                    de cobro de 1.
+                                </p>
+                            )}
+
+                            {(data.bultos ?? []).length > 0 && (
+                                <div className="space-y-2">
+                                    {data.bultos.map((bulto, index) => (
+                                        <div
+                                            key={bulto.id ?? index}
+                                            className="flex flex-wrap items-end gap-2"
+                                        >
+                                            <div>
+                                                <label className="text-xs text-[#A9ABAE]">
+                                                    Cantidad
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    step="1"
+                                                    onKeyDown={bloquearNotacionCientifica}
+                                                    className={`${inputClass} w-20`}
+                                                    value={bulto.cantidad}
+                                                    onChange={(e) =>
+                                                        actualizarBulto(index, 'cantidad', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-[#A9ABAE]">
+                                                    Largo ({esAereo ? 'cm' : 'm'})
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    onKeyDown={bloquearNotacionCientifica}
+                                                    className={`${inputClass} w-24`}
+                                                    value={bulto.largo}
+                                                    onChange={(e) =>
+                                                        actualizarBulto(index, 'largo', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-[#A9ABAE]">
+                                                    Ancho ({esAereo ? 'cm' : 'm'})
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    onKeyDown={bloquearNotacionCientifica}
+                                                    className={`${inputClass} w-24`}
+                                                    value={bulto.ancho}
+                                                    onChange={(e) =>
+                                                        actualizarBulto(index, 'ancho', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-[#A9ABAE]">
+                                                    Alto ({esAereo ? 'cm' : 'm'})
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    onKeyDown={bloquearNotacionCientifica}
+                                                    className={`${inputClass} w-24`}
+                                                    value={bulto.alto}
+                                                    onChange={(e) =>
+                                                        actualizarBulto(index, 'alto', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-[#A9ABAE]">
+                                                    Peso Real Total (kg)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    onKeyDown={bloquearNotacionCientifica}
+                                                    className={`${inputClass} w-28`}
+                                                    value={bulto.peso_real_kg}
+                                                    onChange={(e) =>
+                                                        actualizarBulto(index, 'peso_real_kg', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => quitarBulto(index)}
+                                                className="text-sm text-red-600 hover:underline"
+                                            >
+                                                Quitar
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {(data.bultos ?? []).length > 0 &&
+                                esAereo &&
+                                (() => {
+                                    const resumen = calcularPesoTasable(data.bultos);
+                                    return (
+                                        <div className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-white p-3 text-sm sm:grid-cols-4">
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Peso Real Total
+                                                </p>
+                                                <p className="font-semibold text-[#042753]">
+                                                    {resumen.pesoRealTotal} kg
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Volumen Total
+                                                </p>
+                                                <p className="font-semibold text-[#042753]">
+                                                    {resumen.volumenTotalM3} cbm
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Peso Volumétrico
+                                                </p>
+                                                <p className="font-semibold text-[#042753]">
+                                                    {resumen.pesoVolumetrico} kg
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Peso Tasable
+                                                </p>
+                                                <p className="font-bold text-[#71BFA6]">
+                                                    {resumen.pesoTasable} kg
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                            {(data.bultos ?? []).length > 0 &&
+                                esMaritimoLCL &&
+                                (() => {
+                                    const resumen = calcularCargaVolumetricaMaritima(data.bultos);
+                                    return (
+                                        <div className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-white p-3 text-sm sm:grid-cols-4">
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Peso Real Total
+                                                </p>
+                                                <p className="font-semibold text-[#042753]">
+                                                    {resumen.pesoRealTotal} kg
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Volumen Total
+                                                </p>
+                                                <p className="font-semibold text-[#042753]">
+                                                    {resumen.volumenTotalM3} cbm
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Peso en Toneladas
+                                                </p>
+                                                <p className="font-semibold text-[#042753]">
+                                                    {resumen.toneladas} ton
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-[#A9ABAE]">
+                                                    Carga Volumétrica a Usar
+                                                </p>
+                                                <p className="font-bold text-[#71BFA6]">
+                                                    {resumen.cargaVolumetrica} cbm
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelClass}>Peso (kg)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                onKeyDown={bloquearNotacionCientifica}
+                                className={inputClass}
+                                value={data.peso_kg}
+                                onChange={(e) => {
+                                    setData({
+                                        ...data,
+                                        peso_kg: e.target.value,
+                                    });
+                                    clearErrors('peso_kg');
+                                }}
+                            />
+                            {usaBultos && (data.bultos ?? []).length > 0 && (
+                                <p className="mt-1 text-xs text-[#A9ABAE]">
+                                    Calculado a partir de los bultos — se puede ajustar a mano.
+                                </p>
+                            )}
+                            <CampoError mensaje={errors.peso_kg} />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Volumen (cbm)</label>
+                            <input
+                                type="number"
+                                step="0.001"
+                                onKeyDown={bloquearNotacionCientifica}
+                                className={inputClass}
+                                value={data.volumen_cbm}
+                                onChange={(e) => {
+                                    setData({
+                                        ...data,
+                                        volumen_cbm: e.target.value,
+                                    });
+                                    clearErrors('volumen_cbm');
+                                }}
+                            />
+                            {esMaritimoLCL && (data.bultos ?? []).length > 0 && (
+                                <p className="mt-1 text-xs text-[#A9ABAE]">
+                                    Calculado a partir de los bultos — se puede ajustar a mano.
+                                </p>
+                            )}
+                            <CampoError mensaje={errors.volumen_cbm} />
+                        </div>
                     </div>
-                    <div>
-                        <label className={labelClass}>Volumen (cbm)</label>
-                        <input
-                            type="number"
-                            step="0.001"
-                            onKeyDown={bloquearNotacionCientifica}
-                            className={inputClass}
-                            value={data.volumen_cbm}
-                            onChange={(e) => {
-                                setData({
-                                    ...data,
-                                    volumen_cbm: e.target.value,
-                                });
-                                clearErrors('volumen_cbm');
-                            }}
-                        />
-                        <CampoError mensaje={errors.volumen_cbm} />
-                    </div>
-                </div>
+                </>
             )}
 
             <label className="flex items-center gap-2 text-sm text-[#042753]">
@@ -738,6 +1069,11 @@ function TarifasDisponibles({
                                 {tarifa.cargos_adicionales.length > 0 &&
                                     ` · +${tarifa.cargos_adicionales.length} cargo(s) adicional(es)`}
                             </p>
+                            {tarifa.observaciones && (
+                                <p className="mt-1 text-xs italic text-amber-700">
+                                    ⚠ {tarifa.observaciones}
+                                </p>
+                            )}
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-2">
                             {tarifa.estado === 'Vencida' && (
@@ -883,6 +1219,7 @@ function PasoCostos({
             moneda: costo.moneda,
             bloqueada: true,
             comision_openaccess: '',
+            observaciones: tarifaAgente.observaciones || '',
         }));
 
         if (lineasNuevas.length === 0) {
@@ -926,6 +1263,7 @@ function PasoCostos({
                         bloqueada: true,
                         vinculo: { tipo: 'contenedor', contenedorId: contenedor.id },
                         comision_openaccess: '',
+                        observaciones: tarifa.observaciones || '',
                     });
                 }
             });
@@ -939,6 +1277,7 @@ function PasoCostos({
                     moneda: tarifa.moneda_tramite,
                     bloqueada: true,
                     comision_openaccess: '',
+                    observaciones: tarifa.observaciones || '',
                 });
             }
         } else if (data.tipo_servicio === 'LCL') {
@@ -957,6 +1296,7 @@ function PasoCostos({
                         bloqueada: true,
                         vinculo: { tipo: 'volumen_cbm' },
                         comision_openaccess: '',
+                        observaciones: tarifa.observaciones || '',
                     });
                 });
         } else if (tarifa.costo_base) {
@@ -969,6 +1309,7 @@ function PasoCostos({
                 bloqueada: true,
                 vinculo: { tipo: 'peso_kg' },
                 comision_openaccess: '',
+                observaciones: tarifa.observaciones || '',
             });
         }
 
@@ -981,6 +1322,7 @@ function PasoCostos({
                 moneda: cargo.moneda,
                 bloqueada: true,
                 comision_openaccess: '',
+                observaciones: tarifa.observaciones || '',
             });
         });
 
@@ -1018,6 +1360,7 @@ function PasoCostos({
                     base_calculo: 1,
                     moneda: 'USD',
                     comision_openaccess: '',
+                    observaciones: '',
                 },
             ],
         });
@@ -1075,15 +1418,23 @@ function PasoCostos({
         return (unitario * base).toFixed(2);
     };
 
-    const totalGeneral = data.detalle
-        .reduce((acc, linea) => acc + parseFloat(costoTotal(linea)), 0)
-        .toFixed(2);
+    // Nunca se suma entre monedas distintas — un total por cada moneda que
+    // efectivamente aparece en el detalle.
+    const totalesPorMoneda = data.detalle.reduce((acc, linea) => {
+        const moneda = linea.moneda || 'USD';
+        acc[moneda] = (acc[moneda] || 0) + parseFloat(costoTotal(linea));
+        return acc;
+    }, {});
+    const monedasPresentes = Object.keys(totalesPorMoneda);
 
     const totalComision = data.detalle
         .reduce((acc, linea) => acc + (parseFloat(linea.comision_openaccess) || 0), 0)
         .toFixed(2);
 
-    const totalConComision = (parseFloat(totalGeneral) + parseFloat(totalComision)).toFixed(2);
+    // La comisión siempre es en USD, así que solo se suma al total en USD.
+    const totalConComisionUSD = (
+        (totalesPorMoneda.USD || 0) + parseFloat(totalComision)
+    ).toFixed(2);
 
     return (
         <div className="space-y-4">
@@ -1156,6 +1507,11 @@ function PasoCostos({
                                     <p className="text-xs text-[#A9ABAE]">
                                         Vigente hasta {tarifaAgente.fecha_fin_vigencia}
                                     </p>
+                                    {tarifaAgente.observaciones && (
+                                        <p className="mt-1 text-xs italic text-amber-700">
+                                            ⚠ {tarifaAgente.observaciones}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex flex-shrink-0 items-center gap-2">
                                     {tarifaAgente.estado === 'Vencida' && (
@@ -1281,6 +1637,19 @@ function PasoCostos({
                                                 errors[
                                                     `detalle.${index}.descripcion`
                                                 ]
+                                            }
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Observación (opcional, ej. restricciones de la tarifa)"
+                                            className="mt-1 w-full min-w-[160px] rounded-md border-gray-200 text-xs italic text-amber-700 placeholder:text-[#A9ABAE]"
+                                            value={linea.observaciones || ''}
+                                            onChange={(e) =>
+                                                actualizarLinea(
+                                                    index,
+                                                    'observaciones',
+                                                    e.target.value,
+                                                )
                                             }
                                         />
                                     </td>
@@ -1453,19 +1822,24 @@ function PasoCostos({
                             })}
                         </tbody>
                         <tfoot>
-                            <tr className="border-t-2 border-gray-200">
-                                <td
-                                    colSpan={5}
-                                    className="px-3 py-2 text-right font-semibold text-[#042753]"
+                            {monedasPresentes.map((moneda, index) => (
+                                <tr
+                                    key={moneda}
+                                    className={index === 0 ? 'border-t-2 border-gray-200' : ''}
                                 >
-                                    Total General
-                                </td>
-                                <td className="px-3 py-2 text-right text-lg font-bold text-[#71BFA6]">
-                                    {totalGeneral}
-                                </td>
-                                <td></td>
-                                <td></td>
-                            </tr>
+                                    <td
+                                        colSpan={5}
+                                        className="px-3 py-2 text-right font-semibold text-[#042753]"
+                                    >
+                                        Total General ({moneda})
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-lg font-bold text-[#71BFA6]">
+                                        {totalesPorMoneda[moneda].toFixed(2)}
+                                    </td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            ))}
                             {parseFloat(totalComision) > 0 && (
                                 <>
                                     <tr>
@@ -1488,10 +1862,10 @@ function PasoCostos({
                                             colSpan={6}
                                             className="px-3 py-2 text-right font-semibold text-[#042753]"
                                         >
-                                            Total con Comisión
+                                            Total con Comisión (USD)
                                         </td>
                                         <td className="px-3 py-2 text-right text-lg font-bold text-[#042753]">
-                                            {totalConComision}
+                                            {totalConComisionUSD}
                                         </td>
                                         <td></td>
                                     </tr>
@@ -1579,6 +1953,7 @@ export default function NuevaCotizacionWizard({
         id_pol: origen?.id_pol ?? '',
         id_pod: '',
         contenedores: [],
+        bultos: [],
         peso_kg: '',
         volumen_cbm: '',
         mercancia_peligrosa: false,

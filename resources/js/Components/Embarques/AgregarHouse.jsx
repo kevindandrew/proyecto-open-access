@@ -4,8 +4,9 @@ function etiquetaContenedor(contenedor) {
     return contenedor.numero_contenedor || contenedor.tipo_contenedor || `Contenedor #${contenedor.id_item}`;
 }
 
-export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponibles = [] }) {
+export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponibles = [], clientes = [] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
+        id_cliente: '',
         condicion_pago: '',
         fecha_emision: '',
         contenedores: [],
@@ -61,6 +62,27 @@ export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponib
                     />
                     {errors.fecha_emision && (
                         <p className="mt-1 text-xs text-red-600">{errors.fecha_emision}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="text-xs font-medium text-[#042753]">
+                        Cliente / Consignee
+                    </label>
+                    <select
+                        className="mt-1 block min-w-[220px] rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                        value={data.id_cliente}
+                        onChange={(e) => setData('id_cliente', e.target.value)}
+                    >
+                        <option value="">Usar el consignatario del embarque (por defecto)</option>
+                        {clientes.map((cliente) => (
+                            <option key={cliente.id_cliente} value={cliente.id_cliente}>
+                                {cliente.razon_social}
+                            </option>
+                        ))}
+                    </select>
+                    {errors.id_cliente && (
+                        <p className="mt-1 text-xs text-red-600">{errors.id_cliente}</p>
                     )}
                 </div>
 

@@ -28,6 +28,7 @@ class TarifaLookup
                 'costo_base' => $tarifa->costo_base,
                 'costo_tramite' => $tarifa->costo_tramite,
                 'moneda_tramite' => $tarifa->moneda_tramite,
+                'observaciones' => $tarifa->observaciones,
                 'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
                 'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
                 'costos' => $tarifa->costos->map(fn ($costo) => [

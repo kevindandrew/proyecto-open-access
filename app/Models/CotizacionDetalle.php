@@ -23,6 +23,7 @@ class CotizacionDetalle extends Model
         'moneda',
         'costo_total',
         'comision_openaccess',
+        'observaciones',
     ];
 
     public function cotizacion(): BelongsTo

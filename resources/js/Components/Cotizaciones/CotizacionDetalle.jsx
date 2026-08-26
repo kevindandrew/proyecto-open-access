@@ -33,7 +33,6 @@ export default function CotizacionDetalle({
     cotizacion,
     contenedores,
     detalle,
-    total,
     rutaCrearTerrestre,
     rutaVerCotizacion,
 }) {
@@ -41,7 +40,18 @@ export default function CotizacionDetalle({
         (acc, linea) => acc + (parseFloat(linea.comision_openaccess) || 0),
         0,
     );
-    const totalConComision = (parseFloat(total) || 0) + comisionOpenaccess;
+
+    // Nunca se suma entre monedas distintas — un total por cada moneda que
+    // efectivamente aparece en el detalle.
+    const totalesPorMoneda = detalle.reduce((acc, linea) => {
+        const moneda = linea.moneda || 'USD';
+        acc[moneda] = (acc[moneda] || 0) + (parseFloat(linea.costo_total) || 0);
+        return acc;
+    }, {});
+    const monedasPresentes = Object.keys(totalesPorMoneda);
+
+    // La comisión siempre es en USD, así que solo se suma al total en USD.
+    const totalConComisionUSD = (totalesPorMoneda.USD || 0) + comisionOpenaccess;
 
     const puedeCrearTerrestre =
         rutaCrearTerrestre &&
@@ -220,7 +230,14 @@ export default function CotizacionDetalle({
                         <tbody className="divide-y divide-gray-100">
                             {detalle.map((linea, index) => (
                                 <tr key={index}>
-                                    <td className="px-3 py-2">{linea.descripcion}</td>
+                                    <td className="px-3 py-2">
+                                        {linea.descripcion}
+                                        {linea.observaciones && (
+                                            <p className="mt-1 text-xs italic text-amber-700">
+                                                ⚠ {linea.observaciones}
+                                            </p>
+                                        )}
+                                    </td>
                                     <td className="px-3 py-2">{linea.tipo_tarifa_unidad}</td>
                                     <td className="px-3 py-2 text-right">{linea.costo_unitario}</td>
                                     <td className="px-3 py-2 text-right">{formatearBase(linea.base_calculo)}</td>
@@ -237,15 +254,20 @@ export default function CotizacionDetalle({
                             ))}
                         </tbody>
                         <tfoot>
-                            <tr className="border-t-2 border-gray-200">
-                                <td colSpan={5} className="px-3 py-2 text-right font-semibold text-[#042753]">
-                                    Total General
-                                </td>
-                                <td className="px-3 py-2 text-right text-lg font-bold text-[#71BFA6]">
-                                    {total}
-                                </td>
-                                <td></td>
-                            </tr>
+                            {monedasPresentes.map((moneda, index) => (
+                                <tr
+                                    key={moneda}
+                                    className={index === 0 ? 'border-t-2 border-gray-200' : ''}
+                                >
+                                    <td colSpan={5} className="px-3 py-2 text-right font-semibold text-[#042753]">
+                                        Total General ({moneda})
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-lg font-bold text-[#71BFA6]">
+                                        {totalesPorMoneda[moneda].toFixed(2)}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            ))}
                             {comisionOpenaccess > 0 && (
                                 <>
                                     <tr>
@@ -261,10 +283,10 @@ export default function CotizacionDetalle({
                                     </tr>
                                     <tr className="border-t border-gray-200">
                                         <td colSpan={5} className="px-3 py-2 text-right font-semibold text-[#042753]">
-                                            Total con Comisión
+                                            Total con Comisión (USD)
                                         </td>
                                         <td className="px-3 py-2 text-right text-lg font-bold text-[#042753]">
-                                            {totalConComision.toFixed(2)}
+                                            {totalConComisionUSD.toFixed(2)}
                                         </td>
                                         <td></td>
                                     </tr>
