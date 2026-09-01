@@ -125,8 +125,8 @@ export default function AgregarContenedor({ embarque, rutaStore }) {
 
                 <div className="w-full">
                     <label className={labelClass}>Descripción de Mercancía</label>
-                    <input
-                        type="text"
+                    <textarea
+                        rows={2}
                         placeholder="Ej. Adult Face Mask CVC, 60% Cotton, Invoice KZM-GDR44"
                         className={`${inputClass} w-full`}
                         value={data.descripcion_mercancia}

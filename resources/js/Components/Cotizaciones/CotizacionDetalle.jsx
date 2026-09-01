@@ -233,7 +233,7 @@ export default function CotizacionDetalle({
                                     <td className="px-3 py-2">
                                         {linea.descripcion}
                                         {linea.observaciones && (
-                                            <p className="mt-1 text-xs italic text-amber-700">
+                                            <p className="mt-1 whitespace-pre-line text-xs italic text-amber-700">
                                                 ⚠ {linea.observaciones}
                                             </p>
                                         )}

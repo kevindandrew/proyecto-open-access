@@ -133,7 +133,7 @@ export default function CostoFila({ costo, proveedores, rutaActualizar, onElimin
     }
 
     return (
-        <tr>
+        <tr className="transition-colors hover:bg-gray-50">
             <td className="px-3 py-2">{costo.concepto}</td>
             <td className="px-3 py-2">{costo.proveedor ?? '—'}</td>
             <td className="px-3 py-2 text-right">{costo.costo_compra ?? '—'}</td>

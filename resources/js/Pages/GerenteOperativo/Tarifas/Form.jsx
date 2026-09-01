@@ -5,10 +5,13 @@ import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
 
+// Terrestre no tiene entrada acá a propósito: el origen de un tramo terrestre
+// puede ser un puerto (ej. Arica) o un aeropuerto (ej. El Alto) donde terminó
+// el tramo internacional previo, o directamente una frontera — cualquier tipo
+// es válido, así que no se filtra.
 const TIPO_PUERTO_POR_MODO = {
     Maritimo: 'Puerto',
     Aereo: 'Aeropuerto',
-    Terrestre: 'Frontera',
 };
 
 // El Destino se filtra igual que el Origen para Marítimo/Aéreo, porque el tramo
@@ -55,10 +58,12 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
     const permiteFclLcl = esMaritimo || esTerrestre;
     const esFclTerrestre = esTerrestre && data.incluye_fcl;
 
-    // El Origen se filtra por el tipo que corresponde al modo (Puerto/Aeropuerto/
-    // Frontera) porque ahí sí importa cómo sale la carga. El Destino no se filtra:
-    // el punto de entrega final (ej. La Paz) suele ser el mismo sin importar el
-    // modo de transporte, así que restringirlo por tipo lo dejaría inseleccionable.
+    // El Origen se filtra por el tipo que corresponde al modo (Puerto para
+    // Marítimo, Aeropuerto para Aéreo) porque ahí sí importa cómo sale la
+    // carga. Terrestre no filtra: puede salir de un puerto, un aeropuerto o
+    // una frontera. El Destino no se filtra: el punto de entrega final (ej. La
+    // Paz) suele ser el mismo sin importar el modo de transporte, así que
+    // restringirlo por tipo lo dejaría inseleccionable.
     const puertosOrigenFiltrados = useMemo(() => {
         const tipoRequerido = TIPO_PUERTO_POR_MODO[data.modo];
 

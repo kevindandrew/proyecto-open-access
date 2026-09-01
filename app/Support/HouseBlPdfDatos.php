@@ -68,17 +68,22 @@ class HouseBlPdfDatos
                 'eta' => $embarque->eta?->toDateString(),
                 'pago_master' => $embarque->pago_master,
             ],
+            // Si el contenedor lo comparten varios houses, cada uno declara
+            // solo su porción (guardada en el pivot) — nunca el peso/volumen/
+            // descripción del contenedor completo. Si un house todavía no
+            // tiene su porción definida, se usa el dato del contenedor
+            // completo como valor por defecto.
             'contenedores' => $house->contenedores->map(fn ($contenedor) => [
                 'tipo_contenedor' => $contenedor->tipo_contenedor,
                 'cantidad' => $contenedor->cantidad,
                 'numero_contenedor' => $contenedor->numero_contenedor,
                 'numero_sello' => $contenedor->numero_sello,
-                'peso_kg' => $contenedor->peso_kg,
-                'volumen_cbm' => $contenedor->volumen_cbm,
-                'descripcion_mercancia' => $contenedor->descripcion_mercancia,
+                'peso_kg' => $contenedor->pivot->peso_kg ?? $contenedor->peso_kg,
+                'volumen_cbm' => $contenedor->pivot->volumen_cbm ?? $contenedor->volumen_cbm,
+                'descripcion_mercancia' => $contenedor->pivot->descripcion_mercancia ?: $contenedor->descripcion_mercancia,
             ])->all(),
-            'totalPeso' => $house->contenedores->sum('peso_kg'),
-            'totalVolumen' => $house->contenedores->sum('volumen_cbm'),
+            'totalPeso' => $house->contenedores->sum(fn ($c) => $c->pivot->peso_kg ?? $c->peso_kg),
+            'totalVolumen' => $house->contenedores->sum(fn ($c) => $c->pivot->volumen_cbm ?? $c->volumen_cbm),
         ];
     }
 }

@@ -21,9 +21,10 @@ class CotizacionPdfDetalle
         return [
             'detalle' => $detalle,
             'totales' => self::totalesPorMoneda($detalle),
-            // El detallado ya muestra la observación de cada línea en su
-            // propia fila — no hace falta repetirla en un bloque aparte.
-            'observaciones' => [],
+            // Varias líneas pueden compartir la misma tarifa (y por lo tanto
+            // la misma observación) — se muestra una sola vez en un bloque
+            // aparte en vez de repetirla debajo de cada línea que la usa.
+            'observaciones' => self::observacionesDistintas($detalle),
         ];
     }
 

@@ -117,8 +117,8 @@ export default function ContenedorFila({ contenedor, rutaActualizar, onEliminar 
 
                     <div className="w-full">
                         <label className={labelClass}>Descripción de Mercancía</label>
-                        <input
-                            type="text"
+                        <textarea
+                            rows={2}
                             placeholder="Ej. Adult Face Mask CVC, 60% Cotton, Invoice KZM-GDR44"
                             className={`${inputClass} w-full`}
                             value={data.descripcion_mercancia}
@@ -148,16 +148,22 @@ export default function ContenedorFila({ contenedor, rutaActualizar, onEliminar 
     }
 
     return (
-        <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
-            <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-[#042753]">
-                    {contenedor.numero_contenedor ?? 'Sin número'}
-                </p>
-                <div className="flex items-center gap-3">
-                    <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-[#042753]">
+        <div className="rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-[#71BFA6]/15 px-2 py-0.5 text-xs font-semibold text-[#042753]">
                         {contenedor.cantidad && contenedor.cantidad !== 1 ? `${contenedor.cantidad}x ` : ''}
                         {contenedor.tipo_contenedor ?? '—'}
                     </span>
+                    {contenedor.numero_contenedor ? (
+                        <p className="text-sm font-semibold text-[#042753]">
+                            {contenedor.numero_contenedor}
+                        </p>
+                    ) : (
+                        <p className="text-sm italic text-[#A9ABAE]">Sin número asignado</p>
+                    )}
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-3">
                     {rutaActualizar && (
                         <button
                             type="button"
@@ -179,14 +185,14 @@ export default function ContenedorFila({ contenedor, rutaActualizar, onEliminar 
                     )}
                 </div>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#A9ABAE] sm:grid-cols-3">
-                <span>Sello: {contenedor.numero_sello ?? '—'}</span>
-                <span>Peso: {contenedor.peso_kg ?? '—'} kg</span>
-                <span>Vol: {contenedor.volumen_cbm ?? '—'} cbm</span>
-                <span>Fecha Dev: {contenedor.fecha_devolucion ?? '—'}</span>
+            <div className="mt-2.5 grid grid-cols-2 gap-y-1 gap-x-2 text-xs text-[#A9ABAE] sm:grid-cols-4">
+                <span>Sello: <span className="text-[#042753]">{contenedor.numero_sello ?? '—'}</span></span>
+                <span>Peso: <span className="text-[#042753]">{contenedor.peso_kg ?? '—'} kg</span></span>
+                <span>Vol: <span className="text-[#042753]">{contenedor.volumen_cbm ?? '—'} cbm</span></span>
+                <span>Fecha Dev: <span className="text-[#042753]">{contenedor.fecha_devolucion ?? '—'}</span></span>
             </div>
             {contenedor.descripcion_mercancia && (
-                <p className="mt-2 text-xs text-[#042753]">
+                <p className="mt-2 whitespace-pre-line border-t border-gray-100 pt-2 text-xs text-[#042753]">
                     {contenedor.descripcion_mercancia}
                 </p>
             )}

@@ -1,5 +1,6 @@
 import { ESTADO_LABELS } from '@/constants/estados';
 import ComercialLayout from '@/Layouts/ComercialLayout';
+import EstadoEmbarqueBadge from '@/Components/Embarques/EstadoEmbarqueBadge';
 import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import { IconoAlerta } from '@/Components/ActionIcons';
 import { Head, router } from '@inertiajs/react';
@@ -107,10 +108,7 @@ export default function Index({ embarques, filtros, modos, estados }) {
                                     {embarque.eta ?? '—'}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-[#042753]">
-                                        {ESTADO_LABELS[embarque.estado_embarque] ??
-                                            embarque.estado_embarque}
-                                    </span>
+                                    <EstadoEmbarqueBadge estado={embarque.estado_embarque} />
                                 </td>
                                 <td className="px-4 py-3">
                                     {embarque.tiene_alerta && (

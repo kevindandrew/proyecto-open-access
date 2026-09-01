@@ -18,6 +18,7 @@
         table.costos th { background-color: #f3f4f6; color: #042753; text-align: left; padding: 6px; border-bottom: 1px solid #d1d5db; }
         table.costos td { padding: 6px; border-bottom: 1px solid #e5e7eb; }
         table.costos td.derecha, table.costos th.derecha { text-align: right; }
+        table.costos td.mercancia { white-space: pre-line; }
         .total-general td { border-top: 2px solid #042753; font-weight: bold; color: #042753; font-size: 12px; }
         .footer { margin-top: 24px; font-size: 9px; color: #9ca3af; text-align: center; }
         .sello-tipo {
@@ -129,7 +130,7 @@
                         <td class="derecha">{{ $item['cantidad'] ?? 1 }}</td>
                         <td class="derecha">{{ $item['peso_kg'] ?? '—' }}</td>
                         <td class="derecha">{{ $item['volumen_cbm'] ?? '—' }}</td>
-                        <td>{{ $item['descripcion_mercancia'] ?? '—' }}</td>
+                        <td class="mercancia">{{ $item['descripcion_mercancia'] ?? '—' }}</td>
                     </tr>
                 @endforeach
             </tbody>

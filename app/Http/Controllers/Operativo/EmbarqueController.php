@@ -120,8 +120,14 @@ class EmbarqueController extends Controller
                 'costo_venta' => $costo->costo_venta,
                 'moneda' => $costo->moneda,
             ]),
-            'totalCompra' => $embarque->costos->sum('costo_compra'),
-            'totalVenta' => $embarque->costos->sum('costo_venta'),
+            // Nunca se suma entre monedas distintas — un total de compra/venta
+            // por cada moneda que efectivamente aparece en los costos.
+            'totalesPorMoneda' => $embarque->costos
+                ->groupBy(fn (EmbarqueCosto $costo) => $costo->moneda ?: 'USD')
+                ->map(fn ($grupo) => [
+                    'compra' => $grupo->sum('costo_compra'),
+                    'venta' => $grupo->sum('costo_venta'),
+                ]),
         ]);
     }
 

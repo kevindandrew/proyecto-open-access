@@ -151,6 +151,14 @@ class EmbarqueController extends Controller
                     'id_item' => $contenedor->id_item,
                     'numero_contenedor' => $contenedor->numero_contenedor,
                     'tipo_contenedor' => $contenedor->tipo_contenedor,
+                    // La porción de este house en el contenedor (si el
+                    // contenedor lo comparten varios houses, cada uno tiene
+                    // la suya, distinta del dato del contenedor completo). Si
+                    // este house todavía no tiene su porción definida, se usa
+                    // el dato del contenedor completo como valor por defecto.
+                    'peso_kg' => $contenedor->pivot->peso_kg ?? $contenedor->peso_kg,
+                    'volumen_cbm' => $contenedor->pivot->volumen_cbm ?? $contenedor->volumen_cbm,
+                    'descripcion_mercancia' => $contenedor->pivot->descripcion_mercancia ?: $contenedor->descripcion_mercancia,
                 ]),
             ]),
             'costos' => $embarque->costos->map(fn (EmbarqueCosto $costo) => [
@@ -162,8 +170,14 @@ class EmbarqueController extends Controller
                 'costo_venta' => $costo->costo_venta,
                 'moneda' => $costo->moneda,
             ]),
-            'totalCompra' => $embarque->costos->sum('costo_compra'),
-            'totalVenta' => $embarque->costos->sum('costo_venta'),
+            // Nunca se suma entre monedas distintas — un total de compra/venta
+            // por cada moneda que efectivamente aparece en los costos.
+            'totalesPorMoneda' => $embarque->costos
+                ->groupBy(fn (EmbarqueCosto $costo) => $costo->moneda ?: 'USD')
+                ->map(fn ($grupo) => [
+                    'compra' => $grupo->sum('costo_compra'),
+                    'venta' => $grupo->sum('costo_venta'),
+                ]),
             'proveedores' => Proveedor::where('activo', true)->orderBy('nombre')->get(['id_proveedor', 'nombre']),
             'clientes' => Cliente::orderBy('razon_social')->get(['id_cliente', 'razon_social']),
             'operativosDisponibles' => $this->operativosPara($embarque->modo_transporte),

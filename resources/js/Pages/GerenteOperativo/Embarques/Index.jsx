@@ -1,5 +1,6 @@
 import { ESTADO_LABELS } from '@/constants/estados';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import EstadoEmbarqueBadge from '@/Components/Embarques/EstadoEmbarqueBadge';
 import ModoTransporteBadge from '@/Components/ModoTransporteBadge';
 import PageHeader from '@/Components/PageHeader';
 import { IconoAlerta } from '@/Components/ActionIcons';
@@ -144,8 +145,7 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                                     {embarque.eta ?? '—'}
                                 </td>
                                 <td className="px-4 py-3">
-                                    {ESTADO_LABELS[embarque.estado_embarque] ??
-                                        embarque.estado_embarque}
+                                    <EstadoEmbarqueBadge estado={embarque.estado_embarque} />
                                 </td>
                                 <td className="px-4 py-3">
                                     {embarque.tiene_alerta && (

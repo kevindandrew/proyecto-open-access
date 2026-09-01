@@ -27,12 +27,12 @@
         .footer { margin-top: 24px; font-size: 9px; color: #9ca3af; text-align: center; }
         .terminos { margin: 0; padding-left: 16px; }
         .terminos li { margin-bottom: 5px; text-align: justify; }
-        .observacion { font-size: 9px; font-style: italic; color: #92400e; }
         .observaciones-caja {
             margin-top: 8px; padding: 8px; background-color: #fffbeb;
             border: 1px solid #fde68a; color: #92400e;
         }
         .observaciones-caja .terminos { margin-top: 4px; }
+        .observaciones-caja .terminos li { white-space: pre-line; text-align: left; }
     </style>
 </head>
 <body>
@@ -139,12 +139,7 @@
         <tbody>
             @foreach ($detalle as $linea)
                 <tr>
-                    <td>
-                        {{ $linea['descripcion'] }}
-                        @if (! empty($linea['observaciones']))
-                            <br><span class="observacion">⚠ {{ $linea['observaciones'] }}</span>
-                        @endif
-                    </td>
+                    <td>{{ $linea['descripcion'] }}</td>
                     <td>{{ $linea['tipo_tarifa_unidad'] ?? '—' }}</td>
                     <td class="derecha">{{ $linea['costo_unitario'] }}</td>
                     <td class="derecha">{{ (float) $linea['base_calculo'] }}</td>

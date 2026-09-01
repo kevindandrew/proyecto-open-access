@@ -9,10 +9,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 const PASOS = ['Cliente', 'Ruta y Transporte', 'Carga', 'Costos y Resumen'];
 const INCOTERMS = ['FOB', 'EXW', 'CIF', 'CFR', 'DDP'];
 
+// Terrestre no tiene entrada acá a propósito: el origen de un tramo terrestre
+// puede ser un puerto (ej. Arica) o un aeropuerto (ej. El Alto) donde terminó
+// el tramo internacional previo, o directamente una frontera — cualquier tipo
+// es válido, así que no se filtra.
 const TIPO_PUERTO_POR_MODO = {
     Maritimo: 'Puerto',
     Aereo: 'Aeropuerto',
-    Terrestre: 'Frontera',
 };
 
 // El Destino se filtra igual que el Origen para Marítimo/Aéreo, porque el tramo
@@ -246,11 +249,12 @@ function PasoRuta({
     clearErrors,
     puertos,
 }) {
-    // El Origen (POL) se filtra por el tipo que corresponde al modo (Puerto/
-    // Aeropuerto/Frontera) — importa por dónde sale la carga. Si el origen ya
-    // viene precargado (ej. continuación de una cotización marítima hacia un
-    // tramo terrestre) se mantiene visible aunque su tipo no coincida con el
-    // del modo actual.
+    // El Origen (POL) se filtra por el tipo que corresponde al modo (Puerto
+    // para Marítimo, Aeropuerto para Aéreo) — importa por dónde sale la carga.
+    // Terrestre no filtra: puede salir de un puerto, un aeropuerto o una
+    // frontera. Si el origen ya viene precargado (ej. continuación de una
+    // cotización marítima hacia un tramo terrestre) se mantiene visible aunque
+    // su tipo no coincida con el del modo actual.
     const puertosOrigenFiltrados = useMemo(() => {
         const tipoRequerido = TIPO_PUERTO_POR_MODO[data.modo_transporte];
 
@@ -1070,7 +1074,7 @@ function TarifasDisponibles({
                                     ` · +${tarifa.cargos_adicionales.length} cargo(s) adicional(es)`}
                             </p>
                             {tarifa.observaciones && (
-                                <p className="mt-1 text-xs italic text-amber-700">
+                                <p className="mt-1 whitespace-pre-line text-xs italic text-amber-700">
                                     ⚠ {tarifa.observaciones}
                                 </p>
                             )}
@@ -1508,7 +1512,7 @@ function PasoCostos({
                                         Vigente hasta {tarifaAgente.fecha_fin_vigencia}
                                     </p>
                                     {tarifaAgente.observaciones && (
-                                        <p className="mt-1 text-xs italic text-amber-700">
+                                        <p className="mt-1 whitespace-pre-line text-xs italic text-amber-700">
                                             ⚠ {tarifaAgente.observaciones}
                                         </p>
                                     )}
@@ -1639,8 +1643,8 @@ function PasoCostos({
                                                 ]
                                             }
                                         />
-                                        <input
-                                            type="text"
+                                        <textarea
+                                            rows={2}
                                             placeholder="Observación (opcional, ej. restricciones de la tarifa)"
                                             className="mt-1 w-full min-w-[160px] rounded-md border-gray-200 text-xs italic text-amber-700 placeholder:text-[#A9ABAE]"
                                             value={linea.observaciones || ''}

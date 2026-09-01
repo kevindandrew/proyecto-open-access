@@ -5,6 +5,8 @@ import Consignatario from '@/Components/Embarques/Consignatario';
 import EmbarqueDetalle from '@/Components/Embarques/EmbarqueDetalle';
 import InformacionCarga from '@/Components/Embarques/InformacionCarga';
 import InstruccionesTerrestre from '@/Components/Embarques/InstruccionesTerrestre';
+import SeccionCard from '@/Components/Embarques/SeccionCard';
+import { IconoBandera } from '@/Components/Embarques/SeccionIcons';
 import OperativoLayout from '@/Layouts/OperativoLayout';
 import { Head, router } from '@inertiajs/react';
 
@@ -14,8 +16,7 @@ export default function Show({
     seguimientos,
     houses,
     costos,
-    totalCompra,
-    totalVenta,
+    totalesPorMoneda,
 }) {
     const eliminarContenedor = (contenedor) => {
         if (window.confirm('¿Quitar este contenedor?')) {
@@ -33,8 +34,7 @@ export default function Show({
                 seguimientos={seguimientos}
                 houses={houses}
                 costos={costos}
-                totalCompra={totalCompra}
-                totalVenta={totalVenta}
+                totalesPorMoneda={totalesPorMoneda}
                 onEliminarContenedor={eliminarContenedor}
                 rutaActualizarContenedor="operativo.contenedores.update"
                 rutaPdfHouse="operativo.houses.pdf"
@@ -70,15 +70,12 @@ export default function Show({
                 }
             />
 
-            <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-4 text-sm font-semibold text-[#042753]">
-                    Cambiar Estado
-                </h3>
+            <SeccionCard icon={IconoBandera} title="Cambiar Estado">
                 <CambiarEstado
                     embarque={embarque}
                     rutaEstado="operativo.embarques.cambiar-estado"
                 />
-            </div>
+            </SeccionCard>
         </OperativoLayout>
     );
 }

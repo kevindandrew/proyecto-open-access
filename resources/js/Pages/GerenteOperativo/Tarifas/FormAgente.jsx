@@ -4,10 +4,13 @@ import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
 
+// Terrestre no tiene entrada acá a propósito: el origen de un tramo terrestre
+// puede ser un puerto (ej. Arica) o un aeropuerto (ej. El Alto) donde terminó
+// el tramo internacional previo, o directamente una frontera — cualquier tipo
+// es válido, así que no se filtra.
 const TIPO_PUERTO_ORIGEN_POR_MODO = {
     Maritimo: 'Puerto',
     Aereo: 'Aeropuerto',
-    Terrestre: 'Frontera',
 };
 
 const TIPO_PUERTO_DESTINO_POR_MODO = {

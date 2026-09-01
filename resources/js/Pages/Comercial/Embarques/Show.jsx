@@ -8,8 +8,7 @@ export default function Show({
     seguimientos,
     houses,
     costos,
-    totalCompra,
-    totalVenta,
+    totalesPorMoneda,
 }) {
     return (
         <ComercialLayout header={`Embarque ${embarque.numero_file}`}>
@@ -21,8 +20,7 @@ export default function Show({
                 seguimientos={seguimientos}
                 houses={houses}
                 costos={costos}
-                totalCompra={totalCompra}
-                totalVenta={totalVenta}
+                totalesPorMoneda={totalesPorMoneda}
                 rutaPdfHouse="comercial.houses.pdf"
             />
         </ComercialLayout>

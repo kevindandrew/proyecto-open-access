@@ -43,6 +43,11 @@ class HouseBl extends Model
 
     public function contenedores(): BelongsToMany
     {
-        return $this->belongsToMany(EmbarqueContenedor::class, 'house_bl_contenedor', 'id_hbl', 'id_item');
+        // Un mismo contenedor puede repartirse entre varios houses (ej. un
+        // contenedor de 2500 kg dividido entre 2 consignatarios) — por eso
+        // peso/volumen/descripción de "la porción de este house" viven en el
+        // pivot, separados del dato del contenedor completo.
+        return $this->belongsToMany(EmbarqueContenedor::class, 'house_bl_contenedor', 'id_hbl', 'id_item')
+            ->withPivot(['peso_kg', 'volumen_cbm', 'descripcion_mercancia']);
     }
 }

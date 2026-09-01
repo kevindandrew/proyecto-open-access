@@ -4,7 +4,6 @@ namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Embarque;
-use App\Models\EmbarqueContenedor;
 use App\Models\HouseBl;
 use App\Support\GeneradorCodigoHouse;
 use App\Support\HouseBlPdfDatos;
@@ -91,17 +90,26 @@ class HouseBlController extends Controller
                 'fecha_emision' => $data['fecha_emision'] ?? null,
             ]);
 
-            $house->contenedores()->sync($data['contenedores'] ?? []);
+            // Un mismo contenedor puede repartirse entre varios houses, así
+            // que peso/volumen/descripción de "la porción de este house" se
+            // guardan en el pivot — nunca sobreescribiendo el dato del
+            // contenedor completo, que es compartido por todos los houses
+            // que lo usan.
+            $camposPorId = collect($data['contenedores_campos'] ?? [])->keyBy('id_item');
 
-            foreach ($data['contenedores_campos'] ?? [] as $campos) {
-                EmbarqueContenedor::where('id_item', $campos['id_item'])
-                    ->where('id_embarque', $house->id_embarque)
-                    ->update([
+            $sincronizacion = collect($data['contenedores'] ?? [])
+                ->mapWithKeys(function ($idItem) use ($camposPorId) {
+                    $campos = $camposPorId->get($idItem, []);
+
+                    return [$idItem => [
                         'descripcion_mercancia' => $campos['descripcion_mercancia'] ?? null,
                         'peso_kg' => $campos['peso_kg'] ?? null,
                         'volumen_cbm' => $campos['volumen_cbm'] ?? null,
-                    ]);
-            }
+                    ]];
+                })
+                ->all();
+
+            $house->contenedores()->sync($sincronizacion);
         });
 
         return redirect()
