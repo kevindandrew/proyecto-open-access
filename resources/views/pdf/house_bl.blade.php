@@ -11,7 +11,8 @@
         .marca-sub { font-size: 9px; color: #71BFA6; font-weight: bold; letter-spacing: 1px; }
 
         table.form { width: 100%; border-collapse: collapse; margin-top: 2px; }
-        table.form td { border: 1px solid #111827; padding: 4px 6px; vertical-align: top; }
+        table.form td { border: 1px solid #111827; padding: 6px 8px; vertical-align: top; min-height: 30px; }
+        table.form.pegada { margin-top: -1px; }
         .etiqueta { font-size: 7.5px; color: #4b5563; margin: 0; }
         .valor { font-size: 9px; color: #111827; margin: 2px 0 0; white-space: pre-line; }
         .valor.fuerte { font-weight: bold; }
@@ -28,8 +29,8 @@
 
         table.carga { width: 100%; border-collapse: collapse; }
         table.carga th, table.carga td {
-            border: 1px solid #111827; padding: 4px 6px; font-size: 8.5px; vertical-align: top;
-            white-space: pre-line;
+            border: 1px solid #111827; padding: 8px; font-size: 8.5px; vertical-align: top;
+            white-space: pre-line; min-height: 90px;
         }
         table.carga th { background-color: #f3f4f6; text-align: left; }
         table.carga td.derecha, table.carga th.derecha { text-align: right; }
@@ -37,20 +38,21 @@
         .boilerplate { text-align: center; font-size: 8px; margin: 6px 0; }
         .pagina { text-align: right; font-size: 8px; margin: 4px 0; }
 
-        .fletes-tabla { width: 100%; border-collapse: collapse; margin-top: 2px; }
+        .fletes-tabla { width: 100%; border-collapse: collapse; margin-top: -1px; }
         .fletes-tabla th, .fletes-tabla td {
             border: 1px solid #111827; padding: 3px 6px; font-size: 8.5px;
         }
         .fletes-tabla th { background-color: #f3f4f6; text-align: left; }
         .fletes-tabla td.derecha, .fletes-tabla th.derecha { text-align: right; }
 
-        .watermark {
-            position: fixed; top: 340px; left: -80px; width: 750px; text-align: center;
-            font-size: 42px; color: rgba(4, 39, 83, 0.14); font-weight: bold; letter-spacing: 2px;
-            transform: rotate(-25deg); z-index: -1;
+        .watermark-logo {
+            position: fixed; top: 260px; left: -60px; width: 700px;
+            opacity: 0.12; transform: rotate(-25deg); z-index: -1;
         }
-
-        .footer { margin-top: 10px; font-size: 8px; color: #9ca3af; text-align: center; }
+        .watermark-nota {
+            text-align: center; font-size: 10px; font-style: italic; color: #6b7280;
+            transform: rotate(-2deg); margin: 0 0 2px;
+        }
 
         .pagina-terminos { page-break-before: always; }
         h2.terminos-titulo { text-align: center; font-size: 13px; color: #042753; margin: 0 0 8px; }
@@ -71,7 +73,8 @@
     @endif
 
     @if (($tipo ?? '') === 'dam')
-        <div class="watermark">REGISTRO PARA HBL DAM</div>
+        <img src="{{ public_path('images/logoOpenAccess.png') }}" class="watermark-logo">
+        <p class="watermark-nota">DOCUMENTO VÁLIDO PARA REGISTRO DE DAM</p>
     @endif
 
     <table class="form">
@@ -205,7 +208,7 @@
 
     <p class="pagina">PAGE 1 OF 1</p>
 
-    <table class="form">
+    <table class="form pegada">
         <tr>
             <td style="width: 30%;">
                 <p class="etiqueta">Currency</p>
@@ -256,10 +259,6 @@
             </tr>
         </tfoot>
     </table>
-
-    <div class="footer">
-        Documento generado por el sistema de Open Access Bolivia S.R.L. el {{ $generadoEn }}.
-    </div>
 
     <div class="pagina-terminos">
         <h2 class="terminos-titulo">TERMS AND CONDITIONS</h2>
