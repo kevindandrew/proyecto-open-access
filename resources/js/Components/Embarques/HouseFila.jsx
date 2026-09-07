@@ -7,7 +7,9 @@ const TIPOS_PDF_HOUSE = [
     { valor: 'dam', etiqueta: 'HBL DAM' },
     { valor: 'copia', etiqueta: 'HBL Copia' },
     { valor: 'original', etiqueta: 'HBL Original' },
+    { valor: 'original_digital', etiqueta: 'HBL Original Digital' },
     { valor: 'certificado_flete', etiqueta: 'Certificado de Flete' },
+    { valor: 'certificado_flete_digital', etiqueta: 'Certificado de Flete Digital' },
 ];
 
 const CONDICION_PAGO_ESTILOS = {
@@ -79,6 +81,7 @@ export default function HouseFila({
     const { data, setData, patch, processing, errors, reset, transform } = useForm({
         id_cliente: house.id_cliente ?? '',
         condicion_pago: house.condicion_pago ?? '',
+        flete_valor_texto: house.flete_valor_texto ?? '',
         fecha_emision: house.fecha_emision ?? '',
         contenedores: (house.contenedores ?? []).map((c) => c.id_item),
         // Un house puede tener varios contenedores (hijos a, b, c...) — cada
@@ -170,7 +173,12 @@ export default function HouseFila({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-                <CondicionPagoBadge valor={house.condicion_pago} />
+                <div className="text-right">
+                    <CondicionPagoBadge valor={house.condicion_pago} />
+                    {house.flete_valor_texto && (
+                        <p className="mt-0.5 text-xs text-[#A9ABAE]">{house.flete_valor_texto}</p>
+                    )}
+                </div>
 
                 {rutaPdf && (
                     <select
@@ -236,6 +244,25 @@ export default function HouseFila({
                             </select>
                             {errors.condicion_pago && (
                                 <p className="mt-1 text-xs text-red-600">{errors.condicion_pago}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-medium text-[#042753]">
+                                Monto Flete ({data.condicion_pago || 'Prepaid/Collect'})
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ej. AS AGREED o 37,250.00"
+                                className="mt-1 block w-40 rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                value={data.flete_valor_texto}
+                                onChange={(e) => setData('flete_valor_texto', e.target.value)}
+                            />
+                            <p className="mt-1 text-xs text-[#A9ABAE]">
+                                Va en la columna "Freight &amp; Charges" del HBL.
+                            </p>
+                            {errors.flete_valor_texto && (
+                                <p className="mt-1 text-xs text-red-600">{errors.flete_valor_texto}</p>
                             )}
                         </div>
 

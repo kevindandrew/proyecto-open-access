@@ -17,31 +17,48 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class HouseBlController extends Controller
 {
-    private const TIPOS_PDF = ['dam', 'copia', 'original', 'certificado_flete'];
+    private const TIPOS_PDF = [
+        'dam', 'copia', 'original', 'original_digital', 'certificado_flete', 'certificado_flete_digital',
+    ];
+
+    // Copia y Original se imprimen sobre papel pre-impreso con el logo ya
+    // encima — por eso van sin logo. DAM y las versiones "digital" sí lo
+    // llevan porque se mandan tal cual, sin papel pre-impreso de por medio.
+    private const MUESTRA_LOGO = [
+        'dam' => true,
+        'copia' => false,
+        'original' => false,
+        'original_digital' => true,
+        'certificado_flete' => false,
+        'certificado_flete_digital' => true,
+    ];
 
     private const ETIQUETAS_PDF = [
-        'dam' => 'DAM',
-        'copia' => 'COPIA — NO NEGOCIABLE',
+        'copia' => 'COPY NON NEGOTIABLE',
         'original' => 'ORIGINAL',
+        'original_digital' => 'ORIGINAL',
     ];
 
     public function pdf(Request $request, HouseBl $house): HttpResponse
     {
         $tipo = in_array($request->query('tipo'), self::TIPOS_PDF, true) ? $request->query('tipo') : 'dam';
 
-        // El HBL Original es el instrumento legal definitivo — la primera vez
-        // que se genera, el house queda congelado para proteger esos datos.
-        if ($tipo === 'original' && ! $house->congelado_en) {
+        // El HBL Original (impreso o digital) es el instrumento legal
+        // definitivo — la primera vez que se genera, el house queda
+        // congelado para proteger esos datos.
+        if (in_array($tipo, ['original', 'original_digital'], true) && ! $house->congelado_en) {
             $house->update(['congelado_en' => now()]);
         }
 
         $datos = HouseBlPdfDatos::para($house);
         $generadoEn = Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm');
         $nombreArchivo = str_replace(['/', '\\'], '-', $house->numero_hbl);
+        $mostrarLogo = self::MUESTRA_LOGO[$tipo] ?? true;
 
-        if ($tipo === 'certificado_flete') {
+        if (in_array($tipo, ['certificado_flete', 'certificado_flete_digital'], true)) {
             $pdf = Pdf::loadView('pdf.house_bl_certificado_flete', [
                 ...$datos,
+                'mostrarLogo' => $mostrarLogo,
                 'generadoEn' => $generadoEn,
             ]);
 
@@ -50,7 +67,9 @@ class HouseBlController extends Controller
 
         $pdf = Pdf::loadView('pdf.house_bl', [
             ...$datos,
+            'tipo' => $tipo,
             'tipoEtiqueta' => self::ETIQUETAS_PDF[$tipo] ?? null,
+            'mostrarLogo' => $mostrarLogo,
             'generadoEn' => $generadoEn,
         ]);
 
@@ -66,6 +85,7 @@ class HouseBlController extends Controller
                 'numero_hbl' => 'PENDIENTE',
                 'id_cliente' => $data['id_cliente'] ?? null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
+                'flete_valor_texto' => $data['flete_valor_texto'] ?? null,
                 'fecha_emision' => $data['fecha_emision'] ?? null,
             ]);
 
@@ -87,6 +107,7 @@ class HouseBlController extends Controller
             $house->update([
                 'id_cliente' => $data['id_cliente'] ?? null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
+                'flete_valor_texto' => $data['flete_valor_texto'] ?? null,
                 'fecha_emision' => $data['fecha_emision'] ?? null,
             ]);
 
@@ -137,6 +158,7 @@ class HouseBlController extends Controller
         return $request->validate([
             'id_cliente' => ['nullable', 'integer', 'exists:clientes,id_cliente'],
             'condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
+            'flete_valor_texto' => ['nullable', 'string', 'max:50'],
             'fecha_emision' => ['nullable', 'date'],
             'contenedores' => ['nullable', 'array'],
             'contenedores.*' => [

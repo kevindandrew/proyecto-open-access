@@ -74,6 +74,8 @@ class EmbarqueController extends Controller
                 'consignatario_direccion' => $embarque->consignatario_direccion,
                 'consignatario_celular' => $embarque->consignatario_celular,
                 'consignatario_correo' => $embarque->consignatario_correo,
+                'shipper_nombre' => $embarque->shipper_nombre,
+                'shipper_direccion' => $embarque->shipper_direccion,
                 'comercial' => $embarque->comercial?->nombre_completo,
                 'operativo' => $embarque->operativo?->nombre_completo,
                 'agente_origen' => $embarque->agenteOrigen?->nombre,

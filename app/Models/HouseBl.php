@@ -19,6 +19,7 @@ class HouseBl extends Model
         'id_cliente',
         'numero_hbl',
         'condicion_pago',
+        'flete_valor_texto',
         'fecha_emision',
         'congelado_en',
     ];

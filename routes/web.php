@@ -187,6 +187,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::patch('embarques/{embarque}/instrucciones-terrestre', [EmbarqueController::class, 'actualizarInstruccionesTerrestre'])->name('embarques.actualizar-instrucciones-terrestre');
         Route::patch('embarques/{embarque}/informacion-carga', [EmbarqueController::class, 'actualizarInformacionCarga'])->name('embarques.actualizar-informacion-carga');
         Route::patch('embarques/{embarque}/consignatario', [EmbarqueController::class, 'actualizarConsignatario'])->name('embarques.actualizar-consignatario');
+        Route::get('embarques/{embarque}/aviso-arribo', [EmbarqueController::class, 'avisoArribo'])->name('embarques.aviso-arribo');
 
         Route::post('embarques/{embarque}/contenedores', [EmbarqueContenedorController::class, 'store'])->name('embarques.contenedores.store');
         Route::patch('contenedores/{contenedor}', [EmbarqueContenedorController::class, 'update'])->name('contenedores.update');

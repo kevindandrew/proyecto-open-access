@@ -40,10 +40,28 @@ class HouseBlPdfDatos
                 'correo' => $embarque->consignatario_correo,
             ];
 
+        // Si el contenedor lo comparten varios houses, cada uno declara solo
+        // su porción (guardada en el pivot) — nunca el peso/volumen/
+        // descripción del contenedor completo. Si un house todavía no tiene
+        // su porción definida, se usa el dato del contenedor completo como
+        // valor por defecto.
+        $contenedores = $house->contenedores->map(fn ($contenedor) => [
+            'tipo_contenedor' => $contenedor->tipo_contenedor,
+            'numero_contenedor' => $contenedor->numero_contenedor,
+            'numero_sello' => $contenedor->numero_sello,
+            'peso_kg' => $contenedor->pivot->peso_kg ?? $contenedor->peso_kg,
+            'volumen_cbm' => $contenedor->pivot->volumen_cbm ?? $contenedor->volumen_cbm,
+            'descripcion_mercancia' => $contenedor->pivot->descripcion_mercancia ?: $contenedor->descripcion_mercancia,
+        ])->all();
+
+        $condicionPago = $house->condicion_pago ?? 'Collect';
+        $valorFlete = $house->flete_valor_texto ?: 'AS AGREED';
+
         return [
             'house' => [
                 'numero_hbl' => $house->numero_hbl,
-                'condicion_pago' => $house->condicion_pago,
+                'condicion_pago' => $condicionPago,
+                'flete_valor_texto' => $valorFlete,
                 'fecha_emision' => $house->fecha_emision?->toDateString(),
                 'congelado_en' => $house->congelado_en?->toDateString(),
             ],
@@ -51,6 +69,8 @@ class HouseBlPdfDatos
                 'numero_file' => $embarque->numero_file,
                 'mbl' => $embarque->mbl,
                 'cliente' => $embarque->cliente?->razon_social,
+                'shipper_nombre' => $embarque->shipper_nombre,
+                'shipper_direccion' => $embarque->shipper_direccion,
                 'consignatario_nombre' => $consignatario['nombre'],
                 'consignatario_nit' => $consignatario['nit'],
                 'consignatario_direccion' => $consignatario['direccion'],
@@ -68,22 +88,31 @@ class HouseBlPdfDatos
                 'eta' => $embarque->eta?->toDateString(),
                 'pago_master' => $embarque->pago_master,
             ],
-            // Si el contenedor lo comparten varios houses, cada uno declara
-            // solo su porción (guardada en el pivot) — nunca el peso/volumen/
-            // descripción del contenedor completo. Si un house todavía no
-            // tiene su porción definida, se usa el dato del contenedor
-            // completo como valor por defecto.
-            'contenedores' => $house->contenedores->map(fn ($contenedor) => [
-                'tipo_contenedor' => $contenedor->tipo_contenedor,
-                'cantidad' => $contenedor->cantidad,
-                'numero_contenedor' => $contenedor->numero_contenedor,
-                'numero_sello' => $contenedor->numero_sello,
-                'peso_kg' => $contenedor->pivot->peso_kg ?? $contenedor->peso_kg,
-                'volumen_cbm' => $contenedor->pivot->volumen_cbm ?? $contenedor->volumen_cbm,
-                'descripcion_mercancia' => $contenedor->pivot->descripcion_mercancia ?: $contenedor->descripcion_mercancia,
-            ])->all(),
-            'totalPeso' => $house->contenedores->sum(fn ($c) => $c->pivot->peso_kg ?? $c->peso_kg),
-            'totalVolumen' => $house->contenedores->sum(fn ($c) => $c->pivot->volumen_cbm ?? $c->volumen_cbm),
+            'contenedores' => $contenedores,
+            'resumenContenedores' => self::resumenContenedores($contenedores),
+            'totalPeso' => array_sum(array_column($contenedores, 'peso_kg')),
+            'totalVolumen' => array_sum(array_column($contenedores, 'volumen_cbm')),
         ];
+    }
+
+    /**
+     * "2X20DRY, 1X40HC" — la línea que resume cuántos contenedores de cada
+     * tipo trae este house, como sale en el Bill of Lading real.
+     */
+    private static function resumenContenedores(array $contenedores): string
+    {
+        $conteo = [];
+
+        foreach ($contenedores as $contenedor) {
+            $tipo = str_replace(' ', '', $contenedor['tipo_contenedor'] ?? '—');
+            $conteo[$tipo] = ($conteo[$tipo] ?? 0) + 1;
+        }
+
+        $partes = [];
+        foreach ($conteo as $tipo => $cantidad) {
+            $partes[] = "{$cantidad}X{$tipo}";
+        }
+
+        return implode(', ', $partes);
     }
 }

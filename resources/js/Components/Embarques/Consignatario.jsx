@@ -2,6 +2,8 @@ import { useForm } from '@inertiajs/react';
 
 export default function Consignatario({ embarque, rutaActualizar }) {
     const { data, setData, patch, processing, errors } = useForm({
+        shipper_nombre: embarque.shipper_nombre ?? '',
+        shipper_direccion: embarque.shipper_direccion ?? '',
         consignatario_nombre: embarque.consignatario_nombre ?? '',
         consignatario_nit: embarque.consignatario_nit ?? '',
         consignatario_direccion: embarque.consignatario_direccion ?? '',
@@ -21,7 +23,45 @@ export default function Consignatario({ embarque, rutaActualizar }) {
 
     return (
         <form onSubmit={submit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#71BFA6]">
+                    Shipper / Embarcador
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label className={labelClass}>Nombre</label>
+                        <input
+                            type="text"
+                            placeholder="Ej. Henan Huangneng Machinery Co., Ltd"
+                            className={inputClass}
+                            value={data.shipper_nombre}
+                            onChange={(e) => setData('shipper_nombre', e.target.value)}
+                        />
+                        {errors.shipper_nombre && (
+                            <p className="mt-1 text-xs text-red-600">{errors.shipper_nombre}</p>
+                        )}
+                    </div>
+                    <div>
+                        <label className={labelClass}>Dirección</label>
+                        <input
+                            type="text"
+                            placeholder="Dirección del exportador"
+                            className={inputClass}
+                            value={data.shipper_direccion}
+                            onChange={(e) => setData('shipper_direccion', e.target.value)}
+                        />
+                        {errors.shipper_direccion && (
+                            <p className="mt-1 text-xs text-red-600">{errors.shipper_direccion}</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#71BFA6]">
+                    Consignatario
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="sm:col-span-2 lg:col-span-1">
                     <label className={labelClass}>Nombre</label>
                     <input
@@ -90,6 +130,7 @@ export default function Consignatario({ embarque, rutaActualizar }) {
                     {errors.consignatario_correo && (
                         <p className="mt-1 text-xs text-red-600">{errors.consignatario_correo}</p>
                     )}
+                </div>
                 </div>
             </div>
 

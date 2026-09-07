@@ -24,6 +24,8 @@ class Embarque extends Model
         'consignatario_direccion',
         'consignatario_celular',
         'consignatario_correo',
+        'shipper_nombre',
+        'shipper_direccion',
         'id_comercial',
         'id_operativo',
         'id_agente_origen',

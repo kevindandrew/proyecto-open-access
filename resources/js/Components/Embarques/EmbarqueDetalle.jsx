@@ -242,6 +242,7 @@ export default function EmbarqueDetalle({
     onEliminarHouse = null,
     rutaActualizarHouse = null,
     rutaPdfHouse = null,
+    rutaAvisoArribo = null,
     onEliminarCosto = null,
     rutaActualizarCosto = null,
     proveedores = [],
@@ -334,14 +335,30 @@ export default function EmbarqueDetalle({
 
             <SeccionCard icon={IconoConsignatario} title="Consignatario">
                 {accionesConsignatario ?? (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <Campo label="Nombre" value={embarque.consignatario_nombre} />
-                        <Campo label="NIT" value={embarque.consignatario_nit} />
-                        <Campo label="Celular" value={embarque.consignatario_celular} />
-                        <div className="sm:col-span-2 lg:col-span-2">
-                            <Campo label="Dirección" value={embarque.consignatario_direccion} />
+                    <div className="space-y-4">
+                        <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#71BFA6]">
+                                Shipper / Embarcador
+                            </p>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <Campo label="Nombre" value={embarque.shipper_nombre} />
+                                <Campo label="Dirección" value={embarque.shipper_direccion} />
+                            </div>
                         </div>
-                        <Campo label="Correo" value={embarque.consignatario_correo} />
+                        <div className="border-t border-gray-100 pt-4">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#71BFA6]">
+                                Consignatario
+                            </p>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                <Campo label="Nombre" value={embarque.consignatario_nombre} />
+                                <Campo label="NIT" value={embarque.consignatario_nit} />
+                                <Campo label="Celular" value={embarque.consignatario_celular} />
+                                <div className="sm:col-span-2 lg:col-span-2">
+                                    <Campo label="Dirección" value={embarque.consignatario_direccion} />
+                                </div>
+                                <Campo label="Correo" value={embarque.consignatario_correo} />
+                            </div>
+                        </div>
                     </div>
                 )}
             </SeccionCard>
@@ -423,6 +440,18 @@ export default function EmbarqueDetalle({
                 icon={IconoDocumento}
                 title="Houses (HBL/HAWB)"
                 subtitle={houses.length > 0 ? `${houses.length} registrado(s)` : undefined}
+                action={
+                    rutaAvisoArribo && houses.length > 0 ? (
+                        <a
+                            href={route(rutaAvisoArribo, embarque.id_embarque)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-md border border-[#042753] px-3 py-1.5 text-xs font-semibold text-[#042753] hover:bg-[#042753]/5"
+                        >
+                            Aviso de Arribo (PDF)
+                        </a>
+                    ) : null
+                }
             >
                 <Houses
                     houses={houses}

@@ -13,14 +13,18 @@ use App\Models\Proveedor;
 use App\Models\RoleEmpleado;
 use App\Models\SeguimientoEmbarque;
 use App\Support\AlertasEmbarque;
+use App\Support\AvisoArriboPdfDatos;
 use App\Support\SecuenciaEstadoEmbarque;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class EmbarqueController extends Controller
 {
@@ -80,6 +84,8 @@ class EmbarqueController extends Controller
                 'consignatario_direccion' => $embarque->consignatario_direccion,
                 'consignatario_celular' => $embarque->consignatario_celular,
                 'consignatario_correo' => $embarque->consignatario_correo,
+                'shipper_nombre' => $embarque->shipper_nombre,
+                'shipper_direccion' => $embarque->shipper_direccion,
                 'comercial' => $embarque->comercial?->nombre_completo,
                 'operativo' => $embarque->operativo?->nombre_completo,
                 'agente_origen' => $embarque->agenteOrigen?->nombre,
@@ -145,6 +151,7 @@ class EmbarqueController extends Controller
                 'id_cliente' => $house->id_cliente,
                 'cliente' => $house->cliente?->razon_social,
                 'condicion_pago' => $house->condicion_pago,
+                'flete_valor_texto' => $house->flete_valor_texto,
                 'fecha_emision' => $house->fecha_emision?->toDateString(),
                 'congelado_en' => $house->congelado_en?->toDateString(),
                 'contenedores' => $house->contenedores->map(fn (EmbarqueContenedor $contenedor) => [
@@ -326,6 +333,8 @@ class EmbarqueController extends Controller
             'consignatario_direccion' => ['nullable', 'string'],
             'consignatario_celular' => ['nullable', 'string', 'max:30'],
             'consignatario_correo' => ['nullable', 'email', 'max:120'],
+            'shipper_nombre' => ['nullable', 'string', 'max:200'],
+            'shipper_direccion' => ['nullable', 'string'],
         ]);
 
         $embarque->update($data);
@@ -333,5 +342,19 @@ class EmbarqueController extends Controller
         return redirect()
             ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
             ->with('success', 'Consignatario actualizado correctamente.');
+    }
+
+    public function avisoArribo(Embarque $embarque): HttpResponse
+    {
+        $datos = AvisoArriboPdfDatos::para($embarque);
+
+        $pdf = Pdf::loadView('pdf.aviso_arribo', [
+            ...$datos,
+            'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
+        ]);
+
+        $nombreArchivo = str_replace(['/', '\\'], '-', $embarque->numero_file);
+
+        return $pdf->stream("Aviso-Arribo-{$nombreArchivo}.pdf");
     }
 }

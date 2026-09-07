@@ -70,6 +70,7 @@ export default function Show({
                 rutaActualizarContenedor="gerente-operativo.contenedores.update"
                 rutaActualizarHouse="gerente-operativo.houses.update"
                 rutaPdfHouse="gerente-operativo.houses.pdf"
+                rutaAvisoArribo="gerente-operativo.embarques.aviso-arribo"
                 rutaActualizarCosto="gerente-operativo.costos.update"
                 proveedores={proveedores}
                 clientesHouse={clientes}

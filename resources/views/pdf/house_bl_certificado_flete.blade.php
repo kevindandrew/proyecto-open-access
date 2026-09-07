@@ -27,7 +27,11 @@
     <table class="encabezado">
         <tr>
             <td>
-                <h1>OPEN ACCESS BOLIVIA S.R.L.</h1>
+                @if ($mostrarLogo ?? true)
+                    <img src="{{ public_path('images/logoOpenAccess.png') }}" style="height: 50px;">
+                @else
+                    <h1>OPEN ACCESS BOLIVIA S.R.L.</h1>
+                @endif
                 <p class="marca">Certificado de Flete</p>
             </td>
             <td style="text-align: right;">
@@ -44,7 +48,7 @@
     <table class="datos">
         <tr>
             <td class="etiqueta">Shipper</td>
-            <td class="valor">{{ $embarque['cliente'] ?? '—' }}</td>
+            <td class="valor">{{ $embarque['shipper_nombre'] ?? '—' }}</td>
             <td class="etiqueta">Consignee</td>
             <td class="valor">{{ $embarque['consignatario_nombre'] ?? '—' }}</td>
         </tr>
