@@ -5,8 +5,12 @@ RUN apk add --no-cache \
         postgresql-dev \
         oniguruma-dev \
         libzip-dev \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
         zip unzip git \
-    && docker-php-ext-install pdo pdo_pgsql bcmath mbstring
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_pgsql bcmath mbstring gd
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
