@@ -7,6 +7,7 @@ use App\Http\Controllers\Comercial\HouseBlController as ComercialHouseBlControll
 use App\Http\Controllers\ComercialController;
 use App\Http\Controllers\GerenteComercial\ClienteController as GerenteComercialClienteController;
 use App\Http\Controllers\GerenteComercial\CotizacionController as GerenteComercialCotizacionController;
+use App\Http\Controllers\GerenteComercial\DashboardController as GerenteComercialDashboardController;
 use App\Http\Controllers\GerenteComercial\PersonalController as GerenteComercialPersonalController;
 use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
 use App\Http\Controllers\GerenteOperativo\ConceptoCostoExtraController;
@@ -50,7 +51,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Comercial'])
     ->prefix('gerente-comercial')
     ->name('gerente-comercial.')
     ->group(function () {
-        Route::get('/', fn () => Inertia::render('GerenteComercial/Index'))->name('dashboard');
+        Route::get('/', [GerenteComercialDashboardController::class, 'index'])->name('dashboard');
 
         Route::get('clientes/buscar', [GerenteComercialClienteController::class, 'buscar'])->name('clientes.buscar');
         Route::patch('clientes/{cliente}/reasignar', [GerenteComercialClienteController::class, 'reasignar'])->name('clientes.reasignar');
