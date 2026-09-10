@@ -7,6 +7,7 @@ use App\Http\Controllers\Comercial\HouseBlController as ComercialHouseBlControll
 use App\Http\Controllers\ComercialController;
 use App\Http\Controllers\GerenteComercial\ClienteController as GerenteComercialClienteController;
 use App\Http\Controllers\GerenteComercial\CotizacionController as GerenteComercialCotizacionController;
+use App\Http\Controllers\GerenteComercial\PersonalController as GerenteComercialPersonalController;
 use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
 use App\Http\Controllers\GerenteOperativo\ConceptoCostoExtraController;
 use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperativoCotizacionController;
@@ -52,6 +53,12 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Comercial'])
         Route::get('/', fn () => Inertia::render('GerenteComercial/Index'))->name('dashboard');
 
         Route::get('clientes/buscar', [GerenteComercialClienteController::class, 'buscar'])->name('clientes.buscar');
+        Route::patch('clientes/{cliente}/reasignar', [GerenteComercialClienteController::class, 'reasignar'])->name('clientes.reasignar');
+        Route::resource('clientes', GerenteComercialClienteController::class)->except(['show']);
+
+        Route::resource('personal', GerenteComercialPersonalController::class)
+            ->parameters(['personal' => 'empleado'])
+            ->except(['show']);
 
         Route::get('cotizaciones', [GerenteComercialCotizacionController::class, 'index'])->name('cotizaciones.index');
         Route::get('cotizaciones/nueva', [GerenteComercialCotizacionController::class, 'create'])->name('cotizaciones.create');

@@ -1,10 +1,12 @@
-import { IconoCotizacionesNav, IconoDashboard } from '@/Components/NavIcons';
+import { IconoClientes, IconoCotizacionesNav, IconoDashboard, IconoPersonalNav } from '@/Components/NavIcons';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 const navItems = [
     { label: 'Dashboard', routeName: 'gerente-comercial.dashboard', icon: IconoDashboard },
     { label: 'Cotizaciones', routeName: 'gerente-comercial.cotizaciones.index', icon: IconoCotizacionesNav },
+    { label: 'Clientes', routeName: 'gerente-comercial.clientes.index', icon: IconoClientes },
+    { label: 'Comerciales', routeName: 'gerente-comercial.personal.index', icon: IconoPersonalNav },
 ];
 
 function iniciales(nombre) {
