@@ -1,5 +1,9 @@
 import GerenteOperativoLayout from "@/Layouts/GerenteOperativoLayout";
 import PageHeader from "@/Components/PageHeader";
+import ConsignatariosMultiples, {
+    mapearConsignatariosIniciales,
+    useConsignatariosMultiples,
+} from "@/Components/ConsignatariosMultiples";
 import Modal from "@/Components/Modal";
 import PrimaryButton from "@/Components/PrimaryButton";
 import SecondaryButton from "@/Components/SecondaryButton";
@@ -177,53 +181,66 @@ function ModalDetalleCliente({ cliente, show, onClose }) {
                         )}
                     </div>
 
-                    {/* Consignatario */}
+                    {/* Consignatarios */}
                     <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                            Datos del Consignatario
+                            Consignatarios ({(cliente.consignatarios || []).length})
                         </h3>
-                        <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-                            <div>
-                                <dt className="text-xs text-gray-400 font-medium">
-                                    Nombre
-                                </dt>
-                                <dd className="font-semibold text-[#042753]">
-                                    {cliente.consignatario_nombre || "—"}
-                                </dd>
+                        {(cliente.consignatarios || []).length > 0 ? (
+                            <div className="space-y-2">
+                                {cliente.consignatarios.map((consignatario) => (
+                                    <dl
+                                        key={consignatario.id_consignatario}
+                                        className="grid grid-cols-2 gap-x-4 gap-y-2.5 bg-gray-50 p-3.5 rounded-xl border border-gray-100"
+                                    >
+                                        <div>
+                                            <dt className="text-xs text-gray-400 font-medium">
+                                                Nombre
+                                            </dt>
+                                            <dd className="font-semibold text-[#042753]">
+                                                {consignatario.nombre || "—"}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-xs text-gray-400 font-medium">
+                                                NIT / CI
+                                            </dt>
+                                            <dd className="font-semibold text-[#042753]">
+                                                {consignatario.nit || "—"}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-xs text-gray-400 font-medium">
+                                                Celular
+                                            </dt>
+                                            <dd className="font-semibold text-[#042753]">
+                                                {consignatario.celular || "—"}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-xs text-gray-400 font-medium">
+                                                Correo Electrónico
+                                            </dt>
+                                            <dd className="font-semibold text-[#042753]">
+                                                {consignatario.correo || "—"}
+                                            </dd>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <dt className="text-xs text-gray-400 font-medium">
+                                                Dirección
+                                            </dt>
+                                            <dd className="font-semibold text-[#042753]">
+                                                {consignatario.direccion || "—"}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                ))}
                             </div>
-                            <div>
-                                <dt className="text-xs text-gray-400 font-medium">
-                                    NIT / CI Consignatario
-                                </dt>
-                                <dd className="font-semibold text-[#042753]">
-                                    {cliente.consignatario_nit || "—"}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-gray-400 font-medium">
-                                    Celular
-                                </dt>
-                                <dd className="font-semibold text-[#042753]">
-                                    {cliente.consignatario_celular || "—"}
-                                </dd>
-                            </div>
-                            <div className="col-span-2">
-                                <dt className="text-xs text-gray-400 font-medium">
-                                    Dirección
-                                </dt>
-                                <dd className="font-semibold text-[#042753]">
-                                    {cliente.consignatario_direccion || "—"}
-                                </dd>
-                            </div>
-                            <div className="col-span-2">
-                                <dt className="text-xs text-gray-400 font-medium">
-                                    Correo Electrónico
-                                </dt>
-                                <dd className="font-semibold text-[#042753]">
-                                    {cliente.consignatario_correo || "—"}
-                                </dd>
-                            </div>
-                        </dl>
+                        ) : (
+                            <p className="text-xs text-gray-400 italic">
+                                No hay consignatarios registrados.
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -261,13 +278,12 @@ function ModalFormCliente({
         activo: true,
         // Contactos Múltiples
         contactos: [{ nombre_completo: "", numero: "", correo: "" }],
-        // Datos Consignatario
-        consignatario_nombre: "",
-        consignatario_nit: "",
-        consignatario_direccion: "",
-        consignatario_celular: "",
-        consignatario_correo: "",
+        // Consignatarios (un cliente puede tener varios)
+        consignatarios: mapearConsignatariosIniciales(cliente?.consignatarios),
+        consignatarios_eliminados: [],
     });
+
+    const consignatariosHandlers = useConsignatariosMultiples(data, setData);
 
     useEffect(() => {
         if (cliente) {
@@ -286,11 +302,8 @@ function ModalFormCliente({
                 contactos: cliente.contactos?.length
                     ? cliente.contactos
                     : [{ nombre_completo: "", numero: "", correo: "" }],
-                consignatario_nombre: cliente.consignatario_nombre ?? "",
-                consignatario_nit: cliente.consignatario_nit ?? "",
-                consignatario_direccion: cliente.consignatario_direccion ?? "",
-                consignatario_celular: cliente.consignatario_celular ?? "",
-                consignatario_correo: cliente.consignatario_correo ?? "",
+                consignatarios: mapearConsignatariosIniciales(cliente.consignatarios),
+                consignatarios_eliminados: [],
             });
         } else {
             reset();
@@ -684,112 +697,15 @@ function ModalFormCliente({
                         ))}
                     </div>
 
-                    {/* SECCIÓN 3: CONSIGNATARIO */}
+                    {/* SECCIÓN 3: CONSIGNATARIOS */}
                     <div className="space-y-4 pt-3 border-t border-gray-100">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                            Datos del Consignatario
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <InputLabel
-                                    htmlFor="consignatario_nombre"
-                                    value="Nombre del Consignatario"
-                                />
-                                <TextInput
-                                    id="consignatario_nombre"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    placeholder="Ej: Juan Pérez"
-                                    value={data.consignatario_nombre}
-                                    onChange={(e) =>
-                                        setData(
-                                            "consignatario_nombre",
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <InputLabel
-                                    htmlFor="consignatario_nit"
-                                    value="NIT / CI Consignatario"
-                                />
-                                <TextInput
-                                    id="consignatario_nit"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    placeholder="Ej: 1023456028"
-                                    value={data.consignatario_nit}
-                                    onChange={(e) =>
-                                        setData(
-                                            "consignatario_nit",
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <InputLabel
-                                    htmlFor="consignatario_celular"
-                                    value="Celular Consignatario"
-                                />
-                                <TextInput
-                                    id="consignatario_celular"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    placeholder="Ej: +591 70000000"
-                                    value={data.consignatario_celular}
-                                    onChange={(e) =>
-                                        setData(
-                                            "consignatario_celular",
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <InputLabel
-                                    htmlFor="consignatario_correo"
-                                    value="Correo Consignatario"
-                                />
-                                <TextInput
-                                    id="consignatario_correo"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    placeholder="consignatario@empresa.com"
-                                    value={data.consignatario_correo}
-                                    onChange={(e) =>
-                                        setData(
-                                            "consignatario_correo",
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <InputLabel
-                                htmlFor="consignatario_direccion"
-                                value="Dirección Consignatario"
-                            />
-                            <TextInput
-                                id="consignatario_direccion"
-                                type="text"
-                                className="mt-1 block w-full"
-                                placeholder="Ej: Av. Siempre Viva #123"
-                                value={data.consignatario_direccion}
-                                onChange={(e) =>
-                                    setData(
-                                        "consignatario_direccion",
-                                        e.target.value,
-                                    )
-                                }
-                            />
-                        </div>
+                        <ConsignatariosMultiples
+                            consignatarios={data.consignatarios}
+                            agregar={consignatariosHandlers.agregar}
+                            quitar={consignatariosHandlers.quitar}
+                            actualizar={consignatariosHandlers.actualizar}
+                            errores={errors}
+                        />
                     </div>
 
                     {/* SECCIÓN 4: OBSERVACIONES Y ESTADO */}

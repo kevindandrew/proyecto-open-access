@@ -22,7 +22,8 @@ class TarifaAgenteController extends Controller
         $vencePronto = $hoy->copy()->addDays(5);
 
         $tarifasAgente = TarifaAgente::with(['proveedor', 'origen', 'destino', 'costos'])
-            ->orderBy('fecha_fin_vigencia')
+            ->orderByDesc('fecha_inicio_vigencia')
+            ->orderByDesc('id_tarifa_agente')
             ->get()
             ->flatMap(fn (TarifaAgente $tarifa) => $tarifa->costos->map(fn ($costo) => [
                 'id_tarifa_agente' => $tarifa->id_tarifa_agente,

@@ -17,6 +17,8 @@ export default function Show({
     houses,
     costos,
     totalesPorMoneda,
+    proveedores,
+    consignatariosCliente,
 }) {
     const eliminarContenedor = (contenedor) => {
         if (window.confirm('¿Quitar este contenedor?')) {
@@ -48,12 +50,14 @@ export default function Show({
                     <Consignatario
                         embarque={embarque}
                         rutaActualizar="operativo.embarques.actualizar-consignatario"
+                        consignatariosCliente={consignatariosCliente}
                     />
                 }
                 accionesTransporte={
                     <ActualizarTransporte
                         embarque={embarque}
                         rutaActualizar="operativo.embarques.actualizar-transporte"
+                        proveedores={proveedores}
                     />
                 }
                 accionesInstruccionesTerrestre={

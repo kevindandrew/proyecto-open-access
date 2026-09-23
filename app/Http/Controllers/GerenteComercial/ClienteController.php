@@ -8,6 +8,7 @@ use App\Models\Cliente;
 use App\Models\DocumentoCliente;
 use App\Models\Empleado;
 use App\Support\CloudinaryUploader;
+use App\Support\ConsignatariosSincronizador;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +28,7 @@ class ClienteController extends Controller
         $limiteSeguimiento = Carbon::today()->subMonths(self::MESES_SIN_SEGUIMIENTO);
 
         $clientes = Cliente::withTrashed()
-            ->with(['ciudad', 'comercial'])
+            ->with(['ciudad', 'comercial', 'consignatarios'])
             ->withMax('cotizaciones as ultima_cotizacion', 'fecha_emision')
             ->orderBy('razon_social')
             ->get()
@@ -56,11 +57,14 @@ class ClienteController extends Controller
                     || Carbon::parse($cliente->ultima_cotizacion)->lt($limiteSeguimiento),
                 'fue_reasignado' => $cliente->reasignado_en !== null,
                 'reasignado_en' => $cliente->reasignado_en?->toDateString(),
-                'consignatario_nombre' => $cliente->consignatario_nombre,
-                'consignatario_nit' => $cliente->consignatario_nit,
-                'consignatario_direccion' => $cliente->consignatario_direccion,
-                'consignatario_celular' => $cliente->consignatario_celular,
-                'consignatario_correo' => $cliente->consignatario_correo,
+                'consignatarios' => $cliente->consignatarios->map(fn ($consignatario) => [
+                    'id_consignatario' => $consignatario->id_consignatario,
+                    'nombre' => $consignatario->nombre,
+                    'nit' => $consignatario->nit,
+                    'direccion' => $consignatario->direccion,
+                    'celular' => $consignatario->celular,
+                    'correo' => $consignatario->correo,
+                ]),
             ]);
 
         return Inertia::render('GerenteComercial/Clientes/Index', [
@@ -97,14 +101,17 @@ class ClienteController extends Controller
                 ];
             });
 
-        unset($data['documentos'], $data['documentos_eliminados']);
+        $consignatarios = $data['consignatarios'] ?? [];
+        unset($data['documentos'], $data['documentos_eliminados'], $data['consignatarios'], $data['consignatarios_eliminados']);
 
-        DB::transaction(function () use ($data, $documentosParaCrear) {
+        DB::transaction(function () use ($data, $documentosParaCrear, $consignatarios) {
             $cliente = Cliente::create($data);
 
             foreach ($documentosParaCrear as $documento) {
                 $cliente->documentos()->create($documento);
             }
+
+            ConsignatariosSincronizador::sincronizar($cliente, $consignatarios);
         });
 
         return redirect()
@@ -114,7 +121,7 @@ class ClienteController extends Controller
 
     public function edit(Cliente $cliente): Response
     {
-        $cliente->loadMissing('documentos');
+        $cliente->loadMissing(['documentos', 'consignatarios']);
 
         return Inertia::render('GerenteComercial/Clientes/Form', [
             'cliente' => [
@@ -139,11 +146,14 @@ class ClienteController extends Controller
                 'otro' => $cliente->otro,
                 'id_comercial' => $cliente->id_comercial,
                 'activo' => $cliente->deleted_at === null,
-                'consignatario_nombre' => $cliente->consignatario_nombre,
-                'consignatario_nit' => $cliente->consignatario_nit,
-                'consignatario_direccion' => $cliente->consignatario_direccion,
-                'consignatario_celular' => $cliente->consignatario_celular,
-                'consignatario_correo' => $cliente->consignatario_correo,
+                'consignatarios' => $cliente->consignatarios->map(fn ($consignatario) => [
+                    'id_consignatario' => $consignatario->id_consignatario,
+                    'nombre' => $consignatario->nombre,
+                    'nit' => $consignatario->nit,
+                    'direccion' => $consignatario->direccion,
+                    'celular' => $consignatario->celular,
+                    'correo' => $consignatario->correo,
+                ]),
             ],
             'ciudades' => $this->ciudades(),
             'comerciales' => $this->comerciales(),
@@ -152,7 +162,7 @@ class ClienteController extends Controller
 
     public function update(Request $request, Cliente $cliente): RedirectResponse
     {
-        $cliente->loadMissing('documentos');
+        $cliente->loadMissing(['documentos', 'consignatarios']);
         $data = $this->validado($request, $cliente);
 
         $documentosResueltos = collect($data['documentos'] ?? [])
@@ -181,9 +191,11 @@ class ClienteController extends Controller
             });
 
         $documentosEliminados = $data['documentos_eliminados'] ?? [];
-        unset($data['documentos'], $data['documentos_eliminados']);
+        $consignatarios = $data['consignatarios'] ?? [];
+        $consignatariosEliminados = $data['consignatarios_eliminados'] ?? [];
+        unset($data['documentos'], $data['documentos_eliminados'], $data['consignatarios'], $data['consignatarios_eliminados']);
 
-        DB::transaction(function () use ($request, $data, $cliente, $documentosResueltos, $documentosEliminados) {
+        DB::transaction(function () use ($request, $data, $cliente, $documentosResueltos, $documentosEliminados, $consignatarios, $consignatariosEliminados) {
             $cliente->update($data);
 
             if ($request->boolean('activo')) {
@@ -213,6 +225,8 @@ class ClienteController extends Controller
                     ]);
                 }
             }
+
+            ConsignatariosSincronizador::sincronizar($cliente, $consignatarios, $consignatariosEliminados);
         });
 
         return redirect()
@@ -285,11 +299,15 @@ class ClienteController extends Controller
                 'required', 'integer',
                 Rule::exists('empleados', 'id_empleado'),
             ],
-            'consignatario_nombre' => ['nullable', 'string', 'max:150'],
-            'consignatario_nit' => ['nullable', 'string', 'max:30'],
-            'consignatario_direccion' => ['nullable', 'string'],
-            'consignatario_celular' => ['nullable', 'string', 'max:30'],
-            'consignatario_correo' => ['nullable', 'email', 'max:120'],
+            'consignatarios' => ['nullable', 'array'],
+            'consignatarios.*.id_consignatario' => ['nullable', 'integer'],
+            'consignatarios.*.nombre' => ['nullable', 'string', 'max:150'],
+            'consignatarios.*.nit' => ['nullable', 'string', 'max:30'],
+            'consignatarios.*.direccion' => ['nullable', 'string'],
+            'consignatarios.*.celular' => ['nullable', 'string', 'max:30'],
+            'consignatarios.*.correo' => ['nullable', 'email', 'max:120'],
+            'consignatarios_eliminados' => ['nullable', 'array'],
+            'consignatarios_eliminados.*' => ['integer'],
         ])->after(function (Validator $validator) use ($request, $cliente) {
             $idCiudad = $request->input('id_ciudad');
 

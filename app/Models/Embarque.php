@@ -19,6 +19,7 @@ class Embarque extends Model
         'codigo_house_base',
         'id_cotizacion',
         'id_cliente',
+        'id_consignatario',
         'consignatario_nombre',
         'consignatario_nit',
         'consignatario_direccion',
@@ -60,6 +61,7 @@ class Embarque extends Model
         'viaje',
         'pago_master',
         'estado_embarque',
+        'liquidacion_cerrada_en',
     ];
 
     protected function casts(): array
@@ -69,6 +71,7 @@ class Embarque extends Model
             'eta' => 'date',
             'sobrefacturado' => 'boolean',
             'flete_menor' => 'boolean',
+            'liquidacion_cerrada_en' => 'datetime',
         ];
     }
 
@@ -80,6 +83,11 @@ class Embarque extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
+    }
+
+    public function consignatario(): BelongsTo
+    {
+        return $this->belongsTo(ClienteConsignatario::class, 'id_consignatario', 'id_consignatario');
     }
 
     public function comercial(): BelongsTo
@@ -140,5 +148,10 @@ class Embarque extends Model
     public function gastosDestino(): HasMany
     {
         return $this->hasMany(GastoDestino::class, 'id_embarque', 'id_embarque');
+    }
+
+    public function documentosLiquidacion(): HasMany
+    {
+        return $this->hasMany(DocumentoLiquidacion::class, 'id_embarque', 'id_embarque');
     }
 }

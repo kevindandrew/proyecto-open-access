@@ -26,6 +26,7 @@ class TarifaAgenteLookup
                 'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
                 'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
                 'costos' => $tarifa->costos->map(fn ($costo) => [
+                    'id_costo' => $costo->id_costo,
                     'concepto' => $costo->concepto,
                     'costo' => $costo->costo,
                     'moneda' => $costo->moneda,

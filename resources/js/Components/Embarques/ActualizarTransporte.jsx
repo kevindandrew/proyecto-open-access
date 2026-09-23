@@ -1,6 +1,23 @@
 import { useForm } from '@inertiajs/react';
+import { useMemo } from 'react';
 
-export default function ActualizarTransporte({ embarque, rutaActualizar }) {
+// Mismo criterio que TiposTransportePorModo.php: en LCL marítimo el "carrier"
+// cotizado suele ser en realidad un consolidador/agente (NVOCC), no una
+// naviera con buque propio.
+function tiposCarrierPara(modoTransporte, tipoServicio) {
+    switch (modoTransporte) {
+        case 'Maritimo':
+            return tipoServicio === 'LCL' ? ['Naviera', 'Agente_Origen'] : ['Naviera'];
+        case 'Aereo':
+            return ['Aerolinea'];
+        case 'Terrestre':
+            return ['Transportista'];
+        default:
+            return [];
+    }
+}
+
+export default function ActualizarTransporte({ embarque, rutaActualizar, proveedores = [] }) {
     const { data, setData, patch, processing, errors } = useForm({
         mbl: embarque.mbl ?? '',
         etd: embarque.etd ?? '',
@@ -8,7 +25,28 @@ export default function ActualizarTransporte({ embarque, rutaActualizar }) {
         nave: embarque.nave ?? '',
         viaje: embarque.viaje ?? '',
         pago_master: embarque.pago_master ?? '',
+        id_agente_origen: embarque.id_agente_origen ?? '',
+        id_naviera_aerolinea: embarque.id_naviera_aerolinea ?? '',
     });
+
+    const tiposCarrier = useMemo(
+        () => tiposCarrierPara(embarque.modo_transporte, embarque.tipo_servicio),
+        [embarque.modo_transporte, embarque.tipo_servicio],
+    );
+
+    const carriers = useMemo(
+        () => proveedores.filter((proveedor) => tiposCarrier.includes(proveedor.tipo)),
+        [proveedores, tiposCarrier],
+    );
+
+    const agentes = useMemo(
+        () => proveedores.filter((proveedor) => proveedor.tipo === 'Agente_Origen'),
+        [proveedores],
+    );
+
+    const esAereo = embarque.modo_transporte === 'Aereo';
+    const etiquetaMbl = esAereo ? 'MAWB' : 'MBL';
+    const etiquetaNave = esAereo ? 'Aeronave' : 'Nave';
 
     const submit = (e) => {
         e.preventDefault();
@@ -23,10 +61,48 @@ export default function ActualizarTransporte({ embarque, rutaActualizar }) {
     return (
         <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-                <label className={labelClass}>MBL</label>
+                <label className={labelClass}>Carrier (Naviera / Aerolínea)</label>
+                <select
+                    className={inputClass}
+                    value={data.id_naviera_aerolinea}
+                    onChange={(e) => setData('id_naviera_aerolinea', e.target.value)}
+                >
+                    <option value="">—</option>
+                    {carriers.map((proveedor) => (
+                        <option key={proveedor.id_proveedor} value={proveedor.id_proveedor}>
+                            {proveedor.nombre}
+                        </option>
+                    ))}
+                </select>
+                {errors.id_naviera_aerolinea && (
+                    <p className="mt-1 text-xs text-red-600">{errors.id_naviera_aerolinea}</p>
+                )}
+            </div>
+
+            <div>
+                <label className={labelClass}>Agente de Origen</label>
+                <select
+                    className={inputClass}
+                    value={data.id_agente_origen}
+                    onChange={(e) => setData('id_agente_origen', e.target.value)}
+                >
+                    <option value="">—</option>
+                    {agentes.map((proveedor) => (
+                        <option key={proveedor.id_proveedor} value={proveedor.id_proveedor}>
+                            {proveedor.nombre}
+                        </option>
+                    ))}
+                </select>
+                {errors.id_agente_origen && (
+                    <p className="mt-1 text-xs text-red-600">{errors.id_agente_origen}</p>
+                )}
+            </div>
+
+            <div>
+                <label className={labelClass}>{etiquetaMbl}</label>
                 <input
                     type="text"
-                    placeholder="Ej. MSCUBS123456"
+                    placeholder={esAereo ? 'Ej. 123-12345678' : 'Ej. MSCUBS123456'}
                     className={inputClass}
                     value={data.mbl}
                     onChange={(e) => setData('mbl', e.target.value)}
@@ -57,10 +133,10 @@ export default function ActualizarTransporte({ embarque, rutaActualizar }) {
             </div>
 
             <div>
-                <label className={labelClass}>Nave</label>
+                <label className={labelClass}>{etiquetaNave}</label>
                 <input
                     type="text"
-                    placeholder="Ej. MSC Bolivia"
+                    placeholder={esAereo ? 'Ej. Boeing 767' : 'Ej. MSC Bolivia'}
                     className={inputClass}
                     value={data.nave}
                     onChange={(e) => setData('nave', e.target.value)}

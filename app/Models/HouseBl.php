@@ -17,6 +17,8 @@ class HouseBl extends Model
     protected $fillable = [
         'id_embarque',
         'id_cliente',
+        'shipper_nombre',
+        'shipper_direccion',
         'numero_hbl',
         'condicion_pago',
         'flete_valor_texto',
@@ -49,6 +51,6 @@ class HouseBl extends Model
         // peso/volumen/descripción de "la porción de este house" viven en el
         // pivot, separados del dato del contenedor completo.
         return $this->belongsToMany(EmbarqueContenedor::class, 'house_bl_contenedor', 'id_hbl', 'id_item')
-            ->withPivot(['peso_kg', 'volumen_cbm', 'descripcion_mercancia']);
+            ->withPivot(['peso_kg', 'volumen_cbm', 'descripcion_mercancia', 'condicion_pago', 'flete_valor_texto']);
     }
 }

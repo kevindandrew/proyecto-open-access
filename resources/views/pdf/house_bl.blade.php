@@ -216,7 +216,7 @@
             </td>
             <td style="width: 40%;">
                 <p class="etiqueta">Freight payable at</p>
-                <p class="valor fuerte">FREIGHT {{ strtoupper($house['condicion_pago']) }}</p>
+                <p class="valor fuerte">FREIGHT {{ $house['condicion_pago_resumen'] }}</p>
             </td>
             <td>
                 <p class="etiqueta">Place and Date of Issue</p>
@@ -234,28 +234,26 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>OCEAN FREIGHT</td>
-                <td class="derecha">
-                    {{ $house['condicion_pago'] === 'Prepaid' ? $house['flete_valor_texto'] : '-' }}
-                </td>
-                <td class="derecha">
-                    {{ $house['condicion_pago'] === 'Collect' ? $house['flete_valor_texto'] : '-' }}
-                </td>
-            </tr>
-            <tr><td>&nbsp;</td><td class="derecha">-</td><td class="derecha">-</td></tr>
-            <tr><td>&nbsp;</td><td class="derecha">-</td><td class="derecha">-</td></tr>
-            <tr><td>&nbsp;</td><td class="derecha">-</td><td class="derecha">-</td></tr>
+            @foreach ($contenedores as $contenedor)
+                <tr>
+                    <td>OCEAN FREIGHT — {{ $contenedor['numero_contenedor'] ?? $contenedor['tipo_contenedor'] ?? '—' }}</td>
+                    <td class="derecha">
+                        {{ $contenedor['condicion_pago'] === 'Prepaid' ? $contenedor['flete_valor_texto'] : '-' }}
+                    </td>
+                    <td class="derecha">
+                        {{ $contenedor['condicion_pago'] === 'Collect' ? $contenedor['flete_valor_texto'] : '-' }}
+                    </td>
+                </tr>
+            @endforeach
+            @for ($i = count($contenedores); $i < 4; $i++)
+                <tr><td>&nbsp;</td><td class="derecha">-</td><td class="derecha">-</td></tr>
+            @endfor
         </tbody>
         <tfoot>
             <tr>
                 <td style="font-weight: bold;">Total freight</td>
-                <td class="derecha" style="font-weight: bold;">
-                    {{ $house['condicion_pago'] === 'Prepaid' ? $house['flete_valor_texto'] : '' }}
-                </td>
-                <td class="derecha" style="font-weight: bold;">
-                    {{ $house['condicion_pago'] === 'Collect' ? $house['flete_valor_texto'] : '' }}
-                </td>
+                <td class="derecha" style="font-weight: bold;">{{ $totalFletePrepaid }}</td>
+                <td class="derecha" style="font-weight: bold;">{{ $totalFleteCollect }}</td>
             </tr>
         </tfoot>
     </table>

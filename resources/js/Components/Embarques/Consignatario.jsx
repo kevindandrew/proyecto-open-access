@@ -1,14 +1,10 @@
 import { useForm } from '@inertiajs/react';
 
-export default function Consignatario({ embarque, rutaActualizar }) {
+export default function Consignatario({ embarque, rutaActualizar, consignatariosCliente = [] }) {
     const { data, setData, patch, processing, errors } = useForm({
         shipper_nombre: embarque.shipper_nombre ?? '',
         shipper_direccion: embarque.shipper_direccion ?? '',
-        consignatario_nombre: embarque.consignatario_nombre ?? '',
-        consignatario_nit: embarque.consignatario_nit ?? '',
-        consignatario_direccion: embarque.consignatario_direccion ?? '',
-        consignatario_celular: embarque.consignatario_celular ?? '',
-        consignatario_correo: embarque.consignatario_correo ?? '',
+        id_consignatario: embarque.id_consignatario ?? '',
     });
 
     const submit = (e) => {
@@ -43,10 +39,10 @@ export default function Consignatario({ embarque, rutaActualizar }) {
                     </div>
                     <div>
                         <label className={labelClass}>Dirección</label>
-                        <input
-                            type="text"
-                            placeholder="Dirección del exportador"
-                            className={inputClass}
+                        <textarea
+                            rows={3}
+                            placeholder="Dirección del exportador — usá Enter para agregar más líneas (calle, ciudad, país...)"
+                            className={`${inputClass} whitespace-pre-line`}
                             value={data.shipper_direccion}
                             onChange={(e) => setData('shipper_direccion', e.target.value)}
                         />
@@ -61,76 +57,29 @@ export default function Consignatario({ embarque, rutaActualizar }) {
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#71BFA6]">
                     Consignatario
                 </p>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="sm:col-span-2 lg:col-span-1">
-                    <label className={labelClass}>Nombre</label>
-                    <input
-                        type="text"
-                        placeholder="Ej. Juan Pérez"
-                        className={inputClass}
-                        value={data.consignatario_nombre}
-                        onChange={(e) => setData('consignatario_nombre', e.target.value)}
-                    />
-                    {errors.consignatario_nombre && (
-                        <p className="mt-1 text-xs text-red-600">{errors.consignatario_nombre}</p>
-                    )}
-                </div>
-
                 <div>
-                    <label className={labelClass}>NIT</label>
-                    <input
-                        type="text"
-                        placeholder="Ej. 1023456011"
+                    <label className={labelClass}>Consignatario del cliente</label>
+                    <select
                         className={inputClass}
-                        value={data.consignatario_nit}
-                        onChange={(e) => setData('consignatario_nit', e.target.value)}
-                    />
-                    {errors.consignatario_nit && (
-                        <p className="mt-1 text-xs text-red-600">{errors.consignatario_nit}</p>
+                        value={data.id_consignatario}
+                        onChange={(e) => setData('id_consignatario', e.target.value)}
+                    >
+                        <option value="">—</option>
+                        {consignatariosCliente.map((consignatario) => (
+                            <option key={consignatario.id_consignatario} value={consignatario.id_consignatario}>
+                                {consignatario.nombre}
+                                {consignatario.nit ? ` — NIT: ${consignatario.nit}` : ''}
+                            </option>
+                        ))}
+                    </select>
+                    {errors.id_consignatario && (
+                        <p className="mt-1 text-xs text-red-600">{errors.id_consignatario}</p>
                     )}
-                </div>
-
-                <div>
-                    <label className={labelClass}>Celular</label>
-                    <input
-                        type="text"
-                        placeholder="Ej. 71234567"
-                        className={inputClass}
-                        value={data.consignatario_celular}
-                        onChange={(e) => setData('consignatario_celular', e.target.value)}
-                    />
-                    {errors.consignatario_celular && (
-                        <p className="mt-1 text-xs text-red-600">{errors.consignatario_celular}</p>
-                    )}
-                </div>
-
-                <div className="sm:col-span-2 lg:col-span-2">
-                    <label className={labelClass}>Dirección</label>
-                    <input
-                        type="text"
-                        placeholder="Ej. Av. Arce #123, Zona Sur"
-                        className={inputClass}
-                        value={data.consignatario_direccion}
-                        onChange={(e) => setData('consignatario_direccion', e.target.value)}
-                    />
-                    {errors.consignatario_direccion && (
-                        <p className="mt-1 text-xs text-red-600">{errors.consignatario_direccion}</p>
-                    )}
-                </div>
-
-                <div>
-                    <label className={labelClass}>Correo</label>
-                    <input
-                        type="email"
-                        placeholder="Ej. contacto@cliente.com"
-                        className={inputClass}
-                        value={data.consignatario_correo}
-                        onChange={(e) => setData('consignatario_correo', e.target.value)}
-                    />
-                    {errors.consignatario_correo && (
-                        <p className="mt-1 text-xs text-red-600">{errors.consignatario_correo}</p>
-                    )}
-                </div>
+                    <p className="mt-1 text-xs text-[#A9ABAE]">
+                        {consignatariosCliente.length === 0
+                            ? 'Este cliente todavía no tiene consignatarios cargados — agregalos desde Clientes.'
+                            : 'Para editar el nombre, NIT, dirección u otros datos de un consignatario, hacelo desde la sección Clientes.'}
+                    </p>
                 </div>
             </div>
 

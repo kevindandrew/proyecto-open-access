@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Operativo;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClienteConsignatario;
 use App\Models\Embarque;
 use App\Models\EmbarqueContenedor;
 use App\Models\EmbarqueCosto;
 use App\Models\HouseBl;
+use App\Models\Proveedor;
 use App\Models\SeguimientoEmbarque;
 use App\Support\AlertasEmbarque;
 use App\Support\SecuenciaEstadoEmbarque;
@@ -25,7 +27,7 @@ class EmbarqueController extends Controller
         $this->autorizar($embarque);
 
         $embarque->load([
-            'cotizacion', 'cliente', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
+            'cotizacion', 'cliente.consignatarios', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
             'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores'),
             'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
@@ -38,6 +40,7 @@ class EmbarqueController extends Controller
                 'numero_file' => $embarque->numero_file,
                 'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
+                'id_consignatario' => $embarque->id_consignatario,
                 'consignatario_nombre' => $embarque->consignatario_nombre,
                 'consignatario_nit' => $embarque->consignatario_nit,
                 'consignatario_direccion' => $embarque->consignatario_direccion,
@@ -47,7 +50,9 @@ class EmbarqueController extends Controller
                 'shipper_direccion' => $embarque->shipper_direccion,
                 'comercial' => $embarque->comercial?->nombre_completo,
                 'operativo' => $embarque->operativo?->nombre_completo,
+                'id_agente_origen' => $embarque->id_agente_origen,
                 'agente_origen' => $embarque->agenteOrigen?->nombre,
+                'id_naviera_aerolinea' => $embarque->id_naviera_aerolinea,
                 'naviera_aerolinea' => $embarque->navieraAerolinea?->nombre,
                 'modo_transporte' => $embarque->modo_transporte,
                 'tipo_servicio' => $embarque->tipo_servicio,
@@ -130,6 +135,12 @@ class EmbarqueController extends Controller
                     'compra' => $grupo->sum('costo_compra'),
                     'venta' => $grupo->sum('costo_venta'),
                 ]),
+            'proveedores' => Proveedor::where('activo', true)->orderBy('nombre')->get(['id_proveedor', 'nombre', 'tipo']),
+            'consignatariosCliente' => $embarque->cliente?->consignatarios->map(fn (ClienteConsignatario $consignatario) => [
+                'id_consignatario' => $consignatario->id_consignatario,
+                'nombre' => $consignatario->nombre,
+                'nit' => $consignatario->nit,
+            ]) ?? [],
         ]);
     }
 
@@ -176,6 +187,8 @@ class EmbarqueController extends Controller
             'nave' => ['nullable', 'string', 'max:100'],
             'viaje' => ['nullable', 'string', 'max:30'],
             'pago_master' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
+            'id_agente_origen' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
+            'id_naviera_aerolinea' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
         ]);
 
         $embarque->update($data);
@@ -231,16 +244,28 @@ class EmbarqueController extends Controller
         $this->autorizar($embarque);
 
         $data = $request->validate([
-            'consignatario_nombre' => ['nullable', 'string', 'max:200'],
-            'consignatario_nit' => ['nullable', 'string', 'max:30'],
-            'consignatario_direccion' => ['nullable', 'string'],
-            'consignatario_celular' => ['nullable', 'string', 'max:30'],
-            'consignatario_correo' => ['nullable', 'email', 'max:120'],
+            'id_consignatario' => [
+                'nullable', 'integer',
+                Rule::exists('cliente_consignatarios', 'id_consignatario')->where('id_cliente', $embarque->id_cliente),
+            ],
             'shipper_nombre' => ['nullable', 'string', 'max:200'],
             'shipper_direccion' => ['nullable', 'string'],
         ]);
 
-        $embarque->update($data);
+        $consignatario = ! empty($data['id_consignatario'])
+            ? ClienteConsignatario::find($data['id_consignatario'])
+            : null;
+
+        $embarque->update([
+            'shipper_nombre' => $data['shipper_nombre'] ?? null,
+            'shipper_direccion' => $data['shipper_direccion'] ?? null,
+            'id_consignatario' => $consignatario?->id_consignatario,
+            'consignatario_nombre' => $consignatario?->nombre,
+            'consignatario_nit' => $consignatario?->nit,
+            'consignatario_direccion' => $consignatario?->direccion,
+            'consignatario_celular' => $consignatario?->celular,
+            'consignatario_correo' => $consignatario?->correo,
+        ]);
 
         return redirect()
             ->route('operativo.embarques.show', $embarque->id_embarque)

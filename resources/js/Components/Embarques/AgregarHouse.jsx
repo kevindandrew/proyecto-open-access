@@ -6,6 +6,7 @@ function etiquetaContenedor(contenedor) {
 
 export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponibles = [], clientes = [] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
+        numero_hbl: '',
         id_cliente: '',
         condicion_pago: '',
         fecha_emision: '',
@@ -32,6 +33,22 @@ export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponib
     return (
         <form onSubmit={submit} className="mt-4 space-y-3 border-t border-gray-100 pt-4">
             <div className="flex flex-wrap items-end gap-3">
+                <div>
+                    <label className="text-xs font-medium text-[#042753]">
+                        Número HBL/HAWB
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="Ej. OA-NH7XHTa"
+                        className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                        value={data.numero_hbl}
+                        onChange={(e) => setData('numero_hbl', e.target.value)}
+                    />
+                    {errors.numero_hbl && (
+                        <p className="mt-1 text-xs text-red-600">{errors.numero_hbl}</p>
+                    )}
+                </div>
+
                 <div>
                     <label className="text-xs font-medium text-[#042753]">
                         Condición de Pago

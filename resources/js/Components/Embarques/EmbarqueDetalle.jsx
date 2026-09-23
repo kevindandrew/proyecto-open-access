@@ -27,7 +27,7 @@ function Campo({ label, value }) {
             <p className="text-xs font-medium uppercase tracking-wide text-[#A9ABAE]">
                 {label}
             </p>
-            <p className="text-sm text-[#042753]">{value ?? '—'}</p>
+            <p className="whitespace-pre-line text-sm text-[#042753]">{value ?? '—'}</p>
         </div>
     );
 }
@@ -71,6 +71,7 @@ function Houses({
     rutaPdf,
     contenedoresDisponibles = [],
     clientes = [],
+    modoTransporte,
 }) {
     if (houses.length === 0) {
         return (
@@ -92,6 +93,7 @@ function Houses({
                     rutaActualizar={rutaActualizar}
                     rutaPdf={rutaPdf}
                     onEliminar={onEliminar}
+                    modoTransporte={modoTransporte}
                 />
             ))}
         </div>
@@ -306,7 +308,7 @@ export default function EmbarqueDetalle({
                         <Campo label="Comercial" value={embarque.comercial} />
                         <Campo label="Operativo" value={embarque.operativo} />
                         <Campo label="Agente de Origen" value={embarque.agente_origen} />
-                        <Campo label="Naviera / Aerolínea" value={embarque.naviera_aerolinea} />
+                        <Campo label="Carrier (Naviera / Aerolínea)" value={embarque.naviera_aerolinea} />
                     </GrupoCampos>
 
                     <GrupoCampos titulo="Ruta y Carga">
@@ -323,10 +325,16 @@ export default function EmbarqueDetalle({
                     </GrupoCampos>
 
                     <GrupoCampos titulo="Transporte y Fechas">
-                        <Campo label="MBL" value={embarque.mbl} />
+                        <Campo
+                            label={embarque.modo_transporte === 'Aereo' ? 'MAWB' : 'MBL'}
+                            value={embarque.mbl}
+                        />
                         <Campo label="ETD" value={embarque.etd} />
                         <Campo label="ETA" value={embarque.eta} />
-                        <Campo label="Nave" value={embarque.nave} />
+                        <Campo
+                            label={embarque.modo_transporte === 'Aereo' ? 'Aeronave' : 'Nave'}
+                            value={embarque.nave}
+                        />
                         <Campo label="Viaje" value={embarque.viaje} />
                         <Campo label="Pago Master" value={embarque.pago_master} />
                     </GrupoCampos>
@@ -460,6 +468,7 @@ export default function EmbarqueDetalle({
                     rutaPdf={rutaPdfHouse}
                     contenedoresDisponibles={contenedores}
                     clientes={clientesHouse}
+                    modoTransporte={embarque.modo_transporte}
                 />
                 {accionesHouses}
             </SeccionCard>

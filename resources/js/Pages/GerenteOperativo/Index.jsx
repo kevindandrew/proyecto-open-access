@@ -3,9 +3,9 @@ import { ESTADO_LABELS } from '@/constants/estados';
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
 import { Head, Link } from '@inertiajs/react';
 
-const formatoMoneda = new Intl.NumberFormat('es-BO', {
-    style: 'currency',
-    currency: 'USD',
+// Sin símbolo de moneda fijo: el profit y las rutas pueden venir en USD o
+// en BOB — la moneda se muestra aparte, nunca mezclada en un solo total.
+const formatoNumero = new Intl.NumberFormat('es-BO', {
     maximumFractionDigits: 0,
 });
 
@@ -276,7 +276,7 @@ function TopRutas({ rutas }) {
                                     {ruta.ruta}
                                 </span>
                                 <span className="flex-shrink-0 font-semibold text-[#042753]">
-                                    {formatoMoneda.format(ruta.valor)}
+                                    {formatoNumero.format(ruta.valor)} {ruta.moneda}
                                 </span>
                             </div>
                             <div className="h-2 rounded-full bg-gray-100">
@@ -422,13 +422,26 @@ export default function Index({
                     iconBg="bg-green-100"
                     iconColor="text-green-700"
                 />
-                <StatCard
-                    label="Profit"
-                    value={formatoMoneda.format(contadores.profit)}
-                    icon={IconoDolar}
-                    iconBg="bg-[#71BFA6]/15"
-                    iconColor="text-[#71BFA6]"
-                />
+                {Object.keys(contadores.profitPorMoneda).length === 0 ? (
+                    <StatCard
+                        label="Profit"
+                        value="—"
+                        icon={IconoDolar}
+                        iconBg="bg-[#71BFA6]/15"
+                        iconColor="text-[#71BFA6]"
+                    />
+                ) : (
+                    Object.entries(contadores.profitPorMoneda).map(([moneda, valor]) => (
+                        <StatCard
+                            key={moneda}
+                            label={`Profit (${moneda})`}
+                            value={formatoNumero.format(valor)}
+                            icon={IconoDolar}
+                            iconBg="bg-[#71BFA6]/15"
+                            iconColor="text-[#71BFA6]"
+                        />
+                    ))
+                )}
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

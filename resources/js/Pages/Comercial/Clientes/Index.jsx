@@ -1,4 +1,11 @@
-import DocumentosMultiples, { useDocumentosMultiples } from '@/Components/DocumentosMultiples';
+import ConsignatariosMultiples, {
+    mapearConsignatariosIniciales,
+    useConsignatariosMultiples,
+} from '@/Components/ConsignatariosMultiples';
+import DocumentosMultiples, {
+    mapearDocumentosIniciales,
+    useDocumentosMultiples,
+} from '@/Components/DocumentosMultiples';
 import ComercialLayout from '@/Layouts/ComercialLayout';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
@@ -9,32 +16,51 @@ const TIPOS_DOCUMENTO = [
     { valor: 'NIT', etiqueta: 'NIT' },
 ];
 
-function NuevoClienteModal({ open, onClose, ciudades }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
-        razon_social: '',
-        nit: '',
-        documentos: [],
-        id_ciudad: '',
-        direccion: '',
-        persona_contacto: '',
-        telefono1: '',
-        celular_whatsapp: '',
-        email: '',
-        correo_factura: '',
-        condicion_pago: 'Al contado',
+function ClienteFormModal({ open, onClose, cliente, ciudades }) {
+    const esEdicion = Boolean(cliente);
+
+    const { data, setData, post, transform, processing, errors, reset } = useForm({
+        razon_social: cliente?.razon_social ?? '',
+        nit: cliente?.nit ?? '',
+        documentos: mapearDocumentosIniciales(cliente?.documentos),
+        documentos_eliminados: [],
+        id_ciudad: cliente?.id_ciudad ?? '',
+        direccion: cliente?.direccion ?? '',
+        persona_contacto: cliente?.persona_contacto ?? '',
+        telefono1: cliente?.telefono1 ?? '',
+        celular_whatsapp: cliente?.celular_whatsapp ?? '',
+        email: cliente?.email ?? '',
+        correo_factura: cliente?.correo_factura ?? '',
+        condicion_pago: cliente?.condicion_pago ?? 'Al contado',
+        consignatarios: mapearConsignatariosIniciales(cliente?.consignatarios),
+        consignatarios_eliminados: [],
     });
 
     const documentosHandlers = useDocumentosMultiples(data, setData);
+    const consignatariosHandlers = useConsignatariosMultiples(data, setData);
 
     const submit = (e) => {
         e.preventDefault();
 
-        post(route('comercial.clientes.store'), {
-            onSuccess: () => {
-                reset();
-                onClose();
-            },
-        });
+        if (esEdicion) {
+            // PHP no parsea cuerpos multipart en peticiones PUT reales, así que
+            // hay que mandar un POST con _method=put (spoofing) para que los
+            // archivos lleguen — Inertia no hace esta conversión sola.
+            transform((data) => ({ ...data, _method: 'put' }));
+            post(route('comercial.clientes.update', cliente.id_cliente), {
+                onSuccess: () => {
+                    reset();
+                    onClose();
+                },
+            });
+        } else {
+            post(route('comercial.clientes.store'), {
+                onSuccess: () => {
+                    reset();
+                    onClose();
+                },
+            });
+        }
     };
 
     const inputClass =
@@ -48,7 +74,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
             <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
                 <DialogPanel className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
                     <DialogTitle className="text-lg font-semibold text-[#042753]">
-                        Nuevo Cliente
+                        {esEdicion ? 'Editar Cliente' : 'Nuevo Cliente'}
                     </DialogTitle>
 
                     <form onSubmit={submit} encType="multipart/form-data" className="mt-4 space-y-3">
@@ -62,14 +88,10 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 placeholder="Ej. Textiles La Paz Ltda."
                                 className={inputClass}
                                 value={data.razon_social}
-                                onChange={(e) =>
-                                    setData('razon_social', e.target.value)
-                                }
+                                onChange={(e) => setData('razon_social', e.target.value)}
                             />
                             {errors.razon_social && (
-                                <p className="mt-1 text-sm text-red-600">
-                                    {errors.razon_social}
-                                </p>
+                                <p className="mt-1 text-sm text-red-600">{errors.razon_social}</p>
                             )}
                         </div>
 
@@ -84,9 +106,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                     placeholder="Ej. 1023456011"
                                     className={inputClass}
                                     value={data.nit}
-                                    onChange={(e) =>
-                                        setData('nit', e.target.value)
-                                    }
+                                    onChange={(e) => setData('nit', e.target.value)}
                                 />
                             </div>
                             <div>
@@ -97,16 +117,11 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                     id="id_ciudad"
                                     className={inputClass}
                                     value={data.id_ciudad}
-                                    onChange={(e) =>
-                                        setData('id_ciudad', e.target.value)
-                                    }
+                                    onChange={(e) => setData('id_ciudad', e.target.value)}
                                 >
                                     <option value="">—</option>
                                     {ciudades.map((ciudad) => (
-                                        <option
-                                            key={ciudad.cod_ciudad}
-                                            value={ciudad.cod_ciudad}
-                                        >
+                                        <option key={ciudad.cod_ciudad} value={ciudad.cod_ciudad}>
                                             {ciudad.nombre_ciudad}
                                         </option>
                                     ))}
@@ -135,17 +150,12 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 placeholder="Ej. Av. Arce #123, Zona Sur"
                                 className={inputClass}
                                 value={data.direccion}
-                                onChange={(e) =>
-                                    setData('direccion', e.target.value)
-                                }
+                                onChange={(e) => setData('direccion', e.target.value)}
                             />
                         </div>
 
                         <div>
-                            <label
-                                htmlFor="persona_contacto"
-                                className={labelClass}
-                            >
+                            <label htmlFor="persona_contacto" className={labelClass}>
                                 Persona de Contacto
                             </label>
                             <input
@@ -154,21 +164,13 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 placeholder="Ej. Juan Pérez"
                                 className={inputClass}
                                 value={data.persona_contacto}
-                                onChange={(e) =>
-                                    setData(
-                                        'persona_contacto',
-                                        e.target.value,
-                                    )
-                                }
+                                onChange={(e) => setData('persona_contacto', e.target.value)}
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label
-                                    htmlFor="telefono1"
-                                    className={labelClass}
-                                >
+                                <label htmlFor="telefono1" className={labelClass}>
                                     Teléfono
                                 </label>
                                 <input
@@ -177,19 +179,11 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                     placeholder="Ej. 22123456"
                                     className={inputClass}
                                     value={data.telefono1}
-                                    onChange={(e) =>
-                                        setData(
-                                            'telefono1',
-                                            e.target.value,
-                                        )
-                                    }
+                                    onChange={(e) => setData('telefono1', e.target.value)}
                                 />
                             </div>
                             <div>
-                                <label
-                                    htmlFor="celular_whatsapp"
-                                    className={labelClass}
-                                >
+                                <label htmlFor="celular_whatsapp" className={labelClass}>
                                     Celular / WhatsApp
                                 </label>
                                 <input
@@ -198,12 +192,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                     placeholder="Ej. 71234567"
                                     className={inputClass}
                                     value={data.celular_whatsapp}
-                                    onChange={(e) =>
-                                        setData(
-                                            'celular_whatsapp',
-                                            e.target.value,
-                                        )
-                                    }
+                                    onChange={(e) => setData('celular_whatsapp', e.target.value)}
                                 />
                             </div>
                         </div>
@@ -219,16 +208,11 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                     placeholder="Ej. contacto@cliente.com"
                                     className={inputClass}
                                     value={data.email}
-                                    onChange={(e) =>
-                                        setData('email', e.target.value)
-                                    }
+                                    onChange={(e) => setData('email', e.target.value)}
                                 />
                             </div>
                             <div>
-                                <label
-                                    htmlFor="correo_factura"
-                                    className={labelClass}
-                                >
+                                <label htmlFor="correo_factura" className={labelClass}>
                                     Correo Factura
                                 </label>
                                 <input
@@ -237,21 +221,13 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                     placeholder="Ej. facturacion@cliente.com"
                                     className={inputClass}
                                     value={data.correo_factura}
-                                    onChange={(e) =>
-                                        setData(
-                                            'correo_factura',
-                                            e.target.value,
-                                        )
-                                    }
+                                    onChange={(e) => setData('correo_factura', e.target.value)}
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label
-                                htmlFor="condicion_pago"
-                                className={labelClass}
-                            >
+                            <label htmlFor="condicion_pago" className={labelClass}>
                                 Condición de Pago
                             </label>
                             <input
@@ -260,14 +236,17 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 placeholder="Ej. Contado, Crédito 30 días"
                                 className={inputClass}
                                 value={data.condicion_pago}
-                                onChange={(e) =>
-                                    setData(
-                                        'condicion_pago',
-                                        e.target.value,
-                                    )
-                                }
+                                onChange={(e) => setData('condicion_pago', e.target.value)}
                             />
                         </div>
+
+                        <ConsignatariosMultiples
+                            consignatarios={data.consignatarios}
+                            agregar={consignatariosHandlers.agregar}
+                            quitar={consignatariosHandlers.quitar}
+                            actualizar={consignatariosHandlers.actualizar}
+                            errores={errors}
+                        />
 
                         <div className="flex justify-end gap-3 pt-2">
                             <button
@@ -282,7 +261,7 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
                                 disabled={processing}
                                 className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
                             >
-                                Guardar Cliente
+                                {esEdicion ? 'Guardar Cambios' : 'Guardar Cliente'}
                             </button>
                         </div>
                     </form>
@@ -295,16 +274,27 @@ function NuevoClienteModal({ open, onClose, ciudades }) {
 export default function Index({ clientes, ciudades }) {
     const [busqueda, setBusqueda] = useState('');
     const [modalAbierto, setModalAbierto] = useState(false);
+    const [clienteEditar, setClienteEditar] = useState(null);
 
     const clientesFiltrados = useMemo(
         () =>
-            clientes.filter((cliente) =>
-                cliente.razon_social
-                    .toLowerCase()
-                    .includes(busqueda.toLowerCase()),
+            clientes.filter(
+                (cliente) =>
+                    cliente.razon_social.toLowerCase().includes(busqueda.toLowerCase()) ||
+                    cliente.nit?.toLowerCase().includes(busqueda.toLowerCase()),
             ),
         [clientes, busqueda],
     );
+
+    const abrirNuevo = () => {
+        setClienteEditar(null);
+        setModalAbierto(true);
+    };
+
+    const abrirEditar = (cliente) => {
+        setClienteEditar(cliente);
+        setModalAbierto(true);
+    };
 
     return (
         <ComercialLayout header="Clientes">
@@ -314,13 +304,13 @@ export default function Index({ clientes, ciudades }) {
                 <input
                     id="buscar_cliente"
                     type="text"
-                    placeholder="Buscar por razón social..."
+                    placeholder="Buscar por razón social o NIT..."
                     value={busqueda}
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full max-w-sm rounded-md border-gray-300 shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
                 />
                 <button
-                    onClick={() => setModalAbierto(true)}
+                    onClick={abrirNuevo}
                     className="rounded-md bg-[#71BFA6] px-4 py-2 text-sm font-semibold text-[#042753] hover:opacity-90"
                 >
                     + Nuevo Cliente
@@ -335,40 +325,57 @@ export default function Index({ clientes, ciudades }) {
                                 Razón Social
                             </th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                NIT
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
                                 Ciudad
                             </th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">
                                 Condición de Pago
                             </th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">
+                                Documentos
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-[#042753]">
                                 Última Cotización
                             </th>
+                            <th className="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {clientesFiltrados.map((cliente) => (
-                            <tr key={cliente.id_cliente}>
+                            <tr key={cliente.id_cliente} className="hover:bg-gray-50">
                                 <td className="px-4 py-3 font-medium text-[#042753]">
                                     {cliente.razon_social}
                                 </td>
+                                <td className="px-4 py-3">{cliente.nit ?? '—'}</td>
+                                <td className="px-4 py-3">{cliente.ciudad ?? '—'}</td>
+                                <td className="px-4 py-3">{cliente.condicion_pago}</td>
                                 <td className="px-4 py-3">
-                                    {cliente.ciudad ?? '—'}
+                                    {cliente.documentos.length > 0 ? (
+                                        <span className="rounded bg-[#71BFA6]/10 px-2 py-1 text-xs font-medium text-[#042753]">
+                                            {cliente.documentos.length} documento
+                                            {cliente.documentos.length > 1 ? 's' : ''}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-[#A9ABAE]">Sin documentos</span>
+                                    )}
                                 </td>
-                                <td className="px-4 py-3">
-                                    {cliente.condicion_pago}
-                                </td>
-                                <td className="px-4 py-3">
-                                    {cliente.ultima_cotizacion ?? '—'}
+                                <td className="px-4 py-3">{cliente.ultima_cotizacion ?? '—'}</td>
+                                <td className="px-4 py-3 text-right">
+                                    <button
+                                        onClick={() => abrirEditar(cliente)}
+                                        className="text-sm font-medium text-[#71BFA6] hover:underline"
+                                    >
+                                        Editar
+                                    </button>
                                 </td>
                             </tr>
                         ))}
 
                         {clientesFiltrados.length === 0 && (
                             <tr>
-                                <td
-                                    colSpan={4}
-                                    className="px-4 py-6 text-center text-[#A9ABAE]"
-                                >
+                                <td colSpan={7} className="px-4 py-6 text-center text-[#A9ABAE]">
                                     No se encontraron clientes.
                                 </td>
                             </tr>
@@ -377,9 +384,11 @@ export default function Index({ clientes, ciudades }) {
                 </table>
             </div>
 
-            <NuevoClienteModal
+            <ClienteFormModal
+                key={clienteEditar?.id_cliente ?? 'nuevo'}
                 open={modalAbierto}
                 onClose={() => setModalAbierto(false)}
+                cliente={clienteEditar}
                 ciudades={ciudades}
             />
         </ComercialLayout>

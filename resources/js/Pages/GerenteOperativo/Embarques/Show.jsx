@@ -23,6 +23,7 @@ export default function Show({
     proveedores,
     clientes,
     operativosDisponibles,
+    consignatariosCliente,
 }) {
     const eliminarHouse = (house) => {
         if (window.confirm(`¿Quitar el house ${house.numero_hbl}?`)) {
@@ -99,12 +100,14 @@ export default function Show({
                     <Consignatario
                         embarque={embarque}
                         rutaActualizar="gerente-operativo.embarques.actualizar-consignatario"
+                        consignatariosCliente={consignatariosCliente}
                     />
                 }
                 accionesTransporte={
                     <ActualizarTransporte
                         embarque={embarque}
                         rutaActualizar="gerente-operativo.embarques.actualizar-transporte"
+                        proveedores={proveedores}
                     />
                 }
                 accionesInstruccionesTerrestre={

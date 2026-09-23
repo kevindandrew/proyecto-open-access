@@ -5,7 +5,6 @@ namespace App\Http\Controllers\GerenteOperativo;
 use App\Http\Controllers\Controller;
 use App\Models\Embarque;
 use App\Models\HouseBl;
-use App\Support\GeneradorCodigoHouse;
 use App\Support\HouseBlPdfDatos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -60,6 +59,7 @@ class HouseBlController extends Controller
                 ...$datos,
                 'mostrarLogo' => $mostrarLogo,
                 'generadoEn' => $generadoEn,
+                'fechaEmisionCertificado' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
             ]);
 
             return $pdf->stream("Certificado-Flete-{$nombreArchivo}.pdf");
@@ -82,16 +82,16 @@ class HouseBlController extends Controller
 
         DB::transaction(function () use ($embarque, $data) {
             $house = $embarque->houseBls()->create([
-                'numero_hbl' => 'PENDIENTE',
+                'numero_hbl' => $data['numero_hbl'],
                 'id_cliente' => $data['id_cliente'] ?? null,
+                'shipper_nombre' => $data['shipper_nombre'] ?? null,
+                'shipper_direccion' => $data['shipper_direccion'] ?? null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
                 'flete_valor_texto' => $data['flete_valor_texto'] ?? null,
                 'fecha_emision' => $data['fecha_emision'] ?? null,
             ]);
 
             $house->contenedores()->sync($data['contenedores'] ?? []);
-
-            GeneradorCodigoHouse::renumerar($embarque);
         });
 
         return redirect()
@@ -101,11 +101,14 @@ class HouseBlController extends Controller
 
     public function update(Request $request, HouseBl $house): RedirectResponse
     {
-        $data = $this->validado($request, $house->embarque);
+        $data = $this->validado($request, $house->embarque, $house);
 
         DB::transaction(function () use ($house, $data) {
             $house->update([
+                'numero_hbl' => $data['numero_hbl'],
                 'id_cliente' => $data['id_cliente'] ?? null,
+                'shipper_nombre' => $data['shipper_nombre'] ?? null,
+                'shipper_direccion' => $data['shipper_direccion'] ?? null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
                 'flete_valor_texto' => $data['flete_valor_texto'] ?? null,
                 'fecha_emision' => $data['fecha_emision'] ?? null,
@@ -126,6 +129,8 @@ class HouseBlController extends Controller
                         'descripcion_mercancia' => $campos['descripcion_mercancia'] ?? null,
                         'peso_kg' => $campos['peso_kg'] ?? null,
                         'volumen_cbm' => $campos['volumen_cbm'] ?? null,
+                        'condicion_pago' => $campos['condicion_pago'] ?? null,
+                        'flete_valor_texto' => $campos['flete_valor_texto'] ?? null,
                     ]];
                 })
                 ->all();
@@ -140,23 +145,25 @@ class HouseBlController extends Controller
 
     public function destroy(HouseBl $house): RedirectResponse
     {
-        $embarque = $house->embarque;
         $idEmbarque = $house->id_embarque;
 
-        DB::transaction(function () use ($house, $embarque) {
-            $house->delete();
-            GeneradorCodigoHouse::renumerar($embarque);
-        });
+        $house->delete();
 
         return redirect()
             ->route('gerente-operativo.embarques.show', $idEmbarque)
             ->with('success', 'House eliminado correctamente.');
     }
 
-    private function validado(Request $request, Embarque $embarque): array
+    private function validado(Request $request, Embarque $embarque, ?HouseBl $house = null): array
     {
         return $request->validate([
+            'numero_hbl' => [
+                'required', 'string', 'max:50',
+                Rule::unique('house_bl', 'numero_hbl')->ignore($house?->id_hbl, 'id_hbl'),
+            ],
             'id_cliente' => ['nullable', 'integer', 'exists:clientes,id_cliente'],
+            'shipper_nombre' => ['nullable', 'string', 'max:200'],
+            'shipper_direccion' => ['nullable', 'string'],
             'condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
             'flete_valor_texto' => ['nullable', 'string', 'max:50'],
             'fecha_emision' => ['nullable', 'date'],
@@ -174,6 +181,8 @@ class HouseBlController extends Controller
             'contenedores_campos.*.descripcion_mercancia' => ['nullable', 'string'],
             'contenedores_campos.*.peso_kg' => ['nullable', 'numeric'],
             'contenedores_campos.*.volumen_cbm' => ['nullable', 'numeric'],
+            'contenedores_campos.*.condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
+            'contenedores_campos.*.flete_valor_texto' => ['nullable', 'string', 'max:50'],
         ]);
     }
 }

@@ -23,7 +23,8 @@ class TarifaController extends Controller
         $vencePronto = $hoy->copy()->addDays(5);
 
         $tarifas = Tarifa::with(['proveedor', 'origen', 'destino', 'costos'])
-            ->orderBy('fecha_fin_vigencia')
+            ->orderByDesc('fecha_inicio_vigencia')
+            ->orderByDesc('id_tarifa')
             ->get()
             ->flatMap(fn (Tarifa $tarifa) => $this->filasVisibles($tarifa, $hoy, $vencePronto));
 

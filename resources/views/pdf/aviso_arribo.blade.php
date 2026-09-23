@@ -147,8 +147,8 @@
             <li>Todos los pagos deberán ser entregados en Dólares Americanos.</li>
             <li>
                 Los documentos originales de embarque (Bill of Lading)
-                @if ($embarque['naviera_aerolinea'])
-                    de {{ $embarque['naviera_aerolinea'] }}
+                @if ($embarque['agente_origen'])
+                    de {{ $embarque['agente_origen'] }}
                 @endif
                 deberán ser presentados en nuestras oficinas para certificar la propiedad de la
                 mercancía.

@@ -31,11 +31,6 @@ class Cliente extends Model
         'condicion_pago',
         'otro',
         'reasignado_en',
-        'consignatario_nombre',
-        'consignatario_nit',
-        'consignatario_direccion',
-        'consignatario_celular',
-        'consignatario_correo',
     ];
 
     protected function casts(): array
@@ -68,6 +63,11 @@ class Cliente extends Model
     public function documentos(): HasMany
     {
         return $this->hasMany(DocumentoCliente::class, 'id_cliente', 'id_cliente');
+    }
+
+    public function consignatarios(): HasMany
+    {
+        return $this->hasMany(ClienteConsignatario::class, 'id_cliente', 'id_cliente');
     }
 
     public function resolveRouteBindingQuery($query, $value, $field = null)

@@ -14,6 +14,7 @@ use App\Support\CotizacionPdfDetalle;
 use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
+use App\Support\RevalidadorLineaCotizacion;
 use App\Support\SolicitudTarifaRegistrador;
 use App\Support\TarifaAgenteLookup;
 use App\Support\TarifaLookup;
@@ -161,6 +162,17 @@ class CotizacionController extends Controller
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
             'detalle.*.comision_openaccess' => ['nullable', 'numeric', 'min:0'],
             'detalle.*.observaciones' => ['nullable', 'string', 'max:1000'],
+            // Estos ids solo vienen en líneas generadas a partir de una
+            // tarifa real (ver aplicarTarifa/aplicarTarifaAgente en el
+            // wizard) — permiten revalidar el precio contra la tarifa
+            // vigente al momento de guardar, en vez de confiar en el
+            // costo_unitario/moneda que mandó el navegador.
+            'detalle.*.id_tarifa' => ['nullable', 'integer'],
+            'detalle.*.id_tarifa_costo' => ['nullable', 'integer'],
+            'detalle.*.id_cargo_adicional' => ['nullable', 'integer'],
+            'detalle.*.id_tarifa_agente' => ['nullable', 'integer'],
+            'detalle.*.id_tarifa_agente_costo' => ['nullable', 'integer'],
+            'detalle.*.origen_campo' => ['nullable', Rule::in(['costo_base', 'costo_tramite'])],
         ]);
 
         $clientePertenece = Cliente::where('id_cliente', $data['id_cliente'])
@@ -192,7 +204,9 @@ class CotizacionController extends Controller
             ]);
         }
 
-        $cotizacion = DB::transaction(function () use ($data, $comercial) {
+        $detalleRevalidado = RevalidadorLineaCotizacion::revalidar($data['detalle'], $data['modo_transporte']);
+
+        $cotizacion = DB::transaction(function () use ($data, $comercial, $detalleRevalidado) {
             $cotizacion = Cotizacion::create([
                 'numero_referencia' => GeneradorNumeroReferencia::generar($comercial),
                 'id_cotizacion_origen' => $data['id_cotizacion_origen'] ?? null,
@@ -218,7 +232,7 @@ class CotizacionController extends Controller
                 $cotizacion->contenedores()->create($contenedor);
             }
 
-            foreach ($data['detalle'] as $index => $linea) {
+            foreach ($detalleRevalidado as $index => $linea) {
                 $costoUnitario = $linea['costo_unitario'] ?? 0;
                 $baseCalculo = $linea['base_calculo'] ?? 1;
 
@@ -445,18 +459,21 @@ class CotizacionController extends Controller
                 ->with('error', 'Esta cotización ya fue convertida en un embarque.');
         }
 
-        $cotizacion->loadMissing('cliente', 'contenedores', 'detalle');
+        $cotizacion->loadMissing('cliente.consignatarios', 'contenedores', 'detalle');
 
         $embarque = DB::transaction(function () use ($cotizacion) {
+            $consignatarioPrincipal = $cotizacion->cliente?->consignatarios->first();
+
             $embarque = Embarque::create([
                 'numero_file' => GeneradorNumeroFile::generar(),
                 'id_cotizacion' => $cotizacion->id_cotizacion,
                 'id_cliente' => $cotizacion->id_cliente,
-                'consignatario_nombre' => $cotizacion->cliente?->consignatario_nombre,
-                'consignatario_nit' => $cotizacion->cliente?->consignatario_nit,
-                'consignatario_direccion' => $cotizacion->cliente?->consignatario_direccion,
-                'consignatario_celular' => $cotizacion->cliente?->consignatario_celular,
-                'consignatario_correo' => $cotizacion->cliente?->consignatario_correo,
+                'id_consignatario' => $consignatarioPrincipal?->id_consignatario,
+                'consignatario_nombre' => $consignatarioPrincipal?->nombre,
+                'consignatario_nit' => $consignatarioPrincipal?->nit,
+                'consignatario_direccion' => $consignatarioPrincipal?->direccion,
+                'consignatario_celular' => $consignatarioPrincipal?->celular,
+                'consignatario_correo' => $consignatarioPrincipal?->correo,
                 'id_comercial' => $cotizacion->id_comercial,
                 'id_operativo' => null,
                 'id_agente_origen' => $cotizacion->id_agente_origen,
@@ -528,5 +545,4 @@ class CotizacionController extends Controller
 
         abort_unless($cotizacion->id_comercial === $idComercial, 403);
     }
-
 }

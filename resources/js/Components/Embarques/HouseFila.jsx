@@ -3,14 +3,23 @@ import { IconoDocumento } from '@/Components/Embarques/SeccionIcons';
 import { useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
-const TIPOS_PDF_HOUSE = [
-    { valor: 'dam', etiqueta: 'HBL DAM' },
-    { valor: 'copia', etiqueta: 'HBL Copia' },
-    { valor: 'original', etiqueta: 'HBL Original' },
-    { valor: 'original_digital', etiqueta: 'HBL Original Digital' },
-    { valor: 'certificado_flete', etiqueta: 'Certificado de Flete' },
-    { valor: 'certificado_flete_digital', etiqueta: 'Certificado de Flete Digital' },
-];
+// Marítimo/Terrestre usan HBL (House Bill of Lading); Aéreo usa HAWB (House
+// Air Waybill) — mismos tipos de PDF, distinta nomenclatura en el menú.
+function tiposPdfHouse(modoTransporte) {
+    const prefijo = modoTransporte === 'Aereo' ? 'HAWB' : 'HBL';
+
+    return [
+        { valor: 'dam', etiqueta: `${prefijo} DAM` },
+        { valor: 'copia', etiqueta: `${prefijo} Copia` },
+        { valor: 'original', etiqueta: `${prefijo} Original` },
+        {
+            valor: 'original_digital',
+            etiqueta: modoTransporte === 'Aereo' ? `${prefijo} Digital` : `${prefijo} Original Digital`,
+        },
+        { valor: 'certificado_flete', etiqueta: 'Certificado de Flete' },
+        { valor: 'certificado_flete_digital', etiqueta: 'Certificado de Flete Digital' },
+    ];
+}
 
 const CONDICION_PAGO_ESTILOS = {
     Prepaid: 'bg-teal-100 text-teal-700',
@@ -57,6 +66,14 @@ function ContenedorDeHouse({ contenedor }) {
                 <span>
                     Vol: <span className="text-[#042753]">{contenedor.volumen_cbm ?? '—'} cbm</span>
                 </span>
+                {contenedor.condicion_pago && (
+                    <span>
+                        <span className="text-[#042753]">
+                            {contenedor.condicion_pago}
+                            {contenedor.flete_valor_texto ? ` · ${contenedor.flete_valor_texto}` : ''}
+                        </span>
+                    </span>
+                )}
             </div>
             {contenedor.descripcion_mercancia && (
                 <p className="mt-1.5 whitespace-pre-line border-t border-gray-200 pt-1.5 text-[#042753]">
@@ -74,12 +91,17 @@ export default function HouseFila({
     rutaActualizar,
     rutaPdf,
     onEliminar,
+    modoTransporte,
 }) {
     const [editando, setEditando] = useState(false);
     const congelado = Boolean(house.congelado_en);
+    const tiposPdf = tiposPdfHouse(modoTransporte);
 
     const { data, setData, patch, processing, errors, reset, transform } = useForm({
+        numero_hbl: house.numero_hbl ?? '',
         id_cliente: house.id_cliente ?? '',
+        shipper_nombre: house.shipper_nombre ?? '',
+        shipper_direccion: house.shipper_direccion ?? '',
         condicion_pago: house.condicion_pago ?? '',
         flete_valor_texto: house.flete_valor_texto ?? '',
         fecha_emision: house.fecha_emision ?? '',
@@ -97,6 +119,8 @@ export default function HouseFila({
                 descripcion_mercancia: propio?.descripcion_mercancia ?? c.descripcion_mercancia ?? '',
                 peso_kg: propio?.peso_kg ?? c.peso_kg ?? '',
                 volumen_cbm: propio?.volumen_cbm ?? c.volumen_cbm ?? '',
+                condicion_pago: propio?.condicion_pago ?? house.condicion_pago ?? '',
+                flete_valor_texto: propio?.flete_valor_texto ?? house.flete_valor_texto ?? '',
             };
             return acc;
         }, {}),
@@ -193,7 +217,7 @@ export default function HouseFila({
                         }}
                     >
                         <option value="">PDF ▾</option>
-                        {TIPOS_PDF_HOUSE.map((tipo) => (
+                        {tiposPdf.map((tipo) => (
                             <option key={tipo.valor} value={tipo.valor}>
                                 {tipo.etiqueta}
                             </option>
@@ -229,6 +253,22 @@ export default function HouseFila({
                 {encabezado}
                 <form onSubmit={guardar} className="space-y-4 p-4">
                     <div className="flex flex-wrap items-end gap-3">
+                        <div>
+                            <label className="text-xs font-medium text-[#042753]">
+                                Número HBL/HAWB
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ej. OA-NH7XHTa"
+                                className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                value={data.numero_hbl}
+                                onChange={(e) => setData('numero_hbl', e.target.value)}
+                            />
+                            {errors.numero_hbl && (
+                                <p className="mt-1 text-xs text-red-600">{errors.numero_hbl}</p>
+                            )}
+                        </div>
+
                         <div>
                             <label className="text-xs font-medium text-[#042753]">
                                 Condición de Pago
@@ -302,6 +342,45 @@ export default function HouseFila({
                             {errors.id_cliente && (
                                 <p className="mt-1 text-xs text-red-600">{errors.id_cliente}</p>
                             )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-md border border-gray-100 bg-gray-50/60 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#71BFA6]">
+                            Shipper de este House
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#A9ABAE]">
+                            Un mismo embarque puede consolidar carga de distintos exportadores — si
+                            este house tiene su propio shipper, se usa acá en vez del shipper general
+                            del embarque.
+                        </p>
+                        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                                <label className="text-xs font-medium text-[#042753]">Nombre</label>
+                                <input
+                                    type="text"
+                                    placeholder="Dejar vacío para usar el shipper del embarque"
+                                    className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                    value={data.shipper_nombre}
+                                    onChange={(e) => setData('shipper_nombre', e.target.value)}
+                                />
+                                {errors.shipper_nombre && (
+                                    <p className="mt-1 text-xs text-red-600">{errors.shipper_nombre}</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-[#042753]">Dirección</label>
+                                <textarea
+                                    rows={2}
+                                    placeholder="Dirección del exportador — Enter para más líneas"
+                                    className="mt-1 block w-full whitespace-pre-line rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                    value={data.shipper_direccion}
+                                    onChange={(e) => setData('shipper_direccion', e.target.value)}
+                                />
+                                {errors.shipper_direccion && (
+                                    <p className="mt-1 text-xs text-red-600">{errors.shipper_direccion}</p>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -391,6 +470,44 @@ export default function HouseFila({
                                                                     actualizarCampoContenedor(
                                                                         contenedor.id_item,
                                                                         'volumen_cbm',
+                                                                        e.target.value,
+                                                                    )
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-[#A9ABAE]">
+                                                                Condición de Pago
+                                                            </label>
+                                                            <select
+                                                                className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                                                value={campos.condicion_pago}
+                                                                onChange={(e) =>
+                                                                    actualizarCampoContenedor(
+                                                                        contenedor.id_item,
+                                                                        'condicion_pago',
+                                                                        e.target.value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">—</option>
+                                                                <option value="Prepaid">Prepaid</option>
+                                                                <option value="Collect">Collect</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-[#A9ABAE]">
+                                                                Monto Flete
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Ej. AS AGREED"
+                                                                className="mt-1 block w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                                                value={campos.flete_valor_texto}
+                                                                onChange={(e) =>
+                                                                    actualizarCampoContenedor(
+                                                                        contenedor.id_item,
+                                                                        'flete_valor_texto',
                                                                         e.target.value,
                                                                     )
                                                                 }

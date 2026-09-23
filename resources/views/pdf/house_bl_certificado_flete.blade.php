@@ -36,7 +36,7 @@
             </td>
             <td style="text-align: right;">
                 <p><strong>House BL N°:</strong> {{ $house['numero_hbl'] }}</p>
-                <p><strong>File:</strong> {{ $embarque['numero_file'] }}</p>
+                <p><strong>Fecha de Emisión:</strong> {{ $fechaEmisionCertificado }}</p>
                 @if ($embarque['mbl'])
                     <p><strong>Master BL:</strong> {{ $embarque['mbl'] }}</p>
                 @endif
@@ -86,11 +86,54 @@
         </tr>
     </table>
 
+    <table class="datos" style="border: 1px solid #d1d5db;">
+        <tr style="background-color: #f3f4f6;">
+            <td class="etiqueta" style="width: 25%;"><strong>Contenedor</strong></td>
+            <td class="etiqueta" style="width: 40%;"><strong>Descripción de Mercancía</strong></td>
+            <td class="etiqueta" style="width: 17.5%;"><strong>Peso</strong></td>
+            <td class="etiqueta" style="width: 17.5%;"><strong>Volumen</strong></td>
+        </tr>
+        @foreach ($contenedores as $contenedor)
+            <tr>
+                <td class="valor">
+                    {{ $contenedor['numero_contenedor'] ?? '—' }} — {{ \App\Support\FormatoContenedor::conPies($contenedor['tipo_contenedor'] ?? '') }}
+                </td>
+                <td class="valor" style="white-space: pre-line; font-weight: normal;">
+                    {{ $contenedor['descripcion_mercancia'] ?? '—' }}
+                </td>
+                <td class="valor">{{ $contenedor['peso_kg'] ?? '—' }} kg</td>
+                <td class="valor">{{ $contenedor['volumen_cbm'] ?? '—' }} cbm</td>
+            </tr>
+        @endforeach
+    </table>
+
+    @if (count($contenedores) > 1)
+        <h2>Flete por Contenedor</h2>
+        <table class="datos" style="border: 1px solid #d1d5db;">
+            <tr style="background-color: #f3f4f6;">
+                <td class="etiqueta" style="width: 40%;"><strong>Contenedor</strong></td>
+                <td class="etiqueta" style="width: 30%;"><strong>Condición de Pago</strong></td>
+                <td class="etiqueta" style="width: 30%;"><strong>Monto</strong></td>
+            </tr>
+            @foreach ($contenedores as $contenedor)
+                <tr>
+                    <td class="valor">
+                        {{ $contenedor['numero_contenedor'] ?? '—' }} — {{ \App\Support\FormatoContenedor::conPies($contenedor['tipo_contenedor'] ?? '') }}
+                    </td>
+                    <td class="valor">{{ $contenedor['condicion_pago'] ?? '—' }}</td>
+                    <td class="valor">{{ $contenedor['flete_valor_texto'] ?? '—' }}</td>
+                </tr>
+            @endforeach
+        </table>
+    @endif
+
     <div class="declaracion">
         Por medio del presente certificado, <strong>OPEN ACCESS BOLIVIA S.R.L.</strong> certifica que el flete
         internacional correspondiente al embarque amparado bajo el House Bill of Lading N°
         <strong>{{ $house['numero_hbl'] }}</strong>
-        @if ($house['condicion_pago'] === 'Prepaid')
+        @if (count($contenedores) > 1 && str_contains($house['condicion_pago_resumen'], '/'))
+            ha sido pactado según el detalle de condición de pago y monto indicado por contenedor en el cuadro anterior.
+        @elseif ($house['condicion_pago'] === 'Prepaid')
             ha sido <strong>pagado en origen (Prepaid)</strong>, no existiendo saldo pendiente por este concepto a cargo del consignatario en destino.
         @elseif ($house['condicion_pago'] === 'Collect')
             es <strong>pagadero en destino (Collect)</strong> por el consignatario, conforme a la condición de pago pactada para este embarque.
@@ -102,6 +145,7 @@
     <div class="firma">
         <div class="linea"></div>
         <p>Firma y sello autorizado — Open Access Bolivia S.R.L.</p>
+        <p>AS AGENT OF {{ $embarque['agente_origen'] ?? '..........................' }}</p>
     </div>
 
     <div class="footer">

@@ -7,16 +7,15 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
-
-    Route::post('register', [RegisteredUserController::class, 'store']);
-
+    // El auto-registro público está deshabilitado a propósito: en este ERP
+    // cada usuario se crea únicamente vinculado a un Empleado (con rol y
+    // username generados) desde Personal — nunca desde un formulario
+    // público. El RegisteredUserController de Breeze quedaba roto (creaba
+    // un User sin el username obligatorio y sin Empleado asociado).
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 

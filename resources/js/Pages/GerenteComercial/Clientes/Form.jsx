@@ -1,3 +1,7 @@
+import ConsignatariosMultiples, {
+    mapearConsignatariosIniciales,
+    useConsignatariosMultiples,
+} from '@/Components/ConsignatariosMultiples';
 import DocumentosMultiples, {
     mapearDocumentosIniciales,
     useDocumentosMultiples,
@@ -37,9 +41,12 @@ export default function Form({ cliente, ciudades, comerciales }) {
         otro: cliente?.otro ?? '',
         id_comercial: cliente?.id_comercial ?? '',
         activo: cliente?.activo ?? true,
+        consignatarios: mapearConsignatariosIniciales(cliente?.consignatarios),
+        consignatarios_eliminados: [],
     });
 
     const documentosHandlers = useDocumentosMultiples(data, setData);
+    const consignatariosHandlers = useConsignatariosMultiples(data, setData);
 
     const submit = (e) => {
         e.preventDefault();
@@ -224,6 +231,14 @@ export default function Form({ cliente, ciudades, comerciales }) {
                         onChange={(e) => setData('otro', e.target.value)}
                     />
                 </div>
+
+                <ConsignatariosMultiples
+                    consignatarios={data.consignatarios}
+                    agregar={consignatariosHandlers.agregar}
+                    quitar={consignatariosHandlers.quitar}
+                    actualizar={consignatariosHandlers.actualizar}
+                    errores={errors}
+                />
 
                 {esEdicion && (
                     <label className="flex items-center gap-2 text-sm text-[#042753]">

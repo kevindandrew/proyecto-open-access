@@ -68,11 +68,14 @@ class ReporteController extends Controller
 
     private function topClientes()
     {
+        // Nunca se suma entre monedas distintas — se agrupa también por
+        // moneda; el nombre del cliente lleva la moneda para no mostrar un
+        // total que en realidad mezcla USD con BOB.
         return DB::table('embarque_costos')
             ->join('embarques', 'embarque_costos.id_embarque', '=', 'embarques.id_embarque')
             ->join('clientes', 'embarques.id_cliente', '=', 'clientes.id_cliente')
-            ->groupBy('clientes.id_cliente', 'clientes.razon_social')
-            ->selectRaw('clientes.razon_social, COALESCE(SUM(embarque_costos.costo_venta), 0) as total')
+            ->groupBy('clientes.id_cliente', 'clientes.razon_social', 'embarque_costos.moneda')
+            ->selectRaw("CONCAT(clientes.razon_social, ' (', COALESCE(embarque_costos.moneda, 'USD'), ')') as razon_social, COALESCE(SUM(embarque_costos.costo_venta), 0) as total")
             ->orderByDesc('total')
             ->limit(5)
             ->get();
@@ -89,13 +92,19 @@ class ReporteController extends Controller
 
     private function profitPorMes()
     {
+        // Nunca se suma entre monedas distintas — se agrupa también por
+        // moneda; el mes lleva la moneda al lado para no mostrar un total
+        // que en realidad mezcla USD con BOB.
         return DB::table('embarque_costos')
             ->join('embarques', 'embarque_costos.id_embarque', '=', 'embarques.id_embarque')
-            ->selectRaw("to_char(embarques.created_at, 'YYYY-MM') as mes, COALESCE(SUM(embarque_costos.costo_venta - embarque_costos.costo_compra), 0) as profit")
-            ->groupBy('mes')
+            ->selectRaw("to_char(embarques.created_at, 'YYYY-MM') as mes, COALESCE(embarque_costos.moneda, 'USD') as moneda, COALESCE(SUM(embarque_costos.costo_venta - embarque_costos.costo_compra), 0) as profit")
+            ->groupBy('mes', 'embarque_costos.moneda')
             ->orderBy('mes')
             ->get()
-            ->map(fn ($fila) => ['mes' => $this->mesEs($fila->mes), 'profit' => (float) $fila->profit]);
+            ->map(fn ($fila) => [
+                'mes' => $this->mesEs($fila->mes).' ('.$fila->moneda.')',
+                'profit' => (float) $fila->profit,
+            ]);
     }
 
     private function mesEs(string $mes): string

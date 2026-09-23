@@ -28,9 +28,11 @@ const ROL_HEX = {
     Operativo: '#A9ABAE',
 };
 
-const formatoMoneda = new Intl.NumberFormat('es-BO', {
-    style: 'currency',
-    currency: 'USD',
+// Sin símbolo de moneda: los montos de Top Clientes y Profit Mensual pueden
+// venir en USD o en BOB según la fila — la moneda ya va indicada en la
+// etiqueta ("Cliente S.A. (BOB)"), así que un símbolo fijo de USD sería
+// engañoso.
+const formatoNumero = new Intl.NumberFormat('es-BO', {
     maximumFractionDigits: 0,
 });
 
@@ -210,7 +212,7 @@ export default function Index({
                         labelKey="razon_social"
                         valueKey="total"
                         color="#71BFA6"
-                        formato={(valor) => formatoMoneda.format(valor)}
+                        formato={(valor) => formatoNumero.format(valor)}
                         vacioTexto="Todavía no hay costos de embarque cargados para calcular facturación."
                     />
                 </CardReporte>
@@ -231,7 +233,7 @@ export default function Index({
                         labelKey="mes"
                         valueKey="profit"
                         color="#042753"
-                        formato={(valor) => formatoMoneda.format(valor)}
+                        formato={(valor) => formatoNumero.format(valor)}
                         vacioTexto="Todavía no hay costos de embarque cargados para calcular profit."
                     />
                 </CardReporte>

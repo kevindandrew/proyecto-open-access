@@ -32,12 +32,14 @@ class TarifaLookup
                 'fecha_fin_vigencia' => $tarifa->fecha_fin_vigencia->toDateString(),
                 'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
                 'costos' => $tarifa->costos->map(fn ($costo) => [
+                    'id_costo' => $costo->id_costo,
                     'tipo_servicio' => $costo->tipo_servicio,
                     'tipo_contenedor' => $costo->tipo_contenedor,
                     'costo' => $costo->costo,
                     'moneda' => $costo->moneda,
                 ]),
                 'cargos_adicionales' => $tarifa->cargosAdicionales->map(fn ($cargo) => [
+                    'id_cargo' => $cargo->id_cargo,
                     'concepto' => $cargo->concepto,
                     'monto' => $cargo->monto,
                     'moneda' => $cargo->moneda,

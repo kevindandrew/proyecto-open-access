@@ -13,6 +13,7 @@ use App\Models\PuertoAeropuerto;
 use App\Support\CotizacionPdfDetalle;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
+use App\Support\RevalidadorLineaCotizacion;
 use App\Support\SolicitudTarifaRegistrador;
 use App\Support\TarifaAgenteLookup;
 use App\Support\TarifaLookup;
@@ -155,6 +156,12 @@ class CotizacionController extends Controller
             'detalle.*.moneda' => ['nullable', 'string', 'max:5'],
             'detalle.*.comision_openaccess' => ['nullable', 'numeric', 'min:0'],
             'detalle.*.observaciones' => ['nullable', 'string', 'max:1000'],
+            'detalle.*.id_tarifa' => ['nullable', 'integer'],
+            'detalle.*.id_tarifa_costo' => ['nullable', 'integer'],
+            'detalle.*.id_cargo_adicional' => ['nullable', 'integer'],
+            'detalle.*.id_tarifa_agente' => ['nullable', 'integer'],
+            'detalle.*.id_tarifa_agente_costo' => ['nullable', 'integer'],
+            'detalle.*.origen_campo' => ['nullable', Rule::in(['costo_base', 'costo_tramite'])],
         ]);
 
         $cliente = Cliente::findOrFail($data['id_cliente']);
@@ -173,7 +180,9 @@ class CotizacionController extends Controller
             SolicitudTarifaRegistrador::registrar($filtrosRuta, $data['id_cliente'], $comercialAsignado->id_empleado);
         }
 
-        $cotizacion = DB::transaction(function () use ($data, $comercialAsignado) {
+        $detalleRevalidado = RevalidadorLineaCotizacion::revalidar($data['detalle'], $data['modo_transporte']);
+
+        $cotizacion = DB::transaction(function () use ($data, $comercialAsignado, $detalleRevalidado) {
             $cotizacion = Cotizacion::create([
                 'numero_referencia' => GeneradorNumeroReferencia::generar($comercialAsignado),
                 'id_cotizacion_origen' => $data['id_cotizacion_origen'] ?? null,
@@ -199,7 +208,7 @@ class CotizacionController extends Controller
                 $cotizacion->contenedores()->create($contenedor);
             }
 
-            foreach ($data['detalle'] as $index => $linea) {
+            foreach ($detalleRevalidado as $index => $linea) {
                 $costoUnitario = $linea['costo_unitario'] ?? 0;
                 $baseCalculo = $linea['base_calculo'] ?? 1;
 

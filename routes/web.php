@@ -12,6 +12,7 @@ use App\Http\Controllers\GerenteComercial\PersonalController as GerenteComercial
 use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
 use App\Http\Controllers\GerenteOperativo\ConceptoCostoExtraController;
 use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperativoCotizacionController;
+use App\Http\Controllers\GerenteOperativo\DocumentoLiquidacionController;
 use App\Http\Controllers\GerenteOperativo\EmbarqueContenedorController;
 use App\Http\Controllers\GerenteOperativo\EmbarqueController;
 use App\Http\Controllers\GerenteOperativo\EmbarqueCostoController;
@@ -81,6 +82,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
         Route::get('clientes', [ClienteController::class, 'index'])->name('clientes.index');
         Route::get('clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
         Route::post('clientes', [ClienteController::class, 'store'])->name('clientes.store');
+        Route::put('clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
 
         Route::get('cotizaciones', [CotizacionController::class, 'index'])->name('cotizaciones.index');
         Route::get('cotizaciones/nueva', [CotizacionController::class, 'create'])->name('cotizaciones.create');
@@ -181,6 +183,10 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('embarques/{embarque}/gastos', [GastoDestinoController::class, 'index'])->name('embarques.gastos.index');
         Route::post('embarques/{embarque}/gastos', [GastoDestinoController::class, 'store'])->name('embarques.gastos.store');
         Route::patch('gastos/{gasto}/pagar', [GastoDestinoController::class, 'marcarPagado'])->name('gastos.pagar');
+
+        Route::post('embarques/{embarque}/liquidacion/documentos', [DocumentoLiquidacionController::class, 'store'])->name('documentos-liquidacion.store');
+        Route::get('documentos-liquidacion/{documento}/pdf', [DocumentoLiquidacionController::class, 'pdf'])->name('documentos-liquidacion.pdf');
+        Route::get('embarques/{embarque}/liquidacion/cerrar', [DocumentoLiquidacionController::class, 'cerrarLiquidacion'])->name('embarques.liquidacion.cerrar');
 
         Route::post('embarques/{embarque}/houses', [HouseBlController::class, 'store'])->name('embarques.houses.store');
         Route::patch('houses/{house}', [HouseBlController::class, 'update'])->name('houses.update');

@@ -14,6 +14,7 @@ class AvisoArriboPdfDatos
             'pol',
             'pod',
             'navieraAerolinea',
+            'agenteOrigen',
             'houseBls.contenedores',
             'costos',
         ]);
@@ -27,7 +28,13 @@ class AvisoArriboPdfDatos
                 ->implode(' / '),
         ])->all();
 
-        $todosLosContenedores = $embarque->houseBls->flatMap(fn (HouseBl $h) => $h->contenedores);
+        // Un mismo contenedor físico puede repartirse entre varios houses
+        // (ej. 2500 kg divididos entre 2 consignatarios) — para el resumen
+        // del embarque completo se cuenta una sola vez cada contenedor, no
+        // una vez por cada house que lo comparte.
+        $todosLosContenedores = $embarque->houseBls
+            ->flatMap(fn (HouseBl $h) => $h->contenedores)
+            ->unique('id_item');
 
         // Solo se suma el costo_venta de las líneas de Flete — nunca se
         // mezclan monedas distintas, un total por cada una que aparezca.
@@ -47,6 +54,7 @@ class AvisoArriboPdfDatos
                 'eta' => $embarque->eta?->toDateString(),
                 'pago_master' => $embarque->pago_master,
                 'naviera_aerolinea' => $embarque->navieraAerolinea?->nombre,
+                'agente_origen' => $embarque->agenteOrigen?->nombre,
             ],
             'houses' => $houses,
             'resumenContenedores' => self::resumen($todosLosContenedores),

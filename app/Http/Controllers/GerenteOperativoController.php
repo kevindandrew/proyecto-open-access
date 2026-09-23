@@ -28,7 +28,12 @@ class GerenteOperativoController extends Controller
             ->groupBy('estado_embarque')
             ->pluck('total', 'estado_embarque');
 
-        $profit = (float) EmbarqueCosto::selectRaw('COALESCE(SUM(costo_venta - costo_compra), 0) as profit')->value('profit');
+        // Nunca se suma entre monedas distintas — un profit por cada moneda
+        // que efectivamente aparece en los costos de embarque.
+        $profitPorMoneda = EmbarqueCosto::selectRaw("COALESCE(moneda, 'USD') as moneda, SUM(costo_venta - costo_compra) as profit")
+            ->groupBy('moneda')
+            ->pluck('profit', 'moneda')
+            ->map(fn ($valor) => (float) $valor);
 
         return Inertia::render('GerenteOperativo/Index', [
             'nombre' => explode(' ', Auth::user()->name)[0],
@@ -39,7 +44,7 @@ class GerenteOperativoController extends Controller
                 'cotizacionesRechazadas' => (int) $cotizacionesPorEstado->get('Rechazado', 0),
                 'embarquesEnTransito' => (int) $embarquesPorEstado->get('En_Transito', 0),
                 'embarquesEntregados' => (int) $embarquesPorEstado->get('Entregado', 0),
-                'profit' => $profit,
+                'profitPorMoneda' => $profitPorMoneda,
             ],
             'estadoCotizaciones' => collect(self::ESTADOS_COTIZACION)->map(fn (string $estado) => [
                 'estado' => $estado,
@@ -91,12 +96,16 @@ class GerenteOperativoController extends Controller
 
     private function topRutas()
     {
+        // Nunca se suma entre monedas distintas — se agrupa también por
+        // moneda, así que una misma ruta puede aparecer más de una vez si
+        // tiene costos en USD y en BOB (cada fila es 100% de una sola
+        // moneda, nunca una mezcla).
         $filas = DB::table('embarque_costos')
             ->join('embarques', 'embarques.id_embarque', '=', 'embarque_costos.id_embarque')
             ->whereNotNull('embarques.id_pol')
             ->whereNotNull('embarques.id_pod')
-            ->groupBy('embarques.id_pol', 'embarques.id_pod')
-            ->selectRaw('embarques.id_pol, embarques.id_pod, SUM(embarque_costos.costo_venta) as valor, COUNT(DISTINCT embarques.id_embarque) as total_embarques')
+            ->groupBy('embarques.id_pol', 'embarques.id_pod', 'embarque_costos.moneda')
+            ->selectRaw("embarques.id_pol, embarques.id_pod, COALESCE(embarque_costos.moneda, 'USD') as moneda, SUM(embarque_costos.costo_venta) as valor, COUNT(DISTINCT embarques.id_embarque) as total_embarques")
             ->orderByDesc('valor')
             ->limit(5)
             ->get();
@@ -108,6 +117,7 @@ class GerenteOperativoController extends Controller
 
         return $filas->map(fn ($fila) => [
             'ruta' => ($nombresPuerto[$fila->id_pol] ?? $fila->id_pol).' → '.($nombresPuerto[$fila->id_pod] ?? $fila->id_pod),
+            'moneda' => $fila->moneda,
             'total_embarques' => (int) $fila->total_embarques,
             'valor' => (float) $fila->valor,
             'porcentaje' => round(((float) $fila->valor / $maximo) * 100),

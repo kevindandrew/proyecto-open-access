@@ -12,6 +12,8 @@ class EmbarqueCostoController extends Controller
 {
     public function store(Request $request, Embarque $embarque): RedirectResponse
     {
+        abort_if($embarque->liquidacion_cerrada_en, 403, 'La liquidación de este embarque ya está cerrada.');
+
         $data = $request->validate([
             'concepto' => ['required', 'string', 'max:100'],
             'id_proveedor' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
@@ -29,6 +31,8 @@ class EmbarqueCostoController extends Controller
 
     public function update(Request $request, EmbarqueCosto $costo): RedirectResponse
     {
+        abort_if($costo->embarque->liquidacion_cerrada_en, 403, 'La liquidación de este embarque ya está cerrada.');
+
         $data = $request->validate([
             'concepto' => ['required', 'string', 'max:100'],
             'id_proveedor' => ['nullable', 'integer', 'exists:proveedores,id_proveedor'],
@@ -46,6 +50,8 @@ class EmbarqueCostoController extends Controller
 
     public function destroy(EmbarqueCosto $costo): RedirectResponse
     {
+        abort_if($costo->embarque->liquidacion_cerrada_en, 403, 'La liquidación de este embarque ya está cerrada.');
+
         $idEmbarque = $costo->id_embarque;
         $costo->delete();
 
