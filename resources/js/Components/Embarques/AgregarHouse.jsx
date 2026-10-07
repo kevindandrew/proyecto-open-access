@@ -4,10 +4,11 @@ function etiquetaContenedor(contenedor) {
     return contenedor.numero_contenedor || contenedor.tipo_contenedor || `Contenedor #${contenedor.id_item}`;
 }
 
-export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponibles = [], clientes = [] }) {
+export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponibles = [], consignees = [] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         numero_hbl: '',
-        id_cliente: '',
+        // '' = el consignatario del embarque; si no, "cliente:{id}" o "consignatario:{id}".
+        consignee: '',
         condicion_pago: '',
         fecha_emision: '',
         contenedores: [],
@@ -88,18 +89,18 @@ export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponib
                     </label>
                     <select
                         className="mt-1 block min-w-[220px] rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
-                        value={data.id_cliente}
-                        onChange={(e) => setData('id_cliente', e.target.value)}
+                        value={data.consignee}
+                        onChange={(e) => setData('consignee', e.target.value)}
                     >
                         <option value="">Usar el consignatario del embarque (por defecto)</option>
-                        {clientes.map((cliente) => (
-                            <option key={cliente.id_cliente} value={cliente.id_cliente}>
-                                {cliente.razon_social}
+                        {consignees.map((opcion) => (
+                            <option key={opcion.valor} value={opcion.valor}>
+                                {opcion.etiqueta}
                             </option>
                         ))}
                     </select>
-                    {errors.id_cliente && (
-                        <p className="mt-1 text-xs text-red-600">{errors.id_cliente}</p>
+                    {errors.consignee && (
+                        <p className="mt-1 text-xs text-red-600">{errors.consignee}</p>
                     )}
                 </div>
 

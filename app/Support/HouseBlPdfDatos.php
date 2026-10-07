@@ -20,20 +20,11 @@ class HouseBlPdfDatos
 
         $embarque = $house->embarque;
 
-        // Cada house puede ir consignado a un cliente distinto del que figura
-        // en el embarque (ej. un solo master con houses para varios
-        // compradores finales) — si el house tiene su propio cliente
-        // seleccionado, ese es el consignatario que se muestra; si no, se usa
-        // el del embarque como hasta ahora.
-        $consignatario = $house->cliente
-            ? [
-                'nombre' => $house->cliente->razon_social,
-                'nit' => $house->cliente->nit,
-                'direccion' => $house->cliente->direccion,
-                'celular' => $house->cliente->celular_whatsapp ?: $house->cliente->telefono1,
-                'correo' => $house->cliente->email,
-            ]
-            : [
+        // Cada house puede ir consignado al cliente del embarque o a uno de
+        // sus consignatarios — si el house tiene uno elegido, ese es el que se
+        // muestra; si no, se usa el consignatario del embarque.
+        $consignatario = ConsigneeHouse::datos($house)
+            ?? [
                 'nombre' => $embarque->consignatario_nombre,
                 'nit' => $embarque->consignatario_nit,
                 'direccion' => $embarque->consignatario_direccion,

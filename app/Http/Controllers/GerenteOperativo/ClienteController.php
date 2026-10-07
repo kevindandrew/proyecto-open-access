@@ -28,7 +28,7 @@ class ClienteController extends Controller
         $limiteSeguimiento = Carbon::today()->subMonths(self::MESES_SIN_SEGUIMIENTO);
 
         $clientes = Cliente::withTrashed()
-            ->with(['ciudad', 'comercial', 'consignatarios'])
+            ->with(['ciudad', 'comercial', 'consignatarios', 'documentos'])
             ->withMax('cotizaciones as ultima_cotizacion', 'fecha_emision')
             ->orderBy('razon_social')
             ->get()
@@ -36,6 +36,12 @@ class ClienteController extends Controller
                 'id_cliente' => $cliente->id_cliente,
                 'razon_social' => $cliente->razon_social,
                 'nit' => $cliente->nit,
+                'documentos' => $cliente->documentos->map(fn (DocumentoCliente $documento) => [
+                    'id_documento' => $documento->id_documento,
+                    'tipo_documento' => $documento->tipo_documento,
+                    'frente_url' => $documento->frente_url,
+                    'dorso_url' => $documento->dorso_url,
+                ]),
                 'ciudad' => $cliente->ciudad?->nombre_ciudad ?? $cliente->ciudad_personalizada,
                 'id_ciudad' => $cliente->id_ciudad,
                 'ciudad_personalizada' => $cliente->ciudad_personalizada,

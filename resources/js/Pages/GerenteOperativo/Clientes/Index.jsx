@@ -4,6 +4,10 @@ import ConsignatariosMultiples, {
     mapearConsignatariosIniciales,
     useConsignatariosMultiples,
 } from "@/Components/ConsignatariosMultiples";
+import DocumentosMultiples, {
+    mapearDocumentosIniciales,
+    useDocumentosMultiples,
+} from "@/Components/DocumentosMultiples";
 import Modal from "@/Components/Modal";
 import PrimaryButton from "@/Components/PrimaryButton";
 import SecondaryButton from "@/Components/SecondaryButton";
@@ -255,6 +259,11 @@ function ModalDetalleCliente({ cliente, show, onClose }) {
 /* =========================================================================
    2. MODAL FORMULARIO: CREAR / EDITAR CLIENTE
    ========================================================================= */
+const TIPOS_DOCUMENTO = [
+    { valor: "CI", etiqueta: "Cédula de Identidad (CI)" },
+    { valor: "NIT", etiqueta: "NIT" },
+];
+
 function ModalFormCliente({
     show,
     onClose,
@@ -264,9 +273,11 @@ function ModalFormCliente({
 }) {
     const esEdicion = Boolean(cliente);
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, transform, processing, errors, reset } = useForm({
         razon_social: "",
         nit: "",
+        documentos: [],
+        documentos_eliminados: [],
         id_ciudad: "",
         ciudad_personalizada: "",
         direccion: "",
@@ -284,12 +295,15 @@ function ModalFormCliente({
     });
 
     const consignatariosHandlers = useConsignatariosMultiples(data, setData);
+    const documentosHandlers = useDocumentosMultiples(data, setData);
 
     useEffect(() => {
         if (cliente) {
             setData({
                 razon_social: cliente.razon_social ?? "",
                 nit: cliente.nit ?? "",
+                documentos: mapearDocumentosIniciales(cliente.documentos),
+                documentos_eliminados: [],
                 id_ciudad: cliente.id_ciudad ?? "",
                 ciudad_personalizada: cliente.ciudad_personalizada ?? "",
                 direccion: cliente.direccion ?? "",
@@ -332,7 +346,11 @@ function ModalFormCliente({
     const submit = (e) => {
         e.preventDefault();
         if (esEdicion) {
-            put(
+            // PHP no parsea cuerpos multipart en peticiones PUT reales, así que
+            // hay que mandar un POST con _method=put (spoofing) para que los
+            // archivos de los documentos lleguen.
+            transform((data) => ({ ...data, _method: "put" }));
+            post(
                 route("gerente-operativo.clientes.update", cliente.id_cliente),
                 {
                     onSuccess: () => {
@@ -342,6 +360,7 @@ function ModalFormCliente({
                 },
             );
         } else {
+            transform((data) => data);
             post(route("gerente-operativo.clientes.store"), {
                 onSuccess: () => {
                     reset();
@@ -610,6 +629,20 @@ function ModalFormCliente({
                                 </select>
                             </div>
                         </div>
+                    </div>
+
+                    {/* DOCUMENTOS (CI, NIT...) */}
+                    <div className="pt-3 border-t border-gray-100">
+                        <DocumentosMultiples
+                            documentos={data.documentos}
+                            tiposDisponibles={TIPOS_DOCUMENTO}
+                            agregar={documentosHandlers.agregar}
+                            quitar={documentosHandlers.quitar}
+                            cambiarTipo={documentosHandlers.cambiarTipo}
+                            actualizar={documentosHandlers.actualizar}
+                            errores={errors}
+                            descripcion="Se pueden cargar varios documentos (CI, NIT, etc.), ahora o más adelante editando este cliente."
+                        />
                     </div>
 
                     {/* SECCIÓN 2: CONTACTOS MULTIPLES */}

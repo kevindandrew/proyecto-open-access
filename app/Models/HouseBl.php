@@ -17,6 +17,7 @@ class HouseBl extends Model
     protected $fillable = [
         'id_embarque',
         'id_cliente',
+        'id_consignatario',
         'shipper_nombre',
         'shipper_direccion',
         'numero_hbl',
@@ -42,6 +43,11 @@ class HouseBl extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
+    }
+
+    public function consignatario(): BelongsTo
+    {
+        return $this->belongsTo(ClienteConsignatario::class, 'id_consignatario', 'id_consignatario');
     }
 
     public function contenedores(): BelongsToMany

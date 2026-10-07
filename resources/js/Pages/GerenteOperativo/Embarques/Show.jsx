@@ -21,7 +21,7 @@ export default function Show({
     costos,
     totalesPorMoneda,
     proveedores,
-    clientes,
+    consigneesHouse,
     operativosDisponibles,
     consignatariosCliente,
 }) {
@@ -74,13 +74,13 @@ export default function Show({
                 rutaAvisoArribo="gerente-operativo.embarques.aviso-arribo"
                 rutaActualizarCosto="gerente-operativo.costos.update"
                 proveedores={proveedores}
-                clientesHouse={clientes}
+                consigneesHouse={consigneesHouse}
                 accionesHouses={
                     <AgregarHouse
                         embarque={embarque}
                         rutaStore="gerente-operativo.embarques.houses.store"
                         contenedoresDisponibles={contenedores}
-                        clientes={clientes}
+                        consignees={consigneesHouse}
                     />
                 }
                 accionesCostos={

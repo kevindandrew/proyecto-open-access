@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
-use App\Models\Cliente;
 use App\Models\ClienteConsignatario;
 use App\Models\Embarque;
 use App\Models\EmbarqueContenedor;
@@ -15,6 +14,7 @@ use App\Models\RoleEmpleado;
 use App\Models\SeguimientoEmbarque;
 use App\Support\AlertasEmbarque;
 use App\Support\AvisoArriboPdfDatos;
+use App\Support\ConsigneeHouse;
 use App\Support\SecuenciaEstadoEmbarque;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -69,7 +69,7 @@ class EmbarqueController extends Controller
         $embarque->load([
             'cotizacion', 'cliente.consignatarios', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
-            'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores', 'cliente'),
+            'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores', 'cliente', 'consignatario'),
             'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
@@ -152,8 +152,9 @@ class EmbarqueController extends Controller
             'houses' => $embarque->houseBls->map(fn (HouseBl $house) => [
                 'id_hbl' => $house->id_hbl,
                 'numero_hbl' => $house->numero_hbl,
-                'id_cliente' => $house->id_cliente,
-                'cliente' => $house->cliente?->razon_social,
+                'consignee' => ConsigneeHouse::valor($house),
+                'consignee_etiqueta' => ConsigneeHouse::etiqueta($house),
+                'cliente' => ConsigneeHouse::datos($house)['nombre'] ?? null,
                 'shipper_nombre' => $house->shipper_nombre,
                 'shipper_direccion' => $house->shipper_direccion,
                 'condicion_pago' => $house->condicion_pago,
@@ -197,7 +198,7 @@ class EmbarqueController extends Controller
                     'venta' => $grupo->sum('costo_venta'),
                 ]),
             'proveedores' => Proveedor::where('activo', true)->orderBy('nombre')->get(['id_proveedor', 'nombre', 'tipo']),
-            'clientes' => Cliente::orderBy('razon_social')->get(['id_cliente', 'razon_social']),
+            'consigneesHouse' => ConsigneeHouse::opciones($embarque),
             'consignatariosCliente' => $embarque->cliente?->consignatarios->map(fn (ClienteConsignatario $consignatario) => [
                 'id_consignatario' => $consignatario->id_consignatario,
                 'nombre' => $consignatario->nombre,

@@ -70,7 +70,7 @@ function Houses({
     rutaActualizar,
     rutaPdf,
     contenedoresDisponibles = [],
-    clientes = [],
+    consignees = [],
     modoTransporte,
 }) {
     if (houses.length === 0) {
@@ -89,7 +89,7 @@ function Houses({
                     key={house.id_hbl}
                     house={house}
                     contenedoresDisponibles={contenedoresDisponibles}
-                    clientes={clientes}
+                    consignees={consignees}
                     rutaActualizar={rutaActualizar}
                     rutaPdf={rutaPdf}
                     onEliminar={onEliminar}
@@ -248,7 +248,7 @@ export default function EmbarqueDetalle({
     onEliminarCosto = null,
     rutaActualizarCosto = null,
     proveedores = [],
-    clientesHouse = [],
+    consigneesHouse = [],
     onEliminarContenedor = null,
     rutaActualizarContenedor = null,
     accionesPrincipal = null,
@@ -467,7 +467,7 @@ export default function EmbarqueDetalle({
                     rutaActualizar={rutaActualizarHouse}
                     rutaPdf={rutaPdfHouse}
                     contenedoresDisponibles={contenedores}
-                    clientes={clientesHouse}
+                    consignees={consigneesHouse}
                     modoTransporte={embarque.modo_transporte}
                 />
                 {accionesHouses}

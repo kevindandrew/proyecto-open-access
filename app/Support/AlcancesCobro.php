@@ -13,7 +13,7 @@ class AlcancesCobro
 {
     public static function para(Embarque $embarque): array
     {
-        $embarque->loadMissing(['cliente', 'houseBls.cliente']);
+        $embarque->loadMissing(['cliente', 'houseBls.cliente', 'houseBls.consignatario']);
 
         $alcances = [[
             'id_hbl' => null,
@@ -43,7 +43,7 @@ class AlcancesCobro
 
     public static function consignatario(Embarque $embarque, ?int $idHbl): ?array
     {
-        $embarque->loadMissing(['houseBls.cliente']);
+        $embarque->loadMissing(['houseBls.cliente', 'houseBls.consignatario']);
         $house = $idHbl ? $embarque->houseBls->firstWhere('id_hbl', $idHbl) : null;
 
         return $house
@@ -89,16 +89,18 @@ class AlcancesCobro
 
     private static function consignatarioDelHouse(HouseBl $house, Embarque $embarque): ?array
     {
-        // Un house sin cliente propio usa el consignatario del embarque.
-        if (! $house->cliente) {
+        // Un house sin consignee propio usa el consignatario del embarque.
+        $datos = ConsigneeHouse::datos($house);
+
+        if (! $datos) {
             return self::consignatarioDelEmbarque($embarque);
         }
 
         return [
-            'nombre' => $house->cliente->razon_social,
-            'nit' => $house->cliente->nit,
-            'direccion' => $house->cliente->direccion,
-            'id_cliente' => $house->id_cliente,
+            'nombre' => $datos['nombre'],
+            'nit' => $datos['nit'],
+            'direccion' => $datos['direccion'],
+            'id_cliente' => $datos['id_cliente'] ?? $embarque->id_cliente,
         ];
     }
 }

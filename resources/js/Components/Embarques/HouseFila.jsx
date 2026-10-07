@@ -87,7 +87,7 @@ function ContenedorDeHouse({ contenedor }) {
 export default function HouseFila({
     house,
     contenedoresDisponibles,
-    clientes = [],
+    consignees = [],
     rutaActualizar,
     rutaPdf,
     onEliminar,
@@ -97,9 +97,16 @@ export default function HouseFila({
     const congelado = Boolean(house.congelado_en);
     const tiposPdf = tiposPdfHouse(modoTransporte);
 
+    // Un house cargado antes con un cliente que ya no está entre las opciones
+    // (cliente del embarque y sus consignatarios) lo sigue mostrando.
+    const opcionesConsignee =
+        house.consignee && !consignees.some((opcion) => opcion.valor === house.consignee)
+            ? [...consignees, { valor: house.consignee, etiqueta: house.consignee_etiqueta }]
+            : consignees;
+
     const { data, setData, patch, processing, errors, reset, transform } = useForm({
         numero_hbl: house.numero_hbl ?? '',
-        id_cliente: house.id_cliente ?? '',
+        consignee: house.consignee ?? '',
         shipper_nombre: house.shipper_nombre ?? '',
         shipper_direccion: house.shipper_direccion ?? '',
         condicion_pago: house.condicion_pago ?? '',
@@ -327,20 +334,20 @@ export default function HouseFila({
                             </label>
                             <select
                                 className="mt-1 block min-w-[220px] rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
-                                value={data.id_cliente}
-                                onChange={(e) => setData('id_cliente', e.target.value)}
+                                value={data.consignee}
+                                onChange={(e) => setData('consignee', e.target.value)}
                             >
                                 <option value="">
                                     Usar el consignatario del embarque (por defecto)
                                 </option>
-                                {clientes.map((cliente) => (
-                                    <option key={cliente.id_cliente} value={cliente.id_cliente}>
-                                        {cliente.razon_social}
+                                {opcionesConsignee.map((opcion) => (
+                                    <option key={opcion.valor} value={opcion.valor}>
+                                        {opcion.etiqueta}
                                     </option>
                                 ))}
                             </select>
-                            {errors.id_cliente && (
-                                <p className="mt-1 text-xs text-red-600">{errors.id_cliente}</p>
+                            {errors.consignee && (
+                                <p className="mt-1 text-xs text-red-600">{errors.consignee}</p>
                             )}
                         </div>
                     </div>

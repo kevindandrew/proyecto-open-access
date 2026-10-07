@@ -5,6 +5,7 @@ namespace App\Http\Controllers\GerenteOperativo;
 use App\Http\Controllers\Controller;
 use App\Models\Embarque;
 use App\Models\HouseBl;
+use App\Support\ConsigneeHouse;
 use App\Support\HouseBlPdfDatos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -79,11 +80,12 @@ class HouseBlController extends Controller
     public function store(Request $request, Embarque $embarque): RedirectResponse
     {
         $data = $this->validado($request, $embarque);
+        $consignee = ConsigneeHouse::resolver($data['consignee'] ?? null, $embarque);
 
-        DB::transaction(function () use ($embarque, $data) {
+        DB::transaction(function () use ($embarque, $data, $consignee) {
             $house = $embarque->houseBls()->create([
                 'numero_hbl' => $data['numero_hbl'],
-                'id_cliente' => $data['id_cliente'] ?? null,
+                ...$consignee,
                 'shipper_nombre' => $data['shipper_nombre'] ?? null,
                 'shipper_direccion' => $data['shipper_direccion'] ?? null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
@@ -102,11 +104,12 @@ class HouseBlController extends Controller
     public function update(Request $request, HouseBl $house): RedirectResponse
     {
         $data = $this->validado($request, $house->embarque, $house);
+        $consignee = ConsigneeHouse::resolver($data['consignee'] ?? null, $house->embarque, $house);
 
-        DB::transaction(function () use ($house, $data) {
+        DB::transaction(function () use ($house, $data, $consignee) {
             $house->update([
                 'numero_hbl' => $data['numero_hbl'],
-                'id_cliente' => $data['id_cliente'] ?? null,
+                ...$consignee,
                 'shipper_nombre' => $data['shipper_nombre'] ?? null,
                 'shipper_direccion' => $data['shipper_direccion'] ?? null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
@@ -161,7 +164,8 @@ class HouseBlController extends Controller
                 'required', 'string', 'max:50',
                 Rule::unique('house_bl', 'numero_hbl')->ignore($house?->id_hbl, 'id_hbl'),
             ],
-            'id_cliente' => ['nullable', 'integer', 'exists:clientes,id_cliente'],
+            // "cliente:{id}" o "consignatario:{id}" — ver ConsigneeHouse.
+            'consignee' => ['nullable', 'string', 'max:50'],
             'shipper_nombre' => ['nullable', 'string', 'max:200'],
             'shipper_direccion' => ['nullable', 'string'],
             'condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
