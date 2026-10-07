@@ -16,10 +16,15 @@ class DocumentoLiquidacion extends Model
 
     protected $fillable = [
         'id_embarque',
+        'id_hbl',
         'tipo',
         'numero',
+        'numero_factura',
         'id_cliente',
         'id_proveedor',
+        'destinatario_nombre',
+        'destinatario_nit',
+        'destinatario_direccion',
         'moneda',
         'monto',
         'condicion_pago',
@@ -41,6 +46,11 @@ class DocumentoLiquidacion extends Model
     public function embarque(): BelongsTo
     {
         return $this->belongsTo(Embarque::class, 'id_embarque', 'id_embarque');
+    }
+
+    public function houseBl(): BelongsTo
+    {
+        return $this->belongsTo(HouseBl::class, 'id_hbl', 'id_hbl');
     }
 
     public function cliente(): BelongsTo

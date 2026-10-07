@@ -10,6 +10,7 @@ class TiposDocumentoLiquidacion
         'nota_interna' => ['categoria' => 'cobro', 'etiqueta' => 'Nota Interna', 'prefijo' => 'NI'],
         'invoice' => ['categoria' => 'cobro', 'etiqueta' => 'Invoice', 'prefijo' => 'INV'],
         'nota_descuento' => ['categoria' => 'cobro', 'etiqueta' => 'Nota de Descuento', 'prefijo' => 'ND'],
+        'factura' => ['categoria' => 'cobro', 'etiqueta' => 'Factura', 'prefijo' => 'FAC'],
         'orden_pago' => ['categoria' => 'pago', 'etiqueta' => 'Orden de Pago', 'prefijo' => 'OP'],
         'orden_pago_provisional' => ['categoria' => 'pago', 'etiqueta' => 'Orden de Pago Provisional', 'prefijo' => 'OPP'],
         'orden_pago_cf' => ['categoria' => 'pago', 'etiqueta' => 'Orden de Pago con CF', 'prefijo' => 'OPCF'],
@@ -59,6 +60,30 @@ class TiposDocumentoLiquidacion
     public static function valoresPorCategoria(string $categoria): array
     {
         return array_keys(array_filter(self::TIPOS, fn ($info) => $info['categoria'] === $categoria));
+    }
+
+    /**
+     * La Factura se emite en el sistema de facturación externo y acá solo se
+     * registra (con su N° de factura), así que no tiene PDF. Por lo demás es
+     * un cobro como cualquier otro (ej. "Emisión de documentos").
+     */
+    public static function esRegistroExterno(string $tipo): bool
+    {
+        return $tipo === 'factura';
+    }
+
+    /**
+     * La Orden de Pago (-) se carga con los montos en positivo, tal como
+     * vienen en el documento del agente, pero se registra en negativo.
+     */
+    public static function registraEnNegativo(string $tipo): bool
+    {
+        return $tipo === 'orden_pago_negativa';
+    }
+
+    public static function esProvisional(string $tipo): bool
+    {
+        return $tipo === 'orden_pago_provisional';
     }
 
     /**

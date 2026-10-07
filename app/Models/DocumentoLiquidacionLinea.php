@@ -18,6 +18,11 @@ class DocumentoLiquidacionLinea extends Model
         'tipo_origen',
         'id_origen',
         'descripcion',
+        'tipo_documento',
+        'numero_documento',
+        'fecha_documento',
+        'cantidad',
+        'precio_unitario',
         'monto',
         'moneda',
     ];
@@ -25,6 +30,9 @@ class DocumentoLiquidacionLinea extends Model
     protected function casts(): array
     {
         return [
+            'fecha_documento' => 'date',
+            'cantidad' => 'decimal:2',
+            'precio_unitario' => 'decimal:2',
             'monto' => 'decimal:2',
         ];
     }

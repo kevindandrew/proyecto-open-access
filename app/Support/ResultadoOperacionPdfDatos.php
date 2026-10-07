@@ -15,22 +15,33 @@ class ResultadoOperacionPdfDatos
             'cliente',
             'comercial',
             'navieraAerolinea',
-            'documentosLiquidacion' => fn ($query) => $query->with(['cliente', 'proveedor'])->orderBy('id_documento'),
+            'documentosLiquidacion' => fn ($query) => $query->with(['cliente', 'proveedor', 'lineas'])->orderBy('id_documento'),
         ]);
 
         $ingresos = $embarque->documentosLiquidacion
             ->filter(fn (DocumentoLiquidacion $doc) => TiposDocumentoLiquidacion::esCobro($doc->tipo))
             ->map(fn (DocumentoLiquidacion $doc) => [
-                'contraparte' => $doc->cliente?->razon_social ?? '—',
+                'contraparte' => $doc->destinatario_nombre ?? $doc->cliente?->razon_social ?? '—',
                 'tipo' => TiposDocumentoLiquidacion::etiqueta($doc->tipo),
-                'numero' => $doc->numero,
+                'numero' => $doc->numero_factura ?? $doc->numero,
                 'moneda' => $doc->moneda,
                 'monto' => (float) $doc->monto,
             ])
             ->values();
 
+        // Todas las órdenes de pago son egreso. Una Provisional deja de contar
+        // cuando alguna de sus líneas ya se pagó con una orden definitiva
+        // (Orden de Pago o con CF) — si no, ese costo se sumaría dos veces.
+        $lineasConPagoDefinitivo = $embarque->documentosLiquidacion
+            ->filter(fn (DocumentoLiquidacion $doc) => in_array($doc->tipo, ['orden_pago', 'orden_pago_cf'], true))
+            ->flatMap(fn (DocumentoLiquidacion $doc) => $doc->lineas)
+            ->map(fn ($linea) => "{$linea->tipo_origen}:{$linea->id_origen}")
+            ->unique();
+
         $egresos = $embarque->documentosLiquidacion
             ->filter(fn (DocumentoLiquidacion $doc) => TiposDocumentoLiquidacion::esPago($doc->tipo))
+            ->reject(fn (DocumentoLiquidacion $doc) => TiposDocumentoLiquidacion::esProvisional($doc->tipo)
+                && $doc->lineas->contains(fn ($linea) => $lineasConPagoDefinitivo->contains("{$linea->tipo_origen}:{$linea->id_origen}")))
             ->map(fn (DocumentoLiquidacion $doc) => [
                 'contraparte' => $doc->proveedor?->nombre ?? '—',
                 'tipo' => TiposDocumentoLiquidacion::etiqueta($doc->tipo),

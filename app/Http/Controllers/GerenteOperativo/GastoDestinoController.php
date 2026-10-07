@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
-use App\Models\Cliente;
 use App\Models\DocumentoLiquidacion;
 use App\Models\Embarque;
 use App\Models\EmbarqueCosto;
 use App\Models\GastoDestino;
 use App\Models\Proveedor;
+use App\Support\AlcancesCobro;
 use App\Support\TiposDocumentoLiquidacion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,7 +25,7 @@ class GastoDestinoController extends Controller
             'cliente',
             'gastosDestino' => fn ($query) => $query->orderByDesc('id_gasto'),
             'costos' => fn ($query) => $query->with('proveedor')->orderByDesc('id_costo'),
-            'documentosLiquidacion' => fn ($query) => $query->with(['cliente', 'proveedor'])->orderByDesc('id_documento'),
+            'documentosLiquidacion' => fn ($query) => $query->with(['cliente', 'proveedor', 'houseBl'])->orderByDesc('id_documento'),
         ]);
 
         return Inertia::render('GerenteOperativo/Liquidacion/Show', [
@@ -64,13 +64,18 @@ class GastoDestinoController extends Controller
                 'etiqueta' => TiposDocumentoLiquidacion::etiqueta($documento->tipo),
                 'categoria' => TiposDocumentoLiquidacion::categoria($documento->tipo),
                 'numero' => $documento->numero,
-                'contraparte' => $documento->cliente?->razon_social ?? $documento->proveedor?->nombre,
+                'contraparte' => $documento->destinatario_nombre
+                    ?? $documento->cliente?->razon_social
+                    ?? $documento->proveedor?->nombre,
+                'house' => $documento->houseBl?->numero_hbl,
+                'numero_factura' => $documento->numero_factura,
+                'tiene_pdf' => ! TiposDocumentoLiquidacion::esRegistroExterno($documento->tipo),
                 'moneda' => $documento->moneda,
                 'monto' => $documento->monto,
                 'fecha' => $documento->fecha->toDateString(),
             ]),
             'tiposDocumento' => TiposDocumentoLiquidacion::todos(),
-            'clientes' => Cliente::orderBy('razon_social')->get(['id_cliente', 'razon_social']),
+            'alcancesCobro' => AlcancesCobro::para($embarque),
             'proveedores' => Proveedor::where('activo', true)->orderBy('nombre')->get(['id_proveedor', 'nombre']),
         ]);
     }

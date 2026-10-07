@@ -23,6 +23,10 @@ class MontoEnLetras
      */
     public static function para(float $monto, string $moneda): string
     {
+        if ($monto < 0) {
+            return 'MENOS '.self::para(abs($monto), $moneda);
+        }
+
         $entero = (int) floor(round($monto, 2));
         $centavos = (int) round((round($monto, 2) - $entero) * 100);
 

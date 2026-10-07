@@ -35,6 +35,10 @@
         table.totales td.caja-valor { text-align: right; font-weight: bold; font-size: 13px; color: #042753; }
 
         .son { margin-top: 8px; font-style: italic; }
+
+        table.firmas { width: 100%; margin-top: 60px; border-collapse: collapse; }
+        table.firmas td { width: 33%; padding: 0 20px; text-align: center; }
+        .linea-firma { border-top: 1px solid #6b7280; padding-top: 4px; color: #042753; font-weight: bold; font-size: 10px; }
         .footer { margin-top: 30px; font-size: 9px; color: #9ca3af; text-align: center; }
     </style>
 </head>
@@ -82,19 +86,41 @@
             <td class="etiqueta">ETD / ETA</td>
             <td class="valor">{{ $embarque['etd'] ?? '—' }} / {{ $embarque['eta'] ?? '—' }}</td>
         </tr>
+        <tr>
+            <td class="etiqueta">Cliente / Customer</td>
+            <td class="valor">{{ $embarque['cliente'] ?? '—' }}</td>
+            <td class="etiqueta">Embarcador / Shipper</td>
+            <td class="valor">{{ $embarque['shipper_nombre'] ?: '—' }}</td>
+            <td class="etiqueta">Consignatario / Cnee</td>
+            <td class="valor">{{ $embarque['consignatario'] ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Embarque</td>
+            <td class="valor">{{ $embarque['tipo'] ?: '—' }}</td>
+            <td class="etiqueta">Unidades / Units</td>
+            <td class="valor" colspan="3">{{ $embarque['unidades'] ?? '—' }}</td>
+        </tr>
     </table>
 
     <table class="lineas">
         <thead>
             <tr>
                 <th>Descripción / Description</th>
-                <th class="derecha" style="width: 20%;">Total</th>
+                <th style="width: 14%;">Documento / Document</th>
+                <th style="width: 9%;">Moneda / Currency</th>
+                <th style="width: 18%;">N° / Number</th>
+                <th style="width: 12%;">Fecha / Date</th>
+                <th class="derecha" style="width: 14%;">Monto / Amount</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($lineas as $linea)
                 <tr>
                     <td>{{ $linea['descripcion'] }}</td>
+                    <td>{{ $linea['tipo_documento'] ?: '—' }}</td>
+                    <td>{{ $linea['moneda'] }}</td>
+                    <td>{{ $linea['numero_documento'] ?: '—' }}</td>
+                    <td>{{ $linea['fecha_documento'] ?: '—' }}</td>
                     <td class="derecha">{{ number_format($linea['monto'], 2) }}</td>
                 </tr>
             @endforeach
@@ -125,6 +151,14 @@
     @if ($documento['observaciones'])
         <p style="margin-top: 8px;"><strong>Observaciones:</strong> {{ $documento['observaciones'] }}</p>
     @endif
+
+    <table class="firmas">
+        <tr>
+            <td><div class="linea-firma">Operaciones</div></td>
+            <td><div class="linea-firma">Ventas</div></td>
+            <td><div class="linea-firma">Contabilidad</div></td>
+        </tr>
+    </table>
 
     <div class="footer">
         Documento generado por el sistema de Open Access Bolivia S.R.L. el {{ $generadoEn }}.

@@ -63,49 +63,65 @@
 
     <table class="datos">
         <tr>
-            <td class="etiqueta">MAWB / MBL</td>
-            <td class="valor">{{ $embarque['mbl'] ?: '—' }}</td>
-            <td class="etiqueta">HAWB / HBL</td>
-            <td class="valor">{{ $embarque['hbl'] ?: '—' }}</td>
-            <td class="etiqueta">N° File</td>
+            <td class="etiqueta">Ref. / File</td>
             <td class="valor">{{ $embarque['numero_file'] }}</td>
+            <td class="etiqueta">Shipper</td>
+            <td class="valor" colspan="3">{{ $embarque['shipper_nombre'] ?: '—' }}</td>
         </tr>
         <tr>
-            <td class="etiqueta">Origen</td>
+            <td class="etiqueta">Consignee</td>
+            <td class="valor" colspan="5">{{ $embarque['consignatario'] ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">HBL - HAWB</td>
+            <td class="valor">{{ $embarque['hbl'] ?: '—' }}</td>
+            <td class="etiqueta">MBL - MAWB</td>
+            <td class="valor" colspan="3">{{ $embarque['mbl'] ?: '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">POL</td>
             <td class="valor">{{ $embarque['pol'] ?? '—' }}</td>
-            <td class="etiqueta">Destino</td>
-            <td class="valor">{{ $embarque['pod'] ?? '—' }}</td>
-            <td class="etiqueta">ETD / ETA</td>
-            <td class="valor">{{ $embarque['etd'] ?? '—' }} / {{ $embarque['eta'] ?? '—' }}</td>
+            <td class="etiqueta">POD</td>
+            <td class="valor" colspan="3">{{ $embarque['pod'] ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Unit</td>
+            <td class="valor">{{ $embarque['unidades'] ?? '—' }}</td>
+            <td class="etiqueta">ETA</td>
+            <td class="valor" colspan="3">{{ $embarque['eta'] ?? '—' }}</td>
         </tr>
     </table>
 
+    <div class="bloque-titulo">Facturar a / Bill to</div>
     <table class="datos">
         <tr>
-            <td class="etiqueta" style="width: 12%;">
-                {{ $documento['tipo'] === 'invoice' ? 'Cliente' : 'Cliente / Customer' }}
-            </td>
-            <td class="valor" style="width: 38%;">{{ $contraparte['nombre'] ?? '—' }}</td>
-            <td class="etiqueta" style="width: 12%;">
-                {{ $documento['tipo'] === 'invoice' ? 'Señores' : 'Consignatario / Cnee' }}
-            </td>
-            <td class="valor">
-                {{ $documento['tipo'] === 'invoice' ? ($embarque['shipper_nombre'] ?? '—') : ($contraparte['nombre'] ?? '—') }}
-            </td>
+            <td class="valor" colspan="2" style="font-size: 13px;">{{ $contraparte['nombre'] ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">NIT</td>
+            <td class="valor">{{ $contraparte['nit'] ?: '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Dirección</td>
+            <td class="valor">{{ $contraparte['direccion'] ?: '—' }}</td>
         </tr>
     </table>
 
     <table class="lineas">
         <thead>
             <tr>
-                <th>Descripción / Description</th>
-                <th class="derecha" style="width: 20%;">Total</th>
+                <th style="width: 10%;">Cant / Qty</th>
+                <th>Concepto / Description</th>
+                <th class="derecha" style="width: 16%;">Unit</th>
+                <th class="derecha" style="width: 16%;">Total</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($lineas as $linea)
                 <tr>
+                    <td>{{ rtrim(rtrim(number_format($linea['cantidad'], 2, '.', ''), '0'), '.') }}</td>
                     <td>{{ $linea['descripcion'] }}</td>
+                    <td class="derecha">{{ number_format($linea['precio_unitario'], 2) }}</td>
                     <td class="derecha">{{ number_format($linea['monto'], 2) }}</td>
                 </tr>
             @endforeach
@@ -139,11 +155,7 @@
 
     @if ($documento['llevaDisclaimer'])
         <div class="disclaimer">
-            @if ($documento['tipo'] === 'nota_reembolso')
-                <p>1.- El monto de esta {{ $documento['etiqueta'] }} debe ser cancelado en Dólares Americanos.</p>
-            @else
-                <p>1.- El monto de esta {{ $documento['etiqueta'] }} puede ser cancelado en Bolivianos al tipo de cambio flexible.</p>
-            @endif
+            <p>1.- {{ $documento['leyendaMoneda'] }}</p>
             <p>2.- El Cliente declara estar de acuerdo con el monto y las condiciones de pago que se señalan en este documento. En caso de existir una observación con relación al monto, esta deberá ser comunicada en un lapso de cinco días, caso contrario se dará por aceptados.</p>
             <p>3.- En caso de incumplimiento del pago el cliente autoriza a OPEN ACCESS BOLIVIA SRL a disponer de una parte o la totalidad de la mercadería transportada, de modo tal que cubra el monto de este documento y/o cualquier otro costo adicional que nos fuera imputado.</p>
             <p>4.- OPEN ACCESS BOLIVIA SRL actúa únicamente como intermediario en la comercialización del transporte de contenedores, por lo tanto no es responsable por el contenido, medidas, cantidad y condiciones de la mercadería en los mismos. Se recomienda al importador asegurar su carga, caso contrario toda responsabilidad por discrepancia deberán ser atendidas únicamente por la línea dueña de equipos y naves y/o el embarcador (proveedor) en origen.</p>
