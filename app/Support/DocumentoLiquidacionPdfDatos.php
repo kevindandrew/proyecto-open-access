@@ -93,9 +93,7 @@ class DocumentoLiquidacionPdfDatos
         return match ($moneda) {
             'EUR' => "El monto de esta {$etiqueta} deberá ser cancelado en Euros.",
             'BOB' => "El monto de esta {$etiqueta} deberá ser cancelado en Bolivianos.",
-            default => $tipo === 'nota_reembolso'
-                ? "El monto de esta {$etiqueta} deberá ser cancelado en Dólares Americanos."
-                : "El monto de esta {$etiqueta} puede ser cancelado en Bolivianos al tipo de cambio flexible.",
+            default => "El monto de esta {$etiqueta} deberá ser cancelado en Dólares Americanos.",
         };
     }
 

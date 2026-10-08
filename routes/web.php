@@ -10,6 +10,7 @@ use App\Http\Controllers\GerenteComercial\CotizacionController as GerenteComerci
 use App\Http\Controllers\GerenteComercial\DashboardController as GerenteComercialDashboardController;
 use App\Http\Controllers\GerenteComercial\PersonalController as GerenteComercialPersonalController;
 use App\Http\Controllers\GerenteOperativo\ClienteController as GerenteOperativoClienteController;
+use App\Http\Controllers\GerenteOperativo\CategoriaComisionController;
 use App\Http\Controllers\GerenteOperativo\ConceptoCostoExtraController;
 use App\Http\Controllers\GerenteOperativo\CotizacionController as GerenteOperativoCotizacionController;
 use App\Http\Controllers\GerenteOperativo\DocumentoLiquidacionController;
@@ -174,6 +175,9 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
             Route::resource('costos-extra', ConceptoCostoExtraController::class)
                 ->parameters(['costos-extra' => 'concepto'])
                 ->only(['index', 'store', 'update', 'destroy']);
+            Route::resource('comisiones', CategoriaComisionController::class)
+                ->parameters(['comisiones' => 'categoria'])
+                ->only(['index', 'store', 'update', 'destroy']);
         });
 
         Route::get('embarques', [EmbarqueController::class, 'index'])->name('embarques.index');
@@ -187,6 +191,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::post('embarques/{embarque}/liquidacion/documentos', [DocumentoLiquidacionController::class, 'store'])->name('documentos-liquidacion.store');
         Route::get('documentos-liquidacion/{documento}/pdf', [DocumentoLiquidacionController::class, 'pdf'])->name('documentos-liquidacion.pdf');
         Route::get('embarques/{embarque}/liquidacion/cerrar', [DocumentoLiquidacionController::class, 'cerrarLiquidacion'])->name('embarques.liquidacion.cerrar');
+        Route::patch('embarques/{embarque}/liquidacion/comision', [DocumentoLiquidacionController::class, 'actualizarComision'])->name('embarques.liquidacion.comision');
 
         Route::post('embarques/{embarque}/houses', [HouseBlController::class, 'store'])->name('embarques.houses.store');
         Route::patch('houses/{house}', [HouseBlController::class, 'update'])->name('houses.update');

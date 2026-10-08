@@ -23,6 +23,7 @@ class Empleado extends Model
         'telefono',
         'email',
         'id_rol',
+        'id_categoria_comision',
         'especialidad_operativa',
         'id_jefe',
         'activo',
@@ -40,6 +41,11 @@ class Empleado extends Model
     public function rol(): BelongsTo
     {
         return $this->belongsTo(RoleEmpleado::class, 'id_rol', 'id_rol');
+    }
+
+    public function categoriaComision(): BelongsTo
+    {
+        return $this->belongsTo(CategoriaComision::class, 'id_categoria_comision', 'id_categoria');
     }
 
     public function jefe(): BelongsTo

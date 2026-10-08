@@ -198,11 +198,23 @@ function ListaDocumentos({ titulo, documentos, columnaContraparte, vacio, onAbri
                                     {documento.house && (
                                         <span className="block text-xs text-[#A9ABAE]">House {documento.house}</span>
                                     )}
+                                    {documento.anulada_por && (
+                                        <span className="mt-0.5 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">
+                                            Anulada por {documento.anulada_por}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-3 py-2">{documento.contraparte ?? '—'}</td>
                                 <td className="px-3 py-2">{documento.fecha}</td>
-                                <td className="px-3 py-2 text-right font-medium text-[#042753]">
+                                <td
+                                    className={`px-3 py-2 text-right font-medium text-[#042753] ${documento.anulada_por ? 'line-through opacity-50' : ''}`}
+                                >
                                     {documento.monto} {documento.moneda}
+                                    {documento.moneda_origen && (
+                                        <span className="block text-xs font-normal text-[#A9ABAE]">
+                                            {documento.monto_origen} {documento.moneda_origen} × T/C {documento.tipo_cambio}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-3 py-2 text-right">
                                     {documento.tiene_pdf ? (
@@ -232,6 +244,71 @@ function ListaDocumentos({ titulo, documentos, columnaContraparte, vacio, onAbri
     );
 }
 
+function PanelComision({ embarque, comision, cerrada }) {
+    const { data, setData, patch, processing, errors } = useForm({
+        porcentaje_comision: comision.porcentaje_manual ?? '',
+    });
+
+    const vigente = comision.porcentaje_manual ?? comision.porcentaje_categoria;
+
+    const guardar = (e) => {
+        e.preventDefault();
+        patch(route('gerente-operativo.embarques.liquidacion.comision', embarque.id_embarque), {
+            preserveScroll: true,
+        });
+    };
+
+    return (
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div>
+                <h3 className="text-sm font-semibold text-[#042753]">Comisión del comercial</h3>
+                <p className="mt-1 text-sm text-[#042753]">
+                    {comision.comercial ?? 'Sin comercial asignado'}
+                    {comision.categoria && (
+                        <span className="text-[#A9ABAE]">
+                            {' '}
+                            · {comision.categoria} ({comision.porcentaje_categoria}%)
+                        </span>
+                    )}
+                </p>
+                <p className="mt-1 text-xs text-[#A9ABAE]">
+                    % que se usa en el Resultado de Operación:{' '}
+                    <span className="font-semibold text-[#042753]">{vigente ?? 0}%</span>
+                    {comision.porcentaje_manual != null ? ' (ajustado a mano para este file)' : ' (de la categoría)'}
+                </p>
+            </div>
+
+            {!cerrada && (
+                <form onSubmit={guardar} className="flex items-end gap-2">
+                    <div>
+                        <label className="text-xs font-medium text-[#042753]">Ajustar % para este file</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            placeholder={comision.porcentaje_categoria ?? '0'}
+                            className="mt-1 block w-28 rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                            value={data.porcentaje_comision}
+                            onChange={(e) => setData('porcentaje_comision', e.target.value)}
+                        />
+                        {errors.porcentaje_comision && (
+                            <p className="mt-1 text-xs text-red-600">{errors.porcentaje_comision}</p>
+                        )}
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="rounded-md bg-[#71BFA6] px-3 py-2 text-sm font-semibold text-[#042753] hover:opacity-90 disabled:opacity-50"
+                    >
+                        Guardar
+                    </button>
+                </form>
+            )}
+        </div>
+    );
+}
+
 function PanelDocumentos({ embarque, costos, gastos, documentos, tiposDocumento, alcancesCobro, proveedores, cerrada }) {
     const [seleccion, setSeleccion] = useState(new Set());
 
@@ -244,6 +321,8 @@ function PanelDocumentos({ embarque, costos, gastos, documentos, tiposDocumento,
         moneda: '',
         // Solo Factura: el N° emitido en el sistema de facturación externo.
         numero_factura: '',
+        // Cobros: permite volver a cobrar líneas ya cobradas en otra nota.
+        cobro_extra: false,
         id_proveedor: '',
         condicion_pago: 'Al Contado',
         tipo_cambio: '',
@@ -403,7 +482,7 @@ function PanelDocumentos({ embarque, costos, gastos, documentos, tiposDocumento,
             onSuccess: () => {
                 setSeleccion(new Set());
                 setDetalles({});
-                reset('tipo', 'observaciones', 'numero_factura');
+                reset('tipo', 'observaciones', 'numero_factura', 'cobro_extra');
             },
         });
     };
@@ -496,7 +575,14 @@ function PanelDocumentos({ embarque, costos, gastos, documentos, tiposDocumento,
                             <select
                                 className={inputClass}
                                 value={data.tipo}
-                                onChange={(e) => setData('tipo', e.target.value)}
+                                onChange={(e) =>
+                                    // La Factura se emite en Bs (al T/C del día) aunque se cobre en USD.
+                                    setData((actual) => ({
+                                        ...actual,
+                                        tipo: e.target.value,
+                                        moneda: e.target.value === 'factura' ? 'BOB' : actual.moneda,
+                                    }))
+                                }
                             >
                                 <option value="">—</option>
                                 <optgroup label="Cobro">
@@ -590,6 +676,22 @@ function PanelDocumentos({ embarque, costos, gastos, documentos, tiposDocumento,
                                     </select>
                                     {errors.moneda && <p className="mt-1 text-xs text-red-600">{errors.moneda}</p>}
                                 </div>
+
+                                <label className="flex items-start gap-2 text-sm text-[#042753] md:col-span-3">
+                                    <input
+                                        type="checkbox"
+                                        className="mt-0.5 rounded border-gray-300 text-[#71BFA6] focus:ring-[#71BFA6]"
+                                        checked={data.cobro_extra}
+                                        onChange={(e) => setData('cobro_extra', e.target.checked)}
+                                    />
+                                    <span>
+                                        Cobro extra
+                                        <span className="block text-xs text-[#A9ABAE]">
+                                            Permite cobrar líneas que ya se cobraron en otra nota (un extra al
+                                            cliente o al agente). Suma como ingreso en el Resultado de Operación.
+                                        </span>
+                                    </span>
+                                </label>
                             </>
                         )}
 
@@ -946,6 +1048,7 @@ export default function Show({
     tiposDocumento,
     alcancesCobro,
     proveedores,
+    comision,
 }) {
     const cerrada = Boolean(embarque.liquidacion_cerrada_en);
 
@@ -1000,6 +1103,8 @@ export default function Show({
                     la generación de nuevos documentos quedan bloqueados para este file.
                 </div>
             )}
+
+            <PanelComision embarque={embarque} comision={comision} cerrada={cerrada} />
 
             <PanelGastos
                 embarque={embarque}

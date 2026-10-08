@@ -35,7 +35,10 @@ class DocumentoLiquidacionController extends Controller
             // Solo cobros: por qué se emite (null = MBL, o un house del
             // embarque), a quién (cliente o consignatario) y en qué moneda.
             'id_hbl' => ['nullable', 'integer'],
-            'destinatario' => ['nullable', Rule::in(['cliente', 'consignatario'])],
+            // Clave de AlcancesCobro: 'cliente', 'consignatario', 'consignatario:{id}', 'shipper', 'agente'.
+            'destinatario' => ['nullable', 'string', 'max:50'],
+            // Cobro extra: permite volver a cobrar líneas ya cobradas en otra nota.
+            'cobro_extra' => ['boolean'],
             'moneda' => ['nullable', Rule::in(['USD', 'BOB', 'EUR'])],
             'numero_factura' => [
                 'nullable', 'required_if:tipo,factura', 'string', 'max:50',
@@ -76,7 +79,7 @@ class DocumentoLiquidacionController extends Controller
             $destinatario = collect($alcance['destinatarios'])->firstWhere('clave', $data['destinatario'] ?? null);
 
             if (! $destinatario) {
-                throw ValidationException::withMessages(['destinatario' => 'Seleccioná a quién cobrar (cliente o consignatario).']);
+                throw ValidationException::withMessages(['destinatario' => 'Seleccioná a quién cobrar.']);
             }
         }
 
@@ -164,15 +167,17 @@ class DocumentoLiquidacionController extends Controller
 
         $solicitadas = $lineasResueltas->map(fn ($linea) => "{$linea['tipo_origen']}:{$linea['id_origen']}");
 
-        if ($solicitadas->intersect($lineasYaUsadas)->isNotEmpty()) {
+        $esCobroExtra = $esCobro && $request->boolean('cobro_extra');
+
+        if (! $esCobroExtra && $solicitadas->intersect($lineasYaUsadas)->isNotEmpty()) {
             throw ValidationException::withMessages([
                 'lineas' => $esCobro
-                    ? 'Una o más líneas seleccionadas ya fueron cobradas en otro documento de cobro de este '.($idHbl ? 'house (o del MBL)' : 'embarque').' — no se puede facturar la misma línea dos veces.'
+                    ? 'Una o más líneas seleccionadas ya fueron cobradas en otro documento de cobro de este '.($idHbl ? 'house (o del MBL)' : 'embarque').'. Si es un cobro extra, marcá "Cobro extra" para emitirlo igual.'
                     : 'Una o más líneas seleccionadas ya fueron pagadas en otra orden de pago ('.collect($tiposQueChocan)->map(fn ($tipo) => TiposDocumentoLiquidacion::etiqueta($tipo))->implode(' / ').') de este embarque — no se puede pagar la misma línea dos veces.',
             ]);
         }
 
-        $documento = DB::transaction(function () use ($data, $embarque, $lineasResueltas, $moneda, $idHbl, $destinatario) {
+        $documento = DB::transaction(function () use ($data, $embarque, $lineasResueltas, $moneda, $monedaOrigen, $conversion, $idHbl, $destinatario) {
             $documento = DocumentoLiquidacion::create([
                 'id_embarque' => $embarque->id_embarque,
                 'id_hbl' => $idHbl,
@@ -180,12 +185,16 @@ class DocumentoLiquidacionController extends Controller
                 'numero' => GeneradorNumeroDocumentoLiquidacion::generar($data['tipo']),
                 'numero_factura' => $data['tipo'] === 'factura' ? $data['numero_factura'] : null,
                 'id_cliente' => $destinatario['id_cliente'] ?? null,
-                'id_proveedor' => $destinatario ? null : ($data['id_proveedor'] ?? null),
+                'id_proveedor' => $destinatario ? ($destinatario['id_proveedor'] ?? null) : ($data['id_proveedor'] ?? null),
                 'destinatario_nombre' => $destinatario['nombre'] ?? null,
                 'destinatario_nit' => $destinatario['nit'] ?? null,
                 'destinatario_direccion' => $destinatario['direccion'] ?? null,
                 'moneda' => $moneda,
                 'monto' => $lineasResueltas->sum('monto'),
+                // Si se convirtió (ej. Factura en Bs de un cobro en USD), el
+                // monto en la moneda de origen — con eso suma el Resultado.
+                'moneda_origen' => $moneda !== $monedaOrigen ? $monedaOrigen : null,
+                'monto_origen' => $moneda !== $monedaOrigen ? round($lineasResueltas->sum('monto') / $conversion, 2) : null,
                 'condicion_pago' => $data['condicion_pago'] ?? null,
                 'tipo_cambio' => $data['tipo_cambio'] ?? null,
                 'fecha' => Carbon::today(),
@@ -263,6 +272,23 @@ class DocumentoLiquidacionController extends Controller
         ]);
 
         return $pdf->stream("{$nombreArchivo}.pdf");
+    }
+
+    /**
+     * Ajuste manual del % de comisión del comercial para este file (vacío =
+     * el de la categoría del comercial).
+     */
+    public function actualizarComision(Request $request, Embarque $embarque): RedirectResponse
+    {
+        abort_if($embarque->liquidacion_cerrada_en, 403, 'La liquidación de este embarque ya está cerrada.');
+
+        $data = $request->validate([
+            'porcentaje_comision' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $embarque->update(['porcentaje_comision' => $data['porcentaje_comision'] ?? null]);
+
+        return back()->with('success', '% de comisión actualizado.');
     }
 
     public function cerrarLiquidacion(Embarque $embarque): HttpResponse

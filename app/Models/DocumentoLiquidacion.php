@@ -27,6 +27,8 @@ class DocumentoLiquidacion extends Model
         'destinatario_direccion',
         'moneda',
         'monto',
+        'moneda_origen',
+        'monto_origen',
         'condicion_pago',
         'tipo_cambio',
         'fecha',
@@ -39,6 +41,7 @@ class DocumentoLiquidacion extends Model
         return [
             'fecha' => 'date',
             'monto' => 'decimal:2',
+            'monto_origen' => 'decimal:2',
             'tipo_cambio' => 'decimal:4',
         ];
     }

@@ -18,7 +18,7 @@ function CampoError({ mensaje }) {
     return mensaje ? <p className="mt-1 text-sm text-red-600">{mensaje}</p> : null;
 }
 
-export default function Form({ empleado }) {
+export default function Form({ empleado, categoriasComision = [] }) {
     const esEdicion = Boolean(empleado);
 
     const { data, setData, post, transform, processing, errors } = useForm({
@@ -30,6 +30,7 @@ export default function Form({ empleado }) {
         documentos_eliminados: [],
         telefono: empleado?.telefono ?? '',
         email: empleado?.email ?? '',
+        id_categoria_comision: empleado?.id_categoria_comision ?? '',
         activo: empleado?.activo ?? true,
     });
 
@@ -158,6 +159,26 @@ export default function Form({ empleado }) {
                             al sistema es con el usuario, no con el email.
                         </p>
                     )}
+                </div>
+
+                <div>
+                    <label className={labelClass}>Categoría de comisión</label>
+                    <select
+                        className={inputClass}
+                        value={data.id_categoria_comision}
+                        onChange={(e) => setData('id_categoria_comision', e.target.value)}
+                    >
+                        <option value="">Sin categoría</option>
+                        {categoriasComision.map((categoria) => (
+                            <option key={categoria.id_categoria} value={categoria.id_categoria}>
+                                {categoria.nombre} ({categoria.porcentaje}%)
+                            </option>
+                        ))}
+                    </select>
+                    <p className="mt-1 text-xs text-[#A9ABAE]">
+                        Para comerciales: define su % de comisión en el Resultado de Operación.
+                    </p>
+                    <CampoError mensaje={errors.id_categoria_comision} />
                 </div>
 
                 {esEdicion && (

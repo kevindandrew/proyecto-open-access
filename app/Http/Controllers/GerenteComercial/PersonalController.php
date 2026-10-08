@@ -4,6 +4,7 @@ namespace App\Http\Controllers\GerenteComercial;
 
 use App\Http\Controllers\Controller;
 use App\Models\DocumentoEmpleado;
+use App\Models\CategoriaComision;
 use App\Models\Empleado;
 use App\Models\RoleEmpleado;
 use App\Models\User;
@@ -43,6 +44,7 @@ class PersonalController extends Controller
     {
         return Inertia::render('GerenteComercial/Personal/Form', [
             'empleado' => null,
+            'categoriasComision' => $this->categoriasComision(),
         ]);
     }
 
@@ -73,6 +75,7 @@ class PersonalController extends Controller
                 'telefono' => $data['telefono'],
                 'email' => $data['email'],
                 'id_rol' => $this->idRolComercial(),
+                'id_categoria_comision' => $data['id_categoria_comision'] ?? null,
                 'activo' => true,
             ]);
 
@@ -116,6 +119,7 @@ class PersonalController extends Controller
                 'telefono' => $empleado->telefono,
                 'email' => $empleado->email,
                 'activo' => $empleado->activo,
+                'id_categoria_comision' => $empleado->id_categoria_comision,
                 'username' => $empleado->user?->username,
                 'documentos' => $empleado->documentos->map(fn (DocumentoEmpleado $documento) => [
                     'id_documento' => $documento->id_documento,
@@ -124,6 +128,7 @@ class PersonalController extends Controller
                     'dorso_url' => $documento->dorso_url,
                 ]),
             ],
+            'categoriasComision' => $this->categoriasComision(),
         ]);
     }
 
@@ -165,6 +170,7 @@ class PersonalController extends Controller
                 'fecha_ingreso' => $data['fecha_ingreso'],
                 'telefono' => $data['telefono'],
                 'email' => $data['email'],
+                'id_categoria_comision' => $data['id_categoria_comision'] ?? null,
                 'activo' => $request->boolean('activo'),
             ]);
 
@@ -238,6 +244,7 @@ class PersonalController extends Controller
             'documentos.*.dorso' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'documentos_eliminados' => ['nullable', 'array'],
             'documentos_eliminados.*' => ['integer'],
+            'id_categoria_comision' => ['nullable', 'integer', 'exists:categorias_comision,id_categoria'],
             'telefono' => ['nullable', 'string', 'max:30'],
             'email' => [
                 'required', 'email', 'max:120',
@@ -271,5 +278,12 @@ class PersonalController extends Controller
         });
 
         return $validator->validate();
+    }
+
+    private function categoriasComision()
+    {
+        return CategoriaComision::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id_categoria', 'nombre', 'porcentaje']);
     }
 }

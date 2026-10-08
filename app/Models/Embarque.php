@@ -62,6 +62,7 @@ class Embarque extends Model
         'pago_master',
         'estado_embarque',
         'liquidacion_cerrada_en',
+        'porcentaje_comision',
     ];
 
     protected function casts(): array

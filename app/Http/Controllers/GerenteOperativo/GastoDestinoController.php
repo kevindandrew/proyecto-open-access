@@ -9,6 +9,7 @@ use App\Models\EmbarqueCosto;
 use App\Models\GastoDestino;
 use App\Models\Proveedor;
 use App\Support\AlcancesCobro;
+use App\Support\ResultadoOperacionPdfDatos;
 use App\Support\TiposDocumentoLiquidacion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,10 +24,13 @@ class GastoDestinoController extends Controller
     {
         $embarque->load([
             'cliente',
+            'comercial.categoriaComision',
             'gastosDestino' => fn ($query) => $query->orderByDesc('id_gasto'),
             'costos' => fn ($query) => $query->with('proveedor')->orderByDesc('id_costo'),
-            'documentosLiquidacion' => fn ($query) => $query->with(['cliente', 'proveedor', 'houseBl'])->orderByDesc('id_documento'),
+            'documentosLiquidacion' => fn ($query) => $query->with(['cliente', 'proveedor', 'houseBl', 'lineas'])->orderByDesc('id_documento'),
         ]);
+
+        $anuladas = ResultadoOperacionPdfDatos::provisionalesAnuladas($embarque->documentosLiquidacion);
 
         return Inertia::render('GerenteOperativo/Liquidacion/Show', [
             'embarque' => [
@@ -72,8 +76,19 @@ class GastoDestinoController extends Controller
                 'tiene_pdf' => ! TiposDocumentoLiquidacion::esRegistroExterno($documento->tipo),
                 'moneda' => $documento->moneda,
                 'monto' => $documento->monto,
+                'moneda_origen' => $documento->moneda_origen,
+                'monto_origen' => $documento->monto_origen,
+                'tipo_cambio' => $documento->tipo_cambio,
+                // Provisional reemplazada por una orden definitiva: N° de esa orden.
+                'anulada_por' => $anuladas[$documento->id_documento] ?? null,
                 'fecha' => $documento->fecha->toDateString(),
             ]),
+            'comision' => [
+                'comercial' => $embarque->comercial?->nombre_completo,
+                'categoria' => $embarque->comercial?->categoriaComision?->nombre,
+                'porcentaje_categoria' => $embarque->comercial?->categoriaComision?->porcentaje,
+                'porcentaje_manual' => $embarque->porcentaje_comision,
+            ],
             'tiposDocumento' => TiposDocumentoLiquidacion::todos(),
             'alcancesCobro' => AlcancesCobro::para($embarque),
             'proveedores' => Proveedor::where('activo', true)->orderBy('nombre')->get(['id_proveedor', 'nombre']),

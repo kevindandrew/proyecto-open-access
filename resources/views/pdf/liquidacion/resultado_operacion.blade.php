@@ -30,6 +30,15 @@
         table.totales td.derecha, table.totales th.derecha { text-align: right; font-weight: bold; }
         table.totales tr.profit td { background-color: #71BFA6; color: #042753; font-weight: bold; font-size: 13px; }
 
+        table.profits { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        table.profits th { background-color: #71BFA6; color: #042753; padding: 6px 8px; font-size: 10px; text-transform: uppercase; border: 1px solid #d1d5db; }
+        table.profits td { padding: 10px 8px; font-size: 15px; font-weight: bold; text-align: center; color: #042753; border: 1px solid #d1d5db; }
+        .emitido { display: block; font-size: 8px; color: #6b7280; font-weight: normal; }
+
+        table.firmas { width: 100%; margin-top: 50px; border-collapse: collapse; }
+        table.firmas td { width: 33%; padding: 0 20px; text-align: center; }
+        .linea-firma { border-top: 1px solid #6b7280; padding-top: 4px; color: #042753; font-weight: bold; font-size: 10px; }
+
         .cerrada { margin-top: 16px; padding: 8px; background-color: #fef3c7; color: #92400e; font-size: 10px; text-align: center; }
         .footer { margin-top: 30px; font-size: 9px; color: #9ca3af; text-align: center; }
     </style>
@@ -55,22 +64,39 @@
             <td class="valor">{{ $embarque['cliente'] ?? '—' }}</td>
         </tr>
         <tr>
-            <td class="etiqueta">Comercial</td>
-            <td class="valor">{{ $embarque['comercial'] ?? '—' }}</td>
-            <td class="etiqueta">Modo</td>
-            <td class="valor">{{ $embarque['modo_transporte'] }}</td>
+            <td class="etiqueta">Consignatario</td>
+            <td class="valor">{{ $embarque['consignatario'] ?? '—' }}</td>
+            <td class="etiqueta">Embarque</td>
+            <td class="valor">{{ collect([$embarque['modo_transporte'], $embarque['tipo_embarque']])->filter()->implode(' / ') }}</td>
         </tr>
         <tr>
+            <td class="etiqueta">Comercial</td>
+            <td class="valor">
+                {{ $embarque['comercial'] ?? '—' }}
+                @if ($embarque['categoria_comision'])
+                    ({{ $embarque['categoria_comision'] }})
+                @endif
+            </td>
+            <td class="etiqueta">% Comisión</td>
+            <td class="valor">{{ number_format($porcentajeComision, 2) }}%</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Agente</td>
+            <td class="valor">{{ $embarque['agente'] ?? '—' }}</td>
             <td class="etiqueta">Carrier</td>
             <td class="valor">{{ $embarque['naviera_aerolinea'] ?? '—' }}</td>
-            <td class="etiqueta">MBL / MAWB</td>
-            <td class="valor">{{ $embarque['mbl'] ?? '—' }}</td>
         </tr>
         <tr>
-            <td class="etiqueta">POL</td>
-            <td class="valor">{{ $embarque['pol'] ?? '—' }}</td>
-            <td class="etiqueta">POD</td>
-            <td class="valor">{{ $embarque['pod'] ?? '—' }}</td>
+            <td class="etiqueta">MBL / MAWB</td>
+            <td class="valor">{{ $embarque['mbl'] ?? '—' }}</td>
+            <td class="etiqueta">HBL / HAWB</td>
+            <td class="valor">{{ $embarque['hbl'] ?: '—' }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">POL / POD</td>
+            <td class="valor">{{ $embarque['pol'] ?? '—' }} / {{ $embarque['pod'] ?? '—' }}</td>
+            <td class="etiqueta">ETD / ETA</td>
+            <td class="valor">{{ $embarque['etd'] ?? '—' }} / {{ $embarque['eta'] ?? '—' }}</td>
         </tr>
     </table>
 
@@ -93,7 +119,12 @@
                                 <td>{{ $linea['contraparte'] }}</td>
                                 <td>{{ $linea['tipo'] }}</td>
                                 <td>{{ $linea['numero'] }}</td>
-                                <td class="derecha">{{ number_format($linea['monto'], 2) }} {{ $linea['moneda'] }}</td>
+                                <td class="derecha">
+                                    {{ number_format($linea['monto'], 2) }} {{ $linea['moneda'] }}
+                                    @if ($linea['emitido'])
+                                        <span class="emitido">Emitido: {{ $linea['emitido'] }}</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr><td colspan="4" style="text-align: center; color: #9ca3af;">Sin documentos de cobro generados.</td></tr>
@@ -118,7 +149,12 @@
                                 <td>{{ $linea['contraparte'] }}</td>
                                 <td>{{ $linea['tipo'] }}</td>
                                 <td>{{ $linea['numero'] }}</td>
-                                <td class="derecha">{{ number_format($linea['monto'], 2) }} {{ $linea['moneda'] }}</td>
+                                <td class="derecha">
+                                    {{ number_format($linea['monto'], 2) }} {{ $linea['moneda'] }}
+                                    @if ($linea['emitido'])
+                                        <span class="emitido">Emitido: {{ $linea['emitido'] }}</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr><td colspan="4" style="text-align: center; color: #9ca3af;">Sin documentos de pago generados.</td></tr>
@@ -129,28 +165,52 @@
         </tr>
     </table>
 
-    <h2>Totales</h2>
-    <table class="totales">
-        <thead>
+    @forelse ($totales as $moneda => $total)
+        <h2>Totales {{ $moneda }}</h2>
+        <table class="totales">
             <tr>
-                <th>Moneda</th>
-                <th class="derecha">Total Venta</th>
-                <th class="derecha">Total Compra</th>
-                <th class="derecha">Profit Neto</th>
+                <th>Total Venta</th>
+                <td class="derecha">{{ number_format($total['venta'], 2) }}</td>
+                <th>Total Compra</th>
+                <td class="derecha">{{ number_format($total['compra'], 2) }}</td>
             </tr>
-        </thead>
-        <tbody>
-            @forelse ($profitNetoPorMoneda as $moneda => $profit)
-                <tr class="profit">
-                    <td>{{ $moneda }}</td>
-                    <td class="derecha">{{ number_format($totalVentaPorMoneda[$moneda] ?? 0, 2) }}</td>
-                    <td class="derecha">{{ number_format($totalCompraPorMoneda[$moneda] ?? 0, 2) }}</td>
-                    <td class="derecha">{{ number_format($profit, 2) }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="4" style="text-align: center; color: #9ca3af;">Todavía no hay documentos de liquidación generados para este embarque.</td></tr>
-            @endforelse
-        </tbody>
+            <tr>
+                <th>(+) Crédito Fiscal por facturas ({{ $porcentajeCreditoFiscal }}% OP con CF)</th>
+                <td class="derecha">{{ number_format($total['credito_fiscal'], 2) }}</td>
+                <th>(+) Débito Fiscal e IT por emisión de facturas ({{ $porcentajeDebitoFiscal }}%)</th>
+                <td class="derecha">{{ number_format($total['debito_fiscal'], 2) }}</td>
+            </tr>
+            <tr class="profit">
+                <td>Total Neto Venta</td>
+                <td class="derecha">{{ number_format($total['neto_venta'], 2) }}</td>
+                <td>Total Neto Compra</td>
+                <td class="derecha">{{ number_format($total['neto_compra'], 2) }}</td>
+            </tr>
+        </table>
+
+        <table class="profits">
+            <tr>
+                <th>Profit Preliminar</th>
+                <th>Profit Comercial ({{ number_format($porcentajeComision, 2) }}%)</th>
+                <th>Profit Final Empresa</th>
+            </tr>
+            <tr>
+                <td>{{ number_format($total['profit_preliminar'], 2) }}</td>
+                <td>{{ number_format($total['profit_comercial'], 2) }}</td>
+                <td>{{ number_format($total['profit_final'], 2) }}</td>
+            </tr>
+        </table>
+    @empty
+        <h2>Totales</h2>
+        <p style="text-align: center; color: #9ca3af;">Todavía no hay documentos de liquidación generados para este embarque.</p>
+    @endforelse
+
+    <table class="firmas">
+        <tr>
+            <td><div class="linea-firma">VºBº Operaciones</div></td>
+            <td><div class="linea-firma">VºBº Vendedor</div></td>
+            <td><div class="linea-firma">VºBº Contabilidad</div></td>
+        </tr>
     </table>
 
     <div class="cerrada">

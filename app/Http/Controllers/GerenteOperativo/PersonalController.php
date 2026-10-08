@@ -4,6 +4,7 @@ namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\DocumentoEmpleado;
+use App\Models\CategoriaComision;
 use App\Models\Empleado;
 use App\Models\RoleEmpleado;
 use App\Models\User;
@@ -47,6 +48,7 @@ class PersonalController extends Controller
             'empleado' => null,
             'roles' => $this->roles(),
             'jefes' => $this->jefesDisponibles(),
+            'categoriasComision' => $this->categoriasComision(),
         ]);
     }
 
@@ -79,6 +81,7 @@ class PersonalController extends Controller
                 'id_rol' => $data['id_rol'],
                 'especialidad_operativa' => $data['especialidad_operativa'],
                 'id_jefe' => $data['id_jefe'],
+                'id_categoria_comision' => $data['id_categoria_comision'] ?? null,
                 'activo' => true,
             ]);
 
@@ -123,6 +126,7 @@ class PersonalController extends Controller
                 'id_rol' => $empleado->id_rol,
                 'especialidad_operativa' => $empleado->especialidad_operativa,
                 'id_jefe' => $empleado->id_jefe,
+                'id_categoria_comision' => $empleado->id_categoria_comision,
                 'activo' => $empleado->activo,
                 'username' => $empleado->user?->username,
                 'documentos' => $empleado->documentos->map(fn (DocumentoEmpleado $documento) => [
@@ -134,6 +138,7 @@ class PersonalController extends Controller
             ],
             'roles' => $this->roles(),
             'jefes' => $this->jefesDisponibles($empleado->id_empleado),
+            'categoriasComision' => $this->categoriasComision(),
         ]);
     }
 
@@ -177,6 +182,7 @@ class PersonalController extends Controller
                 'id_rol' => $data['id_rol'],
                 'especialidad_operativa' => $data['especialidad_operativa'],
                 'id_jefe' => $data['id_jefe'],
+                'id_categoria_comision' => $data['id_categoria_comision'] ?? null,
                 'activo' => $request->boolean('activo'),
             ]);
 
@@ -252,6 +258,7 @@ class PersonalController extends Controller
                 Rule::in(['Maritimo', 'Aereo', 'Terrestre']),
             ],
             'id_jefe' => ['nullable', 'integer', 'exists:empleados,id_empleado'],
+            'id_categoria_comision' => ['nullable', 'integer', 'exists:categorias_comision,id_categoria'],
         ])->after(function (Validator $validator) use ($request, $empleado) {
             foreach ($request->input('documentos', []) as $index => $documento) {
                 $tipo = $documento['tipo_documento'] ?? null;
@@ -298,5 +305,12 @@ class PersonalController extends Controller
             ->when($exceptoId, fn ($query, $id) => $query->where('id_empleado', '!=', $id))
             ->orderBy('nombre_completo')
             ->get(['id_empleado', 'nombre_completo']);
+    }
+
+    private function categoriasComision()
+    {
+        return CategoriaComision::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id_categoria', 'nombre', 'porcentaje']);
     }
 }

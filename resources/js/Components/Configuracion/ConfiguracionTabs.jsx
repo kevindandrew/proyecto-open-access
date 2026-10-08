@@ -4,6 +4,7 @@ const TABS = [
     { label: 'Proveedores', routeName: 'gerente-operativo.configuracion.proveedores.index' },
     { label: 'Puertos y Aeropuertos', routeName: 'gerente-operativo.configuracion.puertos.index' },
     { label: 'Costos Extra', routeName: 'gerente-operativo.configuracion.costos-extra.index' },
+    { label: 'Comisiones', routeName: 'gerente-operativo.configuracion.comisiones.index' },
 ];
 
 export default function ConfiguracionTabs({ activo }) {
