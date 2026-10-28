@@ -1,4 +1,5 @@
 import GerenteOperativoLayout from '@/Layouts/GerenteOperativoLayout';
+import AvisoNoVisible from '@/Components/Tarifas/AvisoNoVisible';
 import ModoTransporteIcon from '@/Components/ModoTransporteIcon';
 import { MODO_TRANSPORTE_ICON_COLOR } from '@/constants/modoTransporte';
 import PageHeader from '@/Components/PageHeader';
@@ -202,6 +203,7 @@ export default function Index({ tarifas }) {
                                             {t.estado}
                                         </span>
                                     </span>
+                                    <AvisoNoVisible problemas={t.no_visible} />
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     <Menu as="div" className="relative inline-block text-left">

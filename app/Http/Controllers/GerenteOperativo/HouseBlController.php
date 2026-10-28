@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Embarque;
 use App\Models\HouseBl;
 use App\Support\ConsigneeHouse;
+use App\Support\HouseBlFormatoPreimpreso;
 use App\Support\HouseBlPdfDatos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -21,24 +22,6 @@ class HouseBlController extends Controller
         'dam', 'copia', 'original', 'original_digital', 'certificado_flete', 'certificado_flete_digital',
     ];
 
-    // Copia y Original se imprimen sobre papel pre-impreso con el logo ya
-    // encima — por eso van sin logo. DAM y las versiones "digital" sí lo
-    // llevan porque se mandan tal cual, sin papel pre-impreso de por medio.
-    private const MUESTRA_LOGO = [
-        'dam' => true,
-        'copia' => false,
-        'original' => false,
-        'original_digital' => true,
-        'certificado_flete' => false,
-        'certificado_flete_digital' => true,
-    ];
-
-    private const ETIQUETAS_PDF = [
-        'copia' => 'COPY NON NEGOTIABLE',
-        'original' => 'ORIGINAL',
-        'original_digital' => 'ORIGINAL',
-    ];
-
     public function pdf(Request $request, HouseBl $house): HttpResponse
     {
         $tipo = in_array($request->query('tipo'), self::TIPOS_PDF, true) ? $request->query('tipo') : 'dam';
@@ -50,31 +33,24 @@ class HouseBlController extends Controller
             $house->update(['congelado_en' => now()]);
         }
 
-        $datos = HouseBlPdfDatos::para($house);
-        $generadoEn = Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm');
         $nombreArchivo = str_replace(['/', '\\'], '-', $house->numero_hbl);
-        $mostrarLogo = self::MUESTRA_LOGO[$tipo] ?? true;
 
         if (in_array($tipo, ['certificado_flete', 'certificado_flete_digital'], true)) {
+            // El impreso va sin membrete (se imprime sobre la hoja membretada);
+            // el digital lleva el membrete escaneado de fondo, firma y sello.
+            $digital = $tipo === 'certificado_flete_digital';
+
             $pdf = Pdf::loadView('pdf.house_bl_certificado_flete', [
-                ...$datos,
-                'mostrarLogo' => $mostrarLogo,
-                'generadoEn' => $generadoEn,
+                ...HouseBlPdfDatos::para($house),
+                'digital' => $digital,
+                'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
                 'fechaEmisionCertificado' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY'),
-            ]);
+            ])->setPaper($digital ? [0, 0, ...HouseBlFormatoPreimpreso::PAGINA_ESCANEADA] : 'a4');
 
             return $pdf->stream("Certificado-Flete-{$nombreArchivo}.pdf");
         }
 
-        $pdf = Pdf::loadView('pdf.house_bl', [
-            ...$datos,
-            'tipo' => $tipo,
-            'tipoEtiqueta' => self::ETIQUETAS_PDF[$tipo] ?? null,
-            'mostrarLogo' => $mostrarLogo,
-            'generadoEn' => $generadoEn,
-        ]);
-
-        return $pdf->stream("House-{$nombreArchivo}.pdf");
+        return HouseBlFormatoPreimpreso::pdf($house, $tipo)->stream("House-{$nombreArchivo}.pdf");
     }
 
     public function store(Request $request, Embarque $embarque): RedirectResponse

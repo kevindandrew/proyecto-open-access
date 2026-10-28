@@ -20,9 +20,17 @@ class SolicitudTarifa extends Model
         'tipo_servicio',
         'id_pol',
         'id_pod',
+        'detalle_carga',
         'id_cotizacion',
         'estado',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'detalle_carga' => 'array',
+        ];
+    }
 
     public function cliente(): BelongsTo
     {

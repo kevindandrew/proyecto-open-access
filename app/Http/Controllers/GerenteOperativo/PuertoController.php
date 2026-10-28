@@ -4,6 +4,7 @@ namespace App\Http\Controllers\GerenteOperativo;
 
 use App\Http\Controllers\Controller;
 use App\Models\PuertoAeropuerto;
+use App\Support\PuertosEquivalentes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -43,7 +44,7 @@ class PuertoController extends Controller
     {
         $data = $request->validate([
             'codigo' => ['required', 'string', 'max:10', 'alpha_num', Rule::unique('puertos_aeropuertos', 'codigo')],
-            'nombre' => ['required', 'string', 'max:150'],
+            'nombre' => ['required', 'string', 'max:150', $this->nombreNoDuplicado($request)],
             'tipo' => ['required', Rule::in(self::TIPOS)],
             'pais' => ['nullable', 'string', 'max:60'],
         ]);
@@ -75,7 +76,7 @@ class PuertoController extends Controller
     public function update(Request $request, PuertoAeropuerto $puerto): RedirectResponse
     {
         $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:150'],
+            'nombre' => ['required', 'string', 'max:150', $this->nombreNoDuplicado($request, $puerto)],
             'tipo' => ['required', Rule::in(self::TIPOS)],
             'pais' => ['nullable', 'string', 'max:60'],
             'activo' => ['boolean'],
@@ -97,5 +98,24 @@ class PuertoController extends Controller
         return redirect()
             ->route('gerente-operativo.configuracion.puertos.index')
             ->with('success', "{$puerto->nombre} fue desactivado.");
+    }
+
+    /**
+     * Un mismo puerto/aeropuerto cargado dos veces (mismo nombre y tipo, otro
+     * código) hace que una tarifa cargada con uno no aparezca al cotizar con
+     * el otro — por eso no se permite.
+     */
+    private function nombreNoDuplicado(Request $request, ?PuertoAeropuerto $actual = null): \Closure
+    {
+        return function (string $atributo, mixed $valor, \Closure $fallar) use ($request, $actual) {
+            $existente = PuertoAeropuerto::where('tipo', $request->input('tipo'))
+                ->whereRaw('LOWER(TRIM(nombre)) = ?', [PuertosEquivalentes::normalizar((string) $valor)])
+                ->when($actual, fn ($query) => $query->where('codigo', '!=', $actual->codigo))
+                ->first();
+
+            if ($existente) {
+                $fallar("Ya existe {$existente->nombre} como {$existente->tipo} con el código {$existente->codigo} — usá ese.");
+            }
+        };
     }
 }

@@ -26,6 +26,7 @@ class SolicitudTarifaController extends Controller
                 'id_pod' => $solicitud->id_pod,
                 'pol' => $solicitud->pol?->nombre,
                 'pod' => $solicitud->pod?->nombre,
+                'detalle_carga' => $solicitud->detalle_carga,
                 'estado' => $solicitud->estado,
                 'creado_en' => $solicitud->created_at->toDateString(),
             ]);

@@ -68,6 +68,31 @@ function calcularPesoTasable(bultos) {
     };
 }
 
+// En Aéreo y en Marítimo LCL los bultos son obligatorios: sin Largo x Ancho
+// x Alto, cantidad y peso de cada uno, Operaciones no puede pedir la tarifa
+// afuera. Un bulto LCL no apilable no necesita alto (se usa el del contenedor).
+function bultosCompletos(bultos) {
+    return (
+        (bultos ?? []).length > 0 &&
+        bultos.every(
+            (bulto) =>
+                parseInt(bulto.cantidad, 10) >= 1 &&
+                parseFloat(bulto.largo) > 0 &&
+                parseFloat(bulto.ancho) > 0 &&
+                (bulto.no_apilable || parseFloat(bulto.alto) > 0) &&
+                parseFloat(bulto.peso_real_kg) > 0,
+        )
+    );
+}
+
+// Carga LCL no apilable: como no se le puede poner nada encima, se calcula con
+// el alto interno del contenedor (el espacio de arriba queda inutilizado).
+const ALTO_INTERNO_CONTENEDOR_M = 2.4;
+
+function altoEfectivoLcl(bulto) {
+    return bulto.no_apilable ? ALTO_INTERNO_CONTENEDOR_M : parseFloat(bulto.alto) || 0;
+}
+
 // Regla marítima LCL (Ton/CBM o "W/M" — Weight or Measurement): se compara el
 // volumen total (Largo x Ancho x Alto en metros) contra el peso total pasado
 // a toneladas (kg / 1000) y se cobra el que resulte mayor, con un mínimo de
@@ -80,7 +105,7 @@ function calcularCargaVolumetricaMaritima(bultos) {
         const cantidad = parseFloat(bulto.cantidad) || 0;
         const largo = parseFloat(bulto.largo) || 0;
         const ancho = parseFloat(bulto.ancho) || 0;
-        const alto = parseFloat(bulto.alto) || 0;
+        const alto = altoEfectivoLcl(bulto);
 
         volumenTotalM3 += largo * ancho * alto * cantidad;
         pesoRealTotal += parseFloat(bulto.peso_real_kg) || 0;
@@ -433,6 +458,7 @@ function PasoRuta({
 function BotonSolicitarTarifa({ data, rutaSolicitarTarifa }) {
     const [enviando, setEnviando] = useState(false);
     const [enviado, setEnviado] = useState(false);
+    const [error, setError] = useState(null);
 
     if (!rutaSolicitarTarifa) {
         return null;
@@ -440,6 +466,7 @@ function BotonSolicitarTarifa({ data, rutaSolicitarTarifa }) {
 
     const solicitar = () => {
         setEnviando(true);
+        setError(null);
         axios
             .post(route(rutaSolicitarTarifa), {
                 id_cliente: data.id_cliente || undefined,
@@ -447,8 +474,24 @@ function BotonSolicitarTarifa({ data, rutaSolicitarTarifa }) {
                 tipo_servicio: data.tipo_servicio || undefined,
                 id_pol: data.id_pol || undefined,
                 id_pod: data.id_pod || undefined,
+                // Aéreo / LCL: Operaciones necesita los bultos para pedir la tarifa afuera.
+                ...(data.modo_transporte === 'Aereo' ||
+                (data.modo_transporte === 'Maritimo' && data.tipo_servicio === 'LCL')
+                    ? {
+                          bultos: (data.bultos ?? []).map(({ id, ...bulto }) => bulto),
+                          mercancia_peligrosa: Boolean(data.mercancia_peligrosa),
+                      }
+                    : {}),
             })
             .then(() => setEnviado(true))
+            .catch((e) => {
+                const errores = e.response?.data?.errors;
+                setError(
+                    errores
+                        ? Object.values(errores).flat()[0]
+                        : 'No se pudo enviar la solicitud. Probá de nuevo.',
+                );
+            })
             .finally(() => setEnviando(false));
     };
 
@@ -460,7 +503,7 @@ function BotonSolicitarTarifa({ data, rutaSolicitarTarifa }) {
         );
     }
 
-    return (
+    const boton = (
         <button
             type="button"
             onClick={solicitar}
@@ -469,6 +512,15 @@ function BotonSolicitarTarifa({ data, rutaSolicitarTarifa }) {
         >
             {enviando ? 'Enviando...' : 'Solicitar Tarifa a Gerente Operativo'}
         </button>
+    );
+
+    return error ? (
+        <div>
+            {boton}
+            <p className="mt-1 text-xs text-red-600">{error}</p>
+        </div>
+    ) : (
+        boton
     );
 }
 
@@ -510,6 +562,8 @@ function PasoCarga({
                 ...(data.bultos ?? []),
                 {
                     id: crypto.randomUUID(),
+                    descripcion: `Caja ${(data.bultos ?? []).length + 1}`,
+                    no_apilable: false,
                     cantidad: 1,
                     largo: '',
                     ancho: '',
@@ -708,6 +762,13 @@ function PasoCarga({
                                     + Agregar bulto
                                 </button>
                             </div>
+                            {usaBultos && !bultosCompletos(data.bultos) && (
+                                <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                                    {esAereo
+                                        ? 'Obligatorio para Aéreo: cargá cada bulto con Largo x Ancho x Alto (cm), cantidad y peso en báscula. Con eso sale el peso cargable y es lo que recibe Operaciones si tiene que pedir la tarifa afuera.'
+                                        : 'Obligatorio para LCL: cargá cada bulto con Largo x Ancho x Alto (metros, por las partes más externas e incluyendo el pallet), cantidad y peso bruto. Con eso sale la carga a cobrar (Ton/CBM) y es lo que recibe Operaciones si tiene que pedir la tarifa afuera.'}
+                                </p>
+                            )}
                             {esAereo ? (
                                 <p className="mb-2 text-xs text-[#A9ABAE]">
                                     Ingresá Largo x Ancho x Alto (cm) y el peso real en báscula de
@@ -722,7 +783,8 @@ function PasoCarga({
                                     bulto. El sistema suma el volumen (CBM) y compara contra el
                                     peso total pasado a toneladas (kg / 1000) — se usa el mayor de
                                     los dos como carga volumétrica (regla Ton/CBM), con un mínimo
-                                    de cobro de 1.
+                                    de cobro de 1. Si un bulto no se puede apilar, marcá "No apilable":
+                                    se calcula con el alto interno del contenedor (2.40 m).
                                 </p>
                             )}
 
@@ -733,6 +795,22 @@ function PasoCarga({
                                             key={bulto.id ?? index}
                                             className="flex flex-wrap items-end gap-2"
                                         >
+                                            {usaBultos && (
+                                                <div>
+                                                    <label className="text-xs text-[#A9ABAE]">
+                                                        Bulto
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        maxLength={100}
+                                                        className={`${inputClass} w-32`}
+                                                        value={bulto.descripcion ?? ''}
+                                                        onChange={(e) =>
+                                                            actualizarBulto(index, 'descripcion', e.target.value)
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className="text-xs text-[#A9ABAE]">
                                                     Cantidad
@@ -787,8 +865,13 @@ function PasoCarga({
                                                     type="number"
                                                     step="0.1"
                                                     onKeyDown={bloquearNotacionCientifica}
-                                                    className={`${inputClass} w-24`}
-                                                    value={bulto.alto}
+                                                    className={`${inputClass} w-24 disabled:bg-gray-100 disabled:text-[#A9ABAE]`}
+                                                    disabled={esMaritimoLCL && bulto.no_apilable}
+                                                    value={
+                                                        esMaritimoLCL && bulto.no_apilable
+                                                            ? ALTO_INTERNO_CONTENEDOR_M
+                                                            : bulto.alto
+                                                    }
                                                     onChange={(e) =>
                                                         actualizarBulto(index, 'alto', e.target.value)
                                                     }
@@ -809,6 +892,53 @@ function PasoCarga({
                                                     }
                                                 />
                                             </div>
+                                            {esMaritimoLCL && (
+                                                <label
+                                                    className="flex items-center gap-1 pb-2 text-xs text-[#042753]"
+                                                    title="No permite carga encima por su forma o fragilidad: se calcula con el alto interno del contenedor (2.40 m)"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded border-gray-300 text-[#71BFA6] focus:ring-[#71BFA6]"
+                                                        checked={Boolean(bulto.no_apilable)}
+                                                        onChange={(e) =>
+                                                            actualizarBulto(index, 'no_apilable', e.target.checked)
+                                                        }
+                                                    />
+                                                    No apilable
+                                                </label>
+                                            )}
+                                            {esMaritimoLCL && (
+                                                <div className="pb-2 text-xs text-[#A9ABAE]">
+                                                    Vol.{' '}
+                                                    <span className="font-semibold text-[#042753]">
+                                                        {(
+                                                            Math.round(
+                                                                (parseFloat(bulto.largo) || 0) *
+                                                                    (parseFloat(bulto.ancho) || 0) *
+                                                                    altoEfectivoLcl(bulto) *
+                                                                    (parseInt(bulto.cantidad, 10) || 0) *
+                                                                    1000,
+                                                            ) / 1000
+                                                        ).toLocaleString('es-BO')}{' '}
+                                                        cbm
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {esAereo && (
+                                                <div className="pb-2 text-xs text-[#A9ABAE]">
+                                                    Vol.{' '}
+                                                    <span className="font-semibold text-[#042753]">
+                                                        {(
+                                                            (parseFloat(bulto.largo) || 0) *
+                                                            (parseFloat(bulto.ancho) || 0) *
+                                                            (parseFloat(bulto.alto) || 0) *
+                                                            (parseInt(bulto.cantidad, 10) || 0)
+                                                        ).toLocaleString('es-BO')}{' '}
+                                                        cm³
+                                                    </span>
+                                                </div>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => quitarBulto(index)}
@@ -840,8 +970,9 @@ function PasoCarga({
                                                     Volumen Total
                                                 </p>
                                                 <p className="font-semibold text-[#042753]">
-                                                    {resumen.volumenTotalM3} cbm
+                                                    {Math.round(resumen.volumenTotalM3 * 1_000_000).toLocaleString('es-BO')} cm³
                                                 </p>
+                                                <p className="text-xs text-[#A9ABAE]">{resumen.volumenTotalM3} cbm</p>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-[#A9ABAE]">
@@ -2121,10 +2252,14 @@ export default function NuevaCotizacionWizard({
     const puedeAvanzar = () => {
         if (paso === 1) return Boolean(data.id_cliente);
         if (paso === 2) return Boolean(data.modo_transporte) && Boolean(data.tipo_embarque);
-        if (paso === 3)
-            return data.tipo_servicio === 'FCL'
-                ? data.contenedores.length > 0
-                : true;
+        if (paso === 3) {
+            if (
+                data.modo_transporte === 'Aereo' ||
+                (data.modo_transporte === 'Maritimo' && data.tipo_servicio === 'LCL')
+            )
+                return bultosCompletos(data.bultos);
+            return data.tipo_servicio === 'FCL' ? data.contenedores.length > 0 : true;
+        }
 
         return true;
     };

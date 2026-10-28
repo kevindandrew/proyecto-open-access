@@ -69,17 +69,28 @@ class CotizacionController extends Controller
 
     public function solicitarTarifa(Request $request): JsonResponse
     {
+        [$reglasCarga, $mensajesCarga] = SolicitudTarifaRegistrador::reglasCarga(
+            $request->input('modo_transporte'),
+            $request->input('tipo_servicio'),
+        );
+
         $data = $request->validate([
             'id_cliente' => ['nullable', 'integer', 'exists:clientes,id_cliente'],
             'modo_transporte' => ['required', Rule::in(['Maritimo', 'Aereo', 'Terrestre'])],
             'tipo_servicio' => ['nullable', Rule::in(['FCL', 'LCL'])],
             'id_pol' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
             'id_pod' => ['nullable', 'string', 'exists:puertos_aeropuertos,codigo'],
-        ]);
+            ...$reglasCarga,
+        ], $mensajesCarga);
 
         $empleado = Auth::user()->empleado;
 
-        SolicitudTarifaRegistrador::registrar($data, $data['id_cliente'] ?? null, $empleado->id_empleado);
+        // Aéreo / LCL: va el detalle de los bultos y lo que se cobra (peso
+        // tasable o Ton/CBM), que es lo que Operaciones necesita para pedir la
+        // tarifa afuera.
+        $detalleCarga = SolicitudTarifaRegistrador::detalleCarga($data);
+
+        SolicitudTarifaRegistrador::registrar($data, $data['id_cliente'] ?? null, $empleado->id_empleado, $detalleCarga);
 
         return response()->json(['mensaje' => 'Solicitud registrada correctamente.']);
     }

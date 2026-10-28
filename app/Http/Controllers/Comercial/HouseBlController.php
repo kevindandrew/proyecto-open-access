@@ -4,9 +4,7 @@ namespace App\Http\Controllers\Comercial;
 
 use App\Http\Controllers\Controller;
 use App\Models\HouseBl;
-use App\Support\HouseBlPdfDatos;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Carbon;
+use App\Support\HouseBlFormatoPreimpreso;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
@@ -18,12 +16,7 @@ class HouseBlController extends Controller
 
         abort_unless($house->embarque->id_comercial === $idComercial, 403);
 
-        $datos = HouseBlPdfDatos::para($house);
-
-        $pdf = Pdf::loadView('pdf.house_bl', [
-            ...$datos,
-            'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
-        ]);
+        $pdf = HouseBlFormatoPreimpreso::pdf($house, 'consulta');
 
         $nombreArchivo = str_replace(['/', '\\'], '-', $house->numero_hbl);
 

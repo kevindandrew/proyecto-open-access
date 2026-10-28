@@ -7,6 +7,7 @@ use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
 use App\Models\Tarifa;
 use App\Support\EstadoTarifa;
+use App\Support\VisibilidadTarifa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -297,6 +298,8 @@ class TarifaController extends Controller
             'valido_desde' => $this->fechaEs($tarifa->fecha_inicio_vigencia),
             'valido_hasta' => $this->fechaEs($tarifa->fecha_fin_vigencia),
             'estado' => EstadoTarifa::de($tarifa->fecha_fin_vigencia, $hoy, $vencePronto),
+            // Motivos por los que el Comercial no la encuentra al cotizar (vacío = se ve).
+            'no_visible' => VisibilidadTarifa::problemas($tarifa, $hoy),
         ];
 
         if (in_array($tarifa->modo, ['Maritimo', 'Terrestre'], true)) {
