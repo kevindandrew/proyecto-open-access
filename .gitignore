@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Documentos de referencia del cliente (datos reales) — no versionar
+/excel y pdfs/
