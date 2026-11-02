@@ -54,7 +54,7 @@ class DocumentoLiquidacionPdfDatos
                 'direccion' => $documento->destinatario_direccion ?? $documento->cliente?->direccion,
             ],
             'embarque' => [
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'mbl' => $embarque->mbl,
                 'hbl' => $house
                     ? $house->numero_hbl

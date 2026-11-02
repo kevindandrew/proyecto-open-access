@@ -1,10 +1,14 @@
 import { useForm } from '@inertiajs/react';
+import { useState } from 'react';
 
 function etiquetaContenedor(contenedor) {
     return contenedor.numero_contenedor || contenedor.tipo_contenedor || `Contenedor #${contenedor.id_item}`;
 }
 
 export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponibles = [], consignees = [] }) {
+    // false = el sistema asigna el número; true = se escribe a mano.
+    const [numeroManual, setNumeroManual] = useState(false);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         numero_hbl: '',
         // '' = el consignatario del embarque; si no, "cliente:{id}" o "consignatario:{id}".
@@ -38,13 +42,40 @@ export default function AgregarHouse({ embarque, rutaStore, contenedoresDisponib
                     <label className="text-xs font-medium text-[#042753]">
                         Número HBL/HAWB
                     </label>
-                    <input
-                        type="text"
-                        placeholder="Ej. OA-NH7XHTa"
-                        className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
-                        value={data.numero_hbl}
-                        onChange={(e) => setData('numero_hbl', e.target.value)}
-                    />
+                    {/* Automático: el sistema asigna OA-{base del embarque}{letra}. */}
+                    <div className="mt-1 inline-flex rounded-md border border-gray-300 p-0.5 text-xs">
+                        {[
+                            { valor: false, etiqueta: 'Automático' },
+                            { valor: true, etiqueta: 'Manual' },
+                        ].map((opcion) => (
+                            <button
+                                key={opcion.etiqueta}
+                                type="button"
+                                onClick={() => {
+                                    setNumeroManual(opcion.valor);
+                                    if (!opcion.valor) setData('numero_hbl', '');
+                                }}
+                                className={`rounded px-2.5 py-1 font-semibold ${
+                                    numeroManual === opcion.valor
+                                        ? 'bg-[#042753] text-white'
+                                        : 'text-[#042753] hover:bg-gray-100'
+                                }`}
+                            >
+                                {opcion.etiqueta}
+                            </button>
+                        ))}
+                    </div>
+                    {numeroManual ? (
+                        <input
+                            type="text"
+                            placeholder="Ej. OABPAZ 107080403a"
+                            className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                            value={data.numero_hbl}
+                            onChange={(e) => setData('numero_hbl', e.target.value)}
+                        />
+                    ) : (
+                        <p className="mt-1 text-xs text-[#A9ABAE]">Se asigna al guardar (ej. OA-NH7XHTa).</p>
+                    )}
                     {errors.numero_hbl && (
                         <p className="mt-1 text-xs text-red-600">{errors.numero_hbl}</p>
                     )}

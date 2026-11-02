@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -64,6 +65,18 @@ class Embarque extends Model
         'liquidacion_cerrada_en',
         'porcentaje_comision',
     ];
+
+    /**
+     * Cómo se nombra el embarque en pantallas y documentos: su Nro. de File,
+     * o mientras Gerente Operativo no lo asigne, la referencia de la
+     * cotización de la que salió.
+     */
+    protected function identificador(): Attribute
+    {
+        return Attribute::get(fn () => $this->numero_file
+            ?: $this->cotizacion?->numero_referencia
+            ?: "Embarque #{$this->id_embarque}");
+    }
 
     protected function casts(): array
     {

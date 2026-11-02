@@ -11,8 +11,8 @@ export default function Show({
     totalesPorMoneda,
 }) {
     return (
-        <ComercialLayout header={`Embarque ${embarque.numero_file}`}>
-            <Head title={`Embarque ${embarque.numero_file}`} />
+        <ComercialLayout header={`Embarque ${embarque.identificador ?? embarque.numero_file}`}>
+            <Head title={`Embarque ${embarque.identificador ?? embarque.numero_file}`} />
 
             <EmbarqueDetalle
                 embarque={embarque}

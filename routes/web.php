@@ -23,6 +23,7 @@ use App\Http\Controllers\GerenteOperativo\PersonalController;
 use App\Http\Controllers\GerenteOperativo\ProveedorController;
 use App\Http\Controllers\GerenteOperativo\PuertoController;
 use App\Http\Controllers\GerenteOperativo\ReporteController;
+use App\Http\Controllers\GerenteOperativo\RestablecimientoController;
 use App\Http\Controllers\GerenteOperativo\SolicitudTarifaController;
 use App\Http\Controllers\GerenteOperativo\TarifaAgenteController;
 use App\Http\Controllers\GerenteOperativo\TarifaController;
@@ -72,6 +73,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Comercial'])
         Route::get('cotizaciones/{cotizacion}', [GerenteComercialCotizacionController::class, 'show'])->name('cotizaciones.show');
         Route::patch('cotizaciones/{cotizacion}/estado', [GerenteComercialCotizacionController::class, 'cambiarEstado'])->name('cotizaciones.cambiar-estado');
         Route::get('cotizaciones/{cotizacion}/pdf', [GerenteComercialCotizacionController::class, 'pdf'])->name('cotizaciones.pdf');
+        Route::post('cotizaciones/{cotizacion}/convertir', [GerenteComercialCotizacionController::class, 'convertirEnEmbarque'])->name('cotizaciones.convertir');
     });
 
 Route::middleware(['auth', 'verified', 'role.empleado:Comercial'])
@@ -167,6 +169,10 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('solicitudes-tarifa', [SolicitudTarifaController::class, 'index'])->name('solicitudes-tarifa.index');
         Route::patch('solicitudes-tarifa/{solicitud}/atender', [SolicitudTarifaController::class, 'atender'])->name('solicitudes-tarifa.atender');
 
+        Route::get('restablecer-contrasenas', [RestablecimientoController::class, 'index'])->name('restablecimientos.index');
+        Route::post('restablecer-contrasenas/{solicitud}/generar', [RestablecimientoController::class, 'generar'])->name('restablecimientos.generar');
+        Route::patch('restablecer-contrasenas/{solicitud}/descartar', [RestablecimientoController::class, 'descartar'])->name('restablecimientos.descartar');
+
         Route::prefix('configuracion')->name('configuracion.')->group(function () {
             Route::resource('proveedores', ProveedorController::class)
                 ->parameters(['proveedores' => 'proveedor'])
@@ -184,6 +190,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::get('embarques/{embarque}', [EmbarqueController::class, 'show'])->name('embarques.show');
         Route::patch('embarques/{embarque}/estado', [EmbarqueController::class, 'cambiarEstado'])->name('embarques.cambiar-estado');
         Route::patch('embarques/{embarque}/operativo', [EmbarqueController::class, 'asignarOperativo'])->name('embarques.asignar-operativo');
+        Route::patch('embarques/{embarque}/numero-file', [EmbarqueController::class, 'asignarNumeroFile'])->name('embarques.asignar-numero-file');
         Route::get('embarques/{embarque}/gastos', [GastoDestinoController::class, 'index'])->name('embarques.gastos.index');
         Route::post('embarques/{embarque}/gastos', [GastoDestinoController::class, 'store'])->name('embarques.gastos.store');
         Route::patch('gastos/{gasto}/pagar', [GastoDestinoController::class, 'marcarPagado'])->name('gastos.pagar');
@@ -207,6 +214,7 @@ Route::middleware(['auth', 'verified', 'role.empleado:Gerente Operativo'])
         Route::patch('embarques/{embarque}/informacion-carga', [EmbarqueController::class, 'actualizarInformacionCarga'])->name('embarques.actualizar-informacion-carga');
         Route::patch('embarques/{embarque}/consignatario', [EmbarqueController::class, 'actualizarConsignatario'])->name('embarques.actualizar-consignatario');
         Route::get('embarques/{embarque}/aviso-arribo', [EmbarqueController::class, 'avisoArribo'])->name('embarques.aviso-arribo');
+        Route::get('embarques/{embarque}/hoja-principal', [EmbarqueController::class, 'hojaPrincipal'])->name('embarques.hoja-principal');
 
         Route::post('embarques/{embarque}/contenedores', [EmbarqueContenedorController::class, 'store'])->name('embarques.contenedores.store');
         Route::patch('contenedores/{contenedor}', [EmbarqueContenedorController::class, 'update'])->name('contenedores.update');

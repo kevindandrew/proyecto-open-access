@@ -91,7 +91,7 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">
-                                Nro. File
+                                Nro. File / Cotización
                             </th>
                             <th className="px-4 py-3 text-left font-semibold text-[#042753]">
                                 Cliente
@@ -126,7 +126,16 @@ export default function Index({ embarques, filtros, operativos, modos, estados }
                                 className="cursor-pointer transition-colors hover:bg-[#71BFA6]/10"
                             >
                                 <td className="px-4 py-3 font-medium text-[#042753]">
-                                    {embarque.numero_file}
+                                    {embarque.numero_file ?? (
+                                        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                            Sin Nro. File
+                                        </span>
+                                    )}
+                                    {embarque.cotizacion && (
+                                        <span className="block font-mono text-xs font-normal text-[#A9ABAE]">
+                                            {embarque.cotizacion}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-4 py-3">
                                     {embarque.cliente}

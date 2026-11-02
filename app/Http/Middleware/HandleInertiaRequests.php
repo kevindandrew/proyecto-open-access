@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SolicitudRestablecimiento;
 use App\Models\SolicitudTarifa;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -42,6 +43,10 @@ class HandleInertiaRequests extends Middleware
             ],
             'solicitudesTarifaPendientes' => fn () => $request->user()?->empleado?->rol?->nombre_rol === 'Gerente Operativo'
                 ? SolicitudTarifa::where('estado', 'Pendiente')->count()
+                : 0,
+            // Pedidos de "olvidé mi contraseña" esperando a Gerente Operativo.
+            'restablecimientosPendientes' => fn () => $request->user()?->empleado?->rol?->nombre_rol === 'Gerente Operativo'
+                ? SolicitudRestablecimiento::where('estado', 'Pendiente')->count()
                 : 0,
         ];
     }

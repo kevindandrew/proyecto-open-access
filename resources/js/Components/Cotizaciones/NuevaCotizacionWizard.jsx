@@ -1458,10 +1458,13 @@ function PasoCostos({
             });
         }
 
+        // Cada cargo adicional se cobra según su unidad: Flat (base 1), por
+        // contenedor (una línea por tipo de contenedor, con su cantidad), por
+        // m³ o por kg — vinculados para que la base siga a la carga cotizada.
         tarifa.cargos_adicionales.forEach((cargo) => {
-            lineasNuevas.push({
+            const lineaCargo = {
                 descripcion: cargo.concepto,
-                tipo_tarifa_unidad: 'Flat',
+                tipo_tarifa_unidad: cargo.unidad || 'Flat',
                 costo_unitario: cargo.monto,
                 base_calculo: 1,
                 moneda: cargo.moneda,
@@ -1470,7 +1473,27 @@ function PasoCostos({
                 id_cargo_adicional: cargo.id_cargo,
                 comision_openaccess: '',
                 observaciones: tarifa.observaciones || '',
-            });
+            };
+
+            if (cargo.unidad === 'Per Container' && data.contenedores.length > 0) {
+                data.contenedores.forEach((contenedor) => {
+                    lineasNuevas.push({
+                        ...lineaCargo,
+                        descripcion:
+                            data.contenedores.length > 1
+                                ? `${cargo.concepto} - ${contenedor.tipo_contenedor}`
+                                : cargo.concepto,
+                        base_calculo: contenedor.cantidad,
+                        vinculo: { tipo: 'contenedor', contenedorId: contenedor.id },
+                    });
+                });
+            } else if (cargo.unidad === 'Per CBM') {
+                lineasNuevas.push({ ...lineaCargo, base_calculo: data.volumen_cbm || 1, vinculo: { tipo: 'volumen_cbm' } });
+            } else if (cargo.unidad === 'Per Kg') {
+                lineasNuevas.push({ ...lineaCargo, base_calculo: data.peso_kg || 1, vinculo: { tipo: 'peso_kg' } });
+            } else {
+                lineasNuevas.push(lineaCargo);
+            }
         });
 
         if (lineasNuevas.length === 0) {

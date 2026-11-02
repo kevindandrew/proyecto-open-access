@@ -24,7 +24,7 @@ class EmbarqueController extends Controller
         $idComercial = Auth::user()->empleado->id_empleado;
         $filtros = $request->only(['modo_transporte', 'estado_embarque', 'con_alerta']);
 
-        $embarques = Embarque::with(['cliente', 'contenedores'])
+        $embarques = Embarque::with(['cliente', 'contenedores', 'cotizacion'])
             ->where('id_comercial', $idComercial)
             ->when($filtros['modo_transporte'] ?? null, fn ($q, $modo) => $q->where('modo_transporte', $modo))
             ->when($filtros['estado_embarque'] ?? null, fn ($q, $estado) => $q->where('estado_embarque', $estado))
@@ -33,6 +33,7 @@ class EmbarqueController extends Controller
             ->map(fn (Embarque $embarque) => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
+                'cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
                 'modo_transporte' => $embarque->modo_transporte,
                 'estado_embarque' => $embarque->estado_embarque,
@@ -67,6 +68,7 @@ class EmbarqueController extends Controller
             'embarque' => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
+                'identificador' => $embarque->identificador,
                 'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
                 'consignatario_nombre' => $embarque->consignatario_nombre,
@@ -149,6 +151,7 @@ class EmbarqueController extends Controller
                 'id_costo' => $costo->id_costo,
                 'concepto' => $costo->concepto,
                 'proveedor' => $costo->proveedor?->nombre,
+                'cobrar_a_nombre' => $costo->nombreCobrarA(),
                 'costo_compra' => $costo->costo_compra,
                 'costo_venta' => $costo->costo_venta,
                 'moneda' => $costo->moneda,

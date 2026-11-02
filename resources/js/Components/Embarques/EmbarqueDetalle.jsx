@@ -100,7 +100,7 @@ function Houses({
     );
 }
 
-function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActualizar, proveedores = [] }) {
+function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActualizar, proveedores = [], consignees = [] }) {
     const monedasPresentes = Object.keys(totalesPorMoneda);
 
     if (costos.length === 0) {
@@ -112,7 +112,7 @@ function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActu
         );
     }
 
-    const colSpan = rutaActualizar || onEliminar ? 6 : 5;
+    const colSpan = rutaActualizar || onEliminar ? 7 : 6;
 
     return (
         <div className="overflow-x-auto">
@@ -124,6 +124,9 @@ function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActu
                         </th>
                         <th className="px-3 py-2 text-left font-semibold text-[#042753]">
                             Proveedor
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-[#042753]">
+                            Cobrar a
                         </th>
                         <th className="px-3 py-2 text-right font-semibold text-[#042753]">
                             Costo Compra
@@ -143,6 +146,7 @@ function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActu
                             key={costo.id_costo}
                             costo={costo}
                             proveedores={proveedores}
+                            consignees={consignees}
                             rutaActualizar={rutaActualizar}
                             onEliminar={onEliminar}
                             colSpan={colSpan}
@@ -159,7 +163,7 @@ function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActu
                                 <tr
                                     className={index === 0 ? 'border-t-2 border-gray-200' : 'border-t border-gray-200'}
                                 >
-                                    <td colSpan={2} className="px-3 py-2 text-right font-semibold text-[#042753]">
+                                    <td colSpan={3} className="px-3 py-2 text-right font-semibold text-[#042753]">
                                         Totales ({moneda})
                                     </td>
                                     <td className="px-3 py-2 text-right font-medium text-[#042753]">
@@ -173,7 +177,7 @@ function CostosCompraVenta({ costos, totalesPorMoneda = {}, onEliminar, rutaActu
                                 </tr>
                                 <tr>
                                     <td
-                                        colSpan={(rutaActualizar || onEliminar) ? 5 : 4}
+                                        colSpan={(rutaActualizar || onEliminar) ? 6 : 5}
                                         className="px-3 py-2 text-right font-semibold text-[#042753]"
                                     >
                                         Profit ({moneda})
@@ -281,7 +285,14 @@ export default function EmbarqueDetalle({
                         <p className="text-xs font-medium uppercase tracking-wide text-white/60">
                             Embarque
                         </p>
-                        <h2 className="text-2xl font-bold text-white">{embarque.numero_file}</h2>
+                        <h2 className="text-2xl font-bold text-white">
+                            {embarque.identificador ?? embarque.numero_file}
+                        </h2>
+                        {!embarque.numero_file && (
+                            <span className="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                Sin Nro. de File
+                            </span>
+                        )}
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -480,6 +491,7 @@ export default function EmbarqueDetalle({
                     onEliminar={onEliminarCosto}
                     rutaActualizar={rutaActualizarCosto}
                     proveedores={proveedores}
+                    consignees={consigneesHouse}
                 />
                 {accionesCostos}
             </SeccionCard>

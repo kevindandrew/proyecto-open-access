@@ -18,6 +18,17 @@ class TarifaCargoAdicional extends Model
         'concepto',
         'monto',
         'moneda',
+        'unidad',
+    ];
+
+    /**
+     * Cómo se cobra el cargo según el modo de la tarifa. "Per Container" y
+     * "Per CBM" solo tienen sentido en Marítimo / Terrestre, "Per Kg" en Aéreo.
+     */
+    public const UNIDADES_POR_MODO = [
+        'Maritimo' => ['Flat', 'Per Container', 'Per CBM'],
+        'Terrestre' => ['Flat', 'Per Container', 'Per CBM'],
+        'Aereo' => ['Flat', 'Per Kg'],
     ];
 
     public function tarifa(): BelongsTo

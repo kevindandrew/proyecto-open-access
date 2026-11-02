@@ -30,7 +30,7 @@ class EmbarqueController extends Controller
             'cotizacion', 'cliente.consignatarios', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
             'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores'),
-            'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
+            'costos' => fn ($query) => $query->with('proveedor', 'clienteCobro', 'consignatarioCobro')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
 
@@ -38,6 +38,7 @@ class EmbarqueController extends Controller
             'embarque' => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
+                'identificador' => $embarque->identificador,
                 'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
                 'id_consignatario' => $embarque->id_consignatario,
@@ -123,6 +124,7 @@ class EmbarqueController extends Controller
                 'id_costo' => $costo->id_costo,
                 'concepto' => $costo->concepto,
                 'proveedor' => $costo->proveedor?->nombre,
+                'cobrar_a_nombre' => $costo->nombreCobrarA(),
                 'costo_compra' => $costo->costo_compra,
                 'costo_venta' => $costo->costo_venta,
                 'moneda' => $costo->moneda,

@@ -46,7 +46,7 @@ class AvisoArriboPdfDatos
 
         return [
             'embarque' => [
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'consignatario_nombre' => $embarque->consignatario_nombre,
                 'shipper_nombre' => $embarque->shipper_nombre,
                 'pol' => $embarque->pol?->nombre,

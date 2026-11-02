@@ -10,6 +10,7 @@ use App\Models\CotizacionContenedor;
 use App\Models\CotizacionDetalle;
 use App\Models\Empleado;
 use App\Models\PuertoAeropuerto;
+use App\Support\ConvertidorCotizacionEmbarque;
 use App\Support\CotizacionPdfDetalle;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
@@ -280,6 +281,7 @@ class CotizacionController extends Controller
                 'dias_transito' => $cotizacion->dias_transito,
                 'tiene_embarque' => $cotizacion->embarques->isNotEmpty(),
                 'embarque_id' => $cotizacion->embarques->first()?->id_embarque,
+                'embarque_numero_file' => $cotizacion->embarques->first()?->numero_file,
             ],
             'contenedores' => $cotizacion->contenedores->map(fn (CotizacionContenedor $item) => [
                 'tipo_contenedor' => $item->tipo_contenedor,
@@ -296,6 +298,21 @@ class CotizacionController extends Controller
                 'observaciones' => $linea->observaciones,
             ]),
         ]);
+    }
+
+    public function convertirEnEmbarque(Cotizacion $cotizacion): RedirectResponse
+    {
+        if ($motivo = ConvertidorCotizacionEmbarque::impedimento($cotizacion)) {
+            return redirect()
+                ->route('gerente-comercial.cotizaciones.show', $cotizacion->id_cotizacion)
+                ->with('error', $motivo);
+        }
+
+        $embarque = ConvertidorCotizacionEmbarque::convertir($cotizacion);
+
+        return redirect()
+            ->route('gerente-comercial.cotizaciones.show', $cotizacion->id_cotizacion)
+            ->with('success', "Embarque creado a partir de la cotización {$cotizacion->numero_referencia}. Gerente Operativo lo ve en Embarques para asignarle el Nro. de File y un operativo.");
     }
 
     public function pdf(Request $request, Cotizacion $cotizacion): HttpResponse

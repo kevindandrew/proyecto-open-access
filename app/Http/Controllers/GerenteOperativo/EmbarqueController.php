@@ -15,6 +15,8 @@ use App\Models\SeguimientoEmbarque;
 use App\Support\AlertasEmbarque;
 use App\Support\AvisoArriboPdfDatos;
 use App\Support\ConsigneeHouse;
+use App\Support\GeneradorNumeroFile;
+use App\Support\HojaPrincipalFilePdfDatos;
 use App\Support\SecuenciaEstadoEmbarque;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +37,7 @@ class EmbarqueController extends Controller
     {
         $filtros = $request->only(['id_operativo', 'modo_transporte', 'estado_embarque', 'con_alerta']);
 
-        $embarques = Embarque::with(['cliente', 'operativo', 'contenedores'])
+        $embarques = Embarque::with(['cliente', 'operativo', 'contenedores', 'cotizacion'])
             ->when($filtros['id_operativo'] ?? null, fn ($q, $id) => $q->where('id_operativo', $id))
             ->when($filtros['modo_transporte'] ?? null, fn ($q, $modo) => $q->where('modo_transporte', $modo))
             ->when($filtros['estado_embarque'] ?? null, fn ($q, $estado) => $q->where('estado_embarque', $estado))
@@ -44,6 +46,7 @@ class EmbarqueController extends Controller
             ->map(fn (Embarque $embarque) => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
+                'cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
                 'operativo' => $embarque->operativo?->nombre_completo,
                 'modo_transporte' => $embarque->modo_transporte,
@@ -70,7 +73,7 @@ class EmbarqueController extends Controller
             'cotizacion', 'cliente.consignatarios', 'comercial', 'operativo', 'agenteOrigen', 'navieraAerolinea', 'pol', 'pod',
             'contenedores',
             'houseBls' => fn ($query) => $query->orderBy('id_hbl')->with('contenedores', 'cliente', 'consignatario'),
-            'costos' => fn ($query) => $query->with('proveedor')->orderBy('id_costo'),
+            'costos' => fn ($query) => $query->with('proveedor', 'clienteCobro', 'consignatarioCobro')->orderBy('id_costo'),
             'seguimientos' => fn ($query) => $query->orderByDesc('fecha')->with('empleadoResponsable'),
         ]);
 
@@ -78,6 +81,9 @@ class EmbarqueController extends Controller
             'embarque' => [
                 'id_embarque' => $embarque->id_embarque,
                 'numero_file' => $embarque->numero_file,
+                'identificador' => $embarque->identificador,
+                // Siguiente número según el mes de arribo (solo sugerencia).
+                'numero_file_sugerido' => GeneradorNumeroFile::sugerir($embarque->eta),
                 'numero_referencia_cotizacion' => $embarque->cotizacion?->numero_referencia,
                 'cliente' => $embarque->cliente?->razon_social,
                 'id_consignatario' => $embarque->id_consignatario,
@@ -185,6 +191,8 @@ class EmbarqueController extends Controller
                 'concepto' => $costo->concepto,
                 'id_proveedor' => $costo->id_proveedor,
                 'proveedor' => $costo->proveedor?->nombre,
+                'cobrar_a' => $costo->valorCobrarA(),
+                'cobrar_a_nombre' => $costo->nombreCobrarA(),
                 'costo_compra' => $costo->costo_compra,
                 'costo_venta' => $costo->costo_venta,
                 'moneda' => $costo->moneda,
@@ -246,6 +254,47 @@ class EmbarqueController extends Controller
         return redirect()
             ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
             ->with('success', "Operativo asignado: {$nuevo}.");
+    }
+
+    /**
+     * El Nro. de File se asigna a mano (depende de la fecha de arribo, no de
+     * cuándo se aceptó la cotización). Queda registrado en el seguimiento.
+     */
+    public function asignarNumeroFile(Request $request, Embarque $embarque): RedirectResponse
+    {
+        $data = $request->validate([
+            'numero_file' => [
+                'required', 'string', 'max:30', 'regex:/^[A-Za-z0-9\-\/]+$/',
+                Rule::unique('embarques', 'numero_file')->ignore($embarque->id_embarque, 'id_embarque'),
+            ],
+        ], [
+            'numero_file.unique' => 'Ese Nro. de File ya está asignado a otro embarque.',
+            'numero_file.regex' => 'Solo letras, números, guiones y barras (sin espacios).',
+        ]);
+
+        $nuevo = strtoupper(trim($data['numero_file']));
+        $anterior = $embarque->numero_file;
+
+        if ($nuevo === $anterior) {
+            return back();
+        }
+
+        DB::transaction(function () use ($embarque, $nuevo, $anterior) {
+            $embarque->update(['numero_file' => $nuevo]);
+
+            $embarque->seguimientos()->create([
+                'fecha' => now(),
+                'estado' => $embarque->estado_embarque,
+                'comentario' => $anterior
+                    ? "Nro. de File cambiado de {$anterior} a {$nuevo}"
+                    : "Nro. de File asignado: {$nuevo}",
+                'id_empleado_responsable' => Auth::user()->empleado?->id_empleado,
+            ]);
+        });
+
+        return redirect()
+            ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
+            ->with('success', "Nro. de File {$nuevo} asignado.");
     }
 
     private function operativosPara(string $modoTransporte)
@@ -384,8 +433,23 @@ class EmbarqueController extends Controller
             'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
         ]);
 
-        $nombreArchivo = str_replace(['/', '\\'], '-', $embarque->numero_file);
+        $nombreArchivo = str_replace(['/', '\\'], '-', $embarque->identificador);
 
         return $pdf->stream("Aviso-Arribo-{$nombreArchivo}.pdf");
+    }
+
+    /**
+     * Hoja principal del file: resumen del embarque en una página.
+     */
+    public function hojaPrincipal(Embarque $embarque): HttpResponse
+    {
+        $pdf = Pdf::loadView('pdf.hoja_principal_file', [
+            ...HojaPrincipalFilePdfDatos::para($embarque),
+            'generadoEn' => Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm'),
+        ]);
+
+        $nombreArchivo = str_replace(['/', '\\'], '-', $embarque->identificador);
+
+        return $pdf->stream("Hoja-Principal-{$nombreArchivo}.pdf");
     }
 }

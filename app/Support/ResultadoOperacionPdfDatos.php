@@ -81,7 +81,7 @@ class ResultadoOperacionPdfDatos
 
         return [
             'embarque' => [
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'cliente' => $embarque->cliente?->razon_social,
                 'consignatario' => $embarque->consignatario_nombre,
                 'comercial' => $embarque->comercial?->nombre_completo,

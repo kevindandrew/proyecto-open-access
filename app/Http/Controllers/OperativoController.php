@@ -20,7 +20,7 @@ class OperativoController extends Controller
             ->get()
             ->map(fn (Embarque $embarque) => [
                 'id_embarque' => $embarque->id_embarque,
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'cliente' => $embarque->cliente?->razon_social,
                 'modo_transporte' => $embarque->modo_transporte,
                 'eta' => $embarque->eta?->toDateString(),

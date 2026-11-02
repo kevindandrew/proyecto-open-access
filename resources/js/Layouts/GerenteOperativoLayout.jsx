@@ -4,6 +4,7 @@ import {
     IconoCotizacionesNav,
     IconoDashboard,
     IconoEmbarquesNav,
+    IconoLlaveNav,
     IconoPersonalNav,
     IconoReportesNav,
     IconoSolicitudesNav,
@@ -49,6 +50,11 @@ const navItems = [
         icon: IconoPersonalNav,
     },
     {
+        label: "Restablecer Contraseñas",
+        routeName: "gerente-operativo.restablecimientos.index",
+        icon: IconoLlaveNav,
+    },
+    {
         label: "Reportes",
         routeName: "gerente-operativo.reportes.index",
         icon: IconoReportesNav,
@@ -71,7 +77,13 @@ function iniciales(nombre) {
 }
 
 export default function GerenteOperativoLayout({ header, children }) {
-    const { auth, flash, solicitudesTarifaPendientes } = usePage().props;
+    const { auth, flash, solicitudesTarifaPendientes, restablecimientosPendientes } = usePage().props;
+
+    // Contadores de pendientes que se muestran al lado de cada ítem del menú.
+    const pendientesPorRuta = {
+        "gerente-operativo.solicitudes-tarifa.index": solicitudesTarifaPendientes,
+        "gerente-operativo.restablecimientos.index": restablecimientosPendientes,
+    };
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
@@ -116,8 +128,7 @@ export default function GerenteOperativoLayout({ header, children }) {
                                     }`}
                                 />
                                 <span className="flex-1">{item.label}</span>
-                                {item.routeName === "gerente-operativo.solicitudes-tarifa.index" &&
-                                    solicitudesTarifaPendientes > 0 && (
+                                {pendientesPorRuta[item.routeName] > 0 && (
                                         <span
                                             className={`flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px] font-bold ${
                                                 activo
@@ -125,7 +136,7 @@ export default function GerenteOperativoLayout({ header, children }) {
                                                     : "bg-amber-400 text-[#042753]"
                                             }`}
                                         >
-                                            {solicitudesTarifaPendientes}
+                                            {pendientesPorRuta[item.routeName]}
                                         </span>
                                     )}
                             </Link>

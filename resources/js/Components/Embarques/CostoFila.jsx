@@ -3,16 +3,23 @@ import { MONEDAS } from '@/constants/monedas';
 import { useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function CostoFila({ costo, proveedores, rutaActualizar, onEliminar, colSpan }) {
+export default function CostoFila({ costo, proveedores, consignees = [], rutaActualizar, onEliminar, colSpan }) {
     const [editando, setEditando] = useState(false);
 
     const { data, setData, patch, processing, errors, reset } = useForm({
         concepto: costo.concepto ?? '',
         id_proveedor: costo.id_proveedor ?? '',
+        cobrar_a: costo.cobrar_a ?? '',
         costo_compra: costo.costo_compra ?? '',
         costo_venta: costo.costo_venta ?? '',
         moneda: costo.moneda ?? 'USD',
     });
+
+    // Un costo guardado con alguien que ya no está entre las opciones lo sigue mostrando.
+    const opcionesCobrarA =
+        costo.cobrar_a && !consignees.some((opcion) => opcion.valor === costo.cobrar_a)
+            ? [...consignees, { valor: costo.cobrar_a, etiqueta: costo.cobrar_a_nombre }]
+            : consignees;
 
     const guardar = (e) => {
         e.preventDefault();
@@ -64,6 +71,24 @@ export default function CostoFila({ costo, proveedores, rutaActualizar, onElimin
                             </select>
                             {errors.id_proveedor && (
                                 <p className="mt-1 text-xs text-red-600">{errors.id_proveedor}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-[#042753]">Cobrar a</label>
+                            <select
+                                className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                                value={data.cobrar_a}
+                                onChange={(e) => setData('cobrar_a', e.target.value)}
+                            >
+                                <option value="">Cliente del embarque</option>
+                                {opcionesCobrarA.map((opcion) => (
+                                    <option key={opcion.valor} value={opcion.valor}>
+                                        {opcion.etiqueta}
+                                    </option>
+                                ))}
+                            </select>
+                            {errors.cobrar_a && (
+                                <p className="mt-1 text-xs text-red-600">{errors.cobrar_a}</p>
                             )}
                         </div>
 
@@ -136,6 +161,7 @@ export default function CostoFila({ costo, proveedores, rutaActualizar, onElimin
         <tr className="transition-colors hover:bg-gray-50">
             <td className="px-3 py-2">{costo.concepto}</td>
             <td className="px-3 py-2">{costo.proveedor ?? '—'}</td>
+            <td className="px-3 py-2">{Number(costo.costo_venta) ? costo.cobrar_a_nombre ?? '—' : '—'}</td>
             <td className="px-3 py-2 text-right">{costo.costo_compra ?? '—'}</td>
             <td className="px-3 py-2 text-right">{costo.costo_venta ?? '—'}</td>
             <td className="px-3 py-2">{costo.moneda}</td>

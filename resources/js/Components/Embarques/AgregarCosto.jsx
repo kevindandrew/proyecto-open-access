@@ -1,10 +1,13 @@
 import { MONEDAS } from '@/constants/monedas';
 import { useForm } from '@inertiajs/react';
 
-export default function AgregarCosto({ embarque, rutaStore, proveedores }) {
+export default function AgregarCosto({ embarque, rutaStore, proveedores, consignees = [] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         concepto: '',
         id_proveedor: '',
+        // A quién se cobra la venta: '' = el cliente del embarque; si no,
+        // "cliente:{id}" o "consignatario:{id}".
+        cobrar_a: '',
         costo_compra: '',
         costo_venta: '',
         moneda: 'USD',
@@ -51,6 +54,25 @@ export default function AgregarCosto({ embarque, rutaStore, proveedores }) {
                     </select>
                     {errors.id_proveedor && (
                         <p className="mt-1 text-xs text-red-600">{errors.id_proveedor}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="text-xs font-medium text-[#042753]">Cobrar a</label>
+                    <select
+                        className="mt-1 block rounded-md border-gray-300 text-sm shadow-sm focus:border-[#71BFA6] focus:ring-[#71BFA6]"
+                        value={data.cobrar_a}
+                        onChange={(e) => setData('cobrar_a', e.target.value)}
+                    >
+                        <option value="">Cliente del embarque</option>
+                        {consignees.map((opcion) => (
+                            <option key={opcion.valor} value={opcion.valor}>
+                                {opcion.etiqueta}
+                            </option>
+                        ))}
+                    </select>
+                    {errors.cobrar_a && (
+                        <p className="mt-1 text-xs text-red-600">{errors.cobrar_a}</p>
                     )}
                 </div>
 

@@ -43,6 +43,7 @@ class TarifaLookup
                     'concepto' => $cargo->concepto,
                     'monto' => $cargo->monto,
                     'moneda' => $cargo->moneda,
+                    'unidad' => $cargo->unidad,
                 ]),
             ]);
     }

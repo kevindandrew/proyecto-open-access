@@ -82,12 +82,20 @@ export default function CotizacionAcciones({
                 )}
 
                 {rutaConvertir && (cotizacion.tiene_embarque ? (
-                    <Link
-                        href={route(rutaVerEmbarque, cotizacion.embarque_id)}
-                        className="rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                    >
-                        Ver Embarque
-                    </Link>
+                    rutaVerEmbarque ? (
+                        <Link
+                            href={route(rutaVerEmbarque, cotizacion.embarque_id)}
+                            className="rounded-md bg-[#042753] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                        >
+                            Ver Embarque {cotizacion.embarque_numero_file ?? ''}
+                        </Link>
+                    ) : (
+                        // Roles sin pantalla de embarques (Gerente Comercial):
+                        // solo se informa el file creado.
+                        <span className="rounded-md bg-[#71BFA6]/15 px-4 py-2 text-sm font-semibold text-[#042753]">
+                            Convertida en Embarque {cotizacion.embarque_numero_file ?? '(Nro. de File pendiente)'}
+                        </span>
+                    )
                 ) : (
                     <button
                         onClick={convertirEnEmbarque}

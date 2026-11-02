@@ -7,6 +7,7 @@ use App\Models\Embarque;
 use App\Models\HouseBl;
 use App\Support\ConsigneeHouse;
 use App\Support\HouseBlFormatoPreimpreso;
+use App\Support\GeneradorNumeroHbl;
 use App\Support\HouseBlPdfDatos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -58,9 +59,11 @@ class HouseBlController extends Controller
         $data = $this->validado($request, $embarque);
         $consignee = ConsigneeHouse::resolver($data['consignee'] ?? null, $embarque);
 
-        DB::transaction(function () use ($embarque, $data, $consignee) {
+        $house = DB::transaction(function () use ($embarque, $data, $consignee) {
             $house = $embarque->houseBls()->create([
-                'numero_hbl' => $data['numero_hbl'],
+                'numero_hbl' => filled($data['numero_hbl'] ?? null)
+                    ? trim($data['numero_hbl'])
+                    : GeneradorNumeroHbl::para($embarque),
                 ...$consignee,
                 'shipper_nombre' => $data['shipper_nombre'] ?? null,
                 'shipper_direccion' => $data['shipper_direccion'] ?? null,
@@ -70,11 +73,13 @@ class HouseBlController extends Controller
             ]);
 
             $house->contenedores()->sync($data['contenedores'] ?? []);
+
+            return $house;
         });
 
         return redirect()
             ->route('gerente-operativo.embarques.show', $embarque->id_embarque)
-            ->with('success', 'House agregado correctamente.');
+            ->with('success', "House {$house->numero_hbl} agregado correctamente.");
     }
 
     public function update(Request $request, HouseBl $house): RedirectResponse
@@ -136,8 +141,9 @@ class HouseBlController extends Controller
     private function validado(Request $request, Embarque $embarque, ?HouseBl $house = null): array
     {
         return $request->validate([
+            // Al crear, vacío = el sistema lo genera (ver GeneradorNumeroHbl).
             'numero_hbl' => [
-                'required', 'string', 'max:50',
+                $house ? 'required' : 'nullable', 'string', 'max:50',
                 Rule::unique('house_bl', 'numero_hbl')->ignore($house?->id_hbl, 'id_hbl'),
             ],
             // "cliente:{id}" o "consignatario:{id}" — ver ConsigneeHouse.
@@ -163,6 +169,9 @@ class HouseBlController extends Controller
             'contenedores_campos.*.volumen_cbm' => ['nullable', 'numeric'],
             'contenedores_campos.*.condicion_pago' => ['nullable', Rule::in(['Prepaid', 'Collect'])],
             'contenedores_campos.*.flete_valor_texto' => ['nullable', 'string', 'max:50'],
+        ], [
+            'numero_hbl.required' => 'Ingresá el número de HBL.',
+            'numero_hbl.unique' => 'Ese número de HBL ya está usado en otro house.',
         ]);
     }
 }

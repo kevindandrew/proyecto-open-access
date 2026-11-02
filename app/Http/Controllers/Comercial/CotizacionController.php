@@ -10,8 +10,8 @@ use App\Models\CotizacionContenedor;
 use App\Models\CotizacionDetalle;
 use App\Models\Embarque;
 use App\Models\PuertoAeropuerto;
+use App\Support\ConvertidorCotizacionEmbarque;
 use App\Support\CotizacionPdfDetalle;
-use App\Support\GeneradorNumeroFile;
 use App\Support\GeneradorNumeroReferencia;
 use App\Support\PrefillCotizacionTerrestre;
 use App\Support\RevalidadorLineaCotizacion;
@@ -367,6 +367,7 @@ class CotizacionController extends Controller
                 'dias_transito' => $cotizacion->dias_transito,
                 'tiene_embarque' => $cotizacion->embarques->isNotEmpty(),
                 'embarque_id' => $cotizacion->embarques->first()?->id_embarque,
+                'embarque_numero_file' => $cotizacion->embarques->first()?->numero_file,
             ],
             'contenedores' => $cotizacion->contenedores->map(fn (CotizacionContenedor $item) => [
                 'tipo_contenedor' => $item->tipo_contenedor,
@@ -458,96 +459,17 @@ class CotizacionController extends Controller
     {
         $this->autorizar($cotizacion);
 
-        if ($cotizacion->estado !== 'Aceptado') {
+        if ($motivo = ConvertidorCotizacionEmbarque::impedimento($cotizacion)) {
             return redirect()
                 ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
-                ->with('error', 'Solo se puede convertir una cotización Aceptada.');
+                ->with('error', $motivo);
         }
 
-        if ($cotizacion->embarques()->exists()) {
-            return redirect()
-                ->route('comercial.cotizaciones.show', $cotizacion->id_cotizacion)
-                ->with('error', 'Esta cotización ya fue convertida en un embarque.');
-        }
-
-        $cotizacion->loadMissing('cliente.consignatarios', 'contenedores', 'detalle');
-
-        $embarque = DB::transaction(function () use ($cotizacion) {
-            $consignatarioPrincipal = $cotizacion->cliente?->consignatarios->first();
-
-            $embarque = Embarque::create([
-                'numero_file' => GeneradorNumeroFile::generar(),
-                'id_cotizacion' => $cotizacion->id_cotizacion,
-                'id_cliente' => $cotizacion->id_cliente,
-                'id_consignatario' => $consignatarioPrincipal?->id_consignatario,
-                'consignatario_nombre' => $consignatarioPrincipal?->nombre,
-                'consignatario_nit' => $consignatarioPrincipal?->nit,
-                'consignatario_direccion' => $consignatarioPrincipal?->direccion,
-                'consignatario_celular' => $consignatarioPrincipal?->celular,
-                'consignatario_correo' => $consignatarioPrincipal?->correo,
-                'id_comercial' => $cotizacion->id_comercial,
-                'id_operativo' => null,
-                'id_agente_origen' => $cotizacion->id_agente_origen,
-                'id_naviera_aerolinea' => $cotizacion->id_naviera_aerolinea,
-                'modo_transporte' => $cotizacion->modo_transporte,
-                'tipo_servicio' => $cotizacion->tipo_servicio,
-                'tipo_embarque' => $cotizacion->tipo_embarque,
-                'oficina_venta' => 'La Paz',
-                'oficina_operacional' => 'La Paz',
-                'id_pol' => $cotizacion->id_pol,
-                'id_pod' => $cotizacion->id_pod,
-                'destino_final' => $cotizacion->destino_final,
-                'peso_kg' => $cotizacion->peso_kg,
-                'volumen_cbm' => $cotizacion->volumen_cbm,
-                'estado_embarque' => 'Confirmado_Origen',
-            ]);
-
-            foreach ($cotizacion->contenedores as $contenedor) {
-                // Cada contenedor físico es único (numero_contenedor, sello,
-                // etc.), así que se crea una fila por unidad en vez de una
-                // sola fila con cantidad=N — esos datos individuales todavía
-                // no se conocen a esta altura y se completan más adelante.
-                for ($i = 0; $i < $contenedor->cantidad; $i++) {
-                    $embarque->contenedores()->create([
-                        'tipo_contenedor' => $contenedor->tipo_contenedor,
-                        'cantidad' => 1,
-                    ]);
-                }
-            }
-
-            foreach ($cotizacion->detalle as $linea) {
-                // Proveedor se puede inferir con confianza solo para los dos
-                // casos conocidos: el flete se le paga a la naviera/aerolínea,
-                // el trámite lo gestiona el agente de origen. Las líneas
-                // manuales/personalizadas quedan sin proveedor.
-                $idProveedor = match (true) {
-                    str_starts_with($linea->descripcion, 'Flete') => $cotizacion->id_naviera_aerolinea,
-                    $linea->descripcion === 'Trámite' => $cotizacion->id_agente_origen,
-                    default => null,
-                };
-
-                $embarque->costos()->create([
-                    'concepto' => substr($linea->descripcion, 0, 100),
-                    'id_proveedor' => $idProveedor,
-                    'costo_compra' => $linea->costo_total,
-                    'costo_venta' => $linea->costo_total + $linea->comision_openaccess,
-                    'moneda' => $linea->moneda,
-                ]);
-            }
-
-            $embarque->seguimientos()->create([
-                'fecha' => now(),
-                'estado' => 'Confirmado_Origen',
-                'comentario' => 'Embarque creado desde cotización aceptada',
-                'id_empleado_responsable' => $cotizacion->id_comercial,
-            ]);
-
-            return $embarque;
-        });
+        $embarque = ConvertidorCotizacionEmbarque::convertir($cotizacion);
 
         return redirect()
             ->route('comercial.embarques.show', $embarque->id_embarque)
-            ->with('success', 'Embarque creado correctamente a partir de la cotización.');
+            ->with('success', "Embarque creado a partir de la cotización {$cotizacion->numero_referencia}. Falta asignarle el Nro. de File.");
     }
 
     private function autorizar(Cotizacion $cotizacion): void

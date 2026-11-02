@@ -93,7 +93,7 @@ class ConsigneeHouse
      * Traduce el valor del selector a las columnas del house, validando que
      * sea una de las opciones permitidas (o lo que el house ya tenía).
      */
-    public static function resolver(?string $valor, Embarque $embarque, ?HouseBl $house = null): array
+    public static function resolver(?string $valor, Embarque $embarque, ?HouseBl $house = null, string $campo = 'consignee', ?string $actual = null): array
     {
         if (blank($valor)) {
             return ['id_cliente' => null, 'id_consignatario' => null];
@@ -105,9 +105,14 @@ class ConsigneeHouse
             $permitidos->push(self::valor($house));
         }
 
+        // Lo que ya tenía guardado se acepta aunque ya no esté entre las opciones.
+        if (filled($actual)) {
+            $permitidos->push($actual);
+        }
+
         if (! $permitidos->contains($valor)) {
             throw ValidationException::withMessages([
-                'consignee' => 'Elegí el cliente del embarque o uno de sus consignatarios.',
+                $campo => 'Elegí el cliente del embarque o uno de sus consignatarios.',
             ]);
         }
 

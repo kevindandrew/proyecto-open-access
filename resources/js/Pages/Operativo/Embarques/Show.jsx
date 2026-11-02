@@ -27,8 +27,8 @@ export default function Show({
     };
 
     return (
-        <OperativoLayout header={`Embarque ${embarque.numero_file}`}>
-            <Head title={`Embarque ${embarque.numero_file}`} />
+        <OperativoLayout header={`Embarque ${embarque.identificador ?? embarque.numero_file}`}>
+            <Head title={`Embarque ${embarque.identificador ?? embarque.numero_file}`} />
 
             <EmbarqueDetalle
                 embarque={embarque}

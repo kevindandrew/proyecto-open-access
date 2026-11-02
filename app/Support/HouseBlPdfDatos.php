@@ -80,7 +80,7 @@ class HouseBlPdfDatos
                 'congelado_en' => $house->congelado_en?->toDateString(),
             ],
             'embarque' => [
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'mbl' => $embarque->mbl,
                 'cliente' => $embarque->cliente?->razon_social,
                 'shipper_nombre' => $shipper['nombre'],

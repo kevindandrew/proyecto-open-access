@@ -298,7 +298,7 @@ class DocumentoLiquidacionController extends Controller
         }
 
         $datos = ResultadoOperacionPdfDatos::para($embarque->fresh());
-        $nombreArchivo = 'Resultado-Operacion-'.str_replace(['/', '\\'], '-', $embarque->numero_file);
+        $nombreArchivo = 'Resultado-Operacion-'.str_replace(['/', '\\'], '-', $embarque->identificador);
 
         $pdf = Pdf::loadView('pdf.liquidacion.resultado_operacion', [
             ...$datos,

@@ -68,7 +68,7 @@ class GerenteOperativoController extends Controller
             ->get()
             ->map(fn (SeguimientoEmbarque $s) => [
                 'titulo' => $s->comentario ?: "Estado actualizado a {$s->estado}",
-                'subtitulo' => $s->embarque?->numero_file,
+                'subtitulo' => $s->embarque?->identificador,
                 'fecha' => $s->fecha,
             ]);
 
@@ -134,7 +134,7 @@ class GerenteOperativoController extends Controller
             ->get()
             ->map(fn (Embarque $embarque) => [
                 'id_embarque' => $embarque->id_embarque,
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'destino' => $embarque->destino_final ?? $embarque->cliente?->razon_social,
                 'eta' => $embarque->eta->toDateString(),
                 'dias' => now()->startOfDay()->diffInDays($embarque->eta->startOfDay(), false),

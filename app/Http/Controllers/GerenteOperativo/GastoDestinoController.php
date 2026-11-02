@@ -35,7 +35,7 @@ class GastoDestinoController extends Controller
         return Inertia::render('GerenteOperativo/Liquidacion/Show', [
             'embarque' => [
                 'id_embarque' => $embarque->id_embarque,
-                'numero_file' => $embarque->numero_file,
+                'numero_file' => $embarque->identificador,
                 'cliente' => $embarque->cliente?->razon_social,
                 'id_cliente' => $embarque->id_cliente,
                 'liquidacion_cerrada_en' => $embarque->liquidacion_cerrada_en?->toDateString(),
@@ -57,6 +57,7 @@ class GastoDestinoController extends Controller
                 'id_costo' => $costo->id_costo,
                 'concepto' => $costo->concepto,
                 'proveedor' => $costo->proveedor?->nombre,
+                'cobrar_a_nombre' => $costo->nombreCobrarA(),
                 'id_proveedor' => $costo->id_proveedor,
                 'costo_compra' => $costo->costo_compra,
                 'costo_venta' => $costo->costo_venta,

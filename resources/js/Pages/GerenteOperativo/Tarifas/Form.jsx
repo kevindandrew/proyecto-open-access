@@ -3,7 +3,16 @@ import { MONEDAS } from '@/constants/monedas';
 import { TIPOS_CONTENEDOR } from '@/constants/tiposContenedor';
 import { bloquearNotacionCientifica } from '@/utils/inputNumerico';
 import { Head, useForm } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+
+// Cómo se cobra un cargo adicional al cotizar (mismos valores que la unidad
+// del detalle de cotización).
+const UNIDADES_CARGO = {
+    Flat: 'Flat (monto fijo)',
+    'Per Container': 'Por contenedor',
+    'Per CBM': 'Por m³ (CBM)',
+    'Per Kg': 'Por kg',
+};
 
 // Terrestre no tiene entrada acá a propósito: el origen de un tramo terrestre
 // puede ser un puerto (ej. Arica) o un aeropuerto (ej. El Alto) donde terminó
@@ -57,6 +66,37 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
     const esAereo = data.modo === 'Aereo';
     const permiteFclLcl = esMaritimo || esTerrestre;
     const esFclTerrestre = esTerrestre && data.incluye_fcl;
+
+    // Formas de cobro de un cargo adicional que aplican a esta tarifa: por
+    // contenedor solo con FCL, por CBM solo con LCL, por kg solo en Aéreo.
+    const unidadesCargo = useMemo(() => {
+        if (esAereo) return ['Flat', 'Per Kg'];
+        if (!permiteFclLcl) return ['Flat'];
+
+        return [
+            'Flat',
+            ...(data.incluye_fcl ? ['Per Container'] : []),
+            ...(data.incluye_lcl ? ['Per CBM'] : []),
+        ];
+    }, [esAereo, permiteFclLcl, data.incluye_fcl, data.incluye_lcl]);
+
+    // Si cambia el modo o se destilda FCL/LCL, un cargo que quedó con una
+    // forma de cobro que ya no aplica vuelve a Flat.
+    useEffect(() => {
+        const hayInvalidos = data.cargos_adicionales.some(
+            (cargo) => !unidadesCargo.includes(cargo.unidad ?? 'Flat'),
+        );
+
+        if (hayInvalidos) {
+            setData(
+                'cargos_adicionales',
+                data.cargos_adicionales.map((cargo) =>
+                    unidadesCargo.includes(cargo.unidad ?? 'Flat') ? cargo : { ...cargo, unidad: 'Flat' },
+                ),
+            );
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [unidadesCargo]);
 
     // El Origen se filtra por el tipo que corresponde al modo (Puerto para
     // Marítimo, Aeropuerto para Aéreo) porque ahí sí importa cómo sale la
@@ -134,7 +174,7 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
     const agregarCargo = () => {
         setData('cargos_adicionales', [
             ...data.cargos_adicionales,
-            { concepto: '', monto: '', moneda: 'USD' },
+            { concepto: '', monto: '', moneda: 'USD', unidad: 'Flat' },
         ]);
     };
 
@@ -695,10 +735,15 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                         </button>
                     </div>
 
+                    <p className="mb-2 text-xs text-[#A9ABAE]">
+                        Elegí cómo se cobra cada cargo al cotizar: monto fijo (Flat) o multiplicado
+                        {esAereo ? ' por kg' : ' por contenedor (FCL) o por m³ (LCL)'}.
+                    </p>
+
                     <div className="space-y-2">
                         {data.cargos_adicionales.map((cargo, index) => (
+                            <div key={index}>
                             <div
-                                key={index}
                                 className="flex items-center gap-2"
                             >
                                 <input
@@ -746,6 +791,23 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                                         </option>
                                     ))}
                                 </select>
+                                <select
+                                    className={`${inputClass} max-w-[170px]`}
+                                    value={cargo.unidad ?? 'Flat'}
+                                    onChange={(e) =>
+                                        actualizarCargo(
+                                            index,
+                                            'unidad',
+                                            e.target.value,
+                                        )
+                                    }
+                                >
+                                    {unidadesCargo.map((unidad) => (
+                                        <option key={unidad} value={unidad}>
+                                            {UNIDADES_CARGO[unidad]}
+                                        </option>
+                                    ))}
+                                </select>
                                 <button
                                     type="button"
                                     onClick={() => quitarCargo(index)}
@@ -753,6 +815,12 @@ export default function Form({ tarifa, proveedores, puertos, prefill }) {
                                 >
                                     Quitar
                                 </button>
+                            </div>
+                            {errors[`cargos_adicionales.${index}.unidad`] && (
+                                <p className="mt-1 text-xs text-red-600">
+                                    {errors[`cargos_adicionales.${index}.unidad`]}
+                                </p>
+                            )}
                             </div>
                         ))}
 

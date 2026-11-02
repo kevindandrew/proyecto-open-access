@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Proveedor;
 use App\Models\PuertoAeropuerto;
 use App\Models\Tarifa;
+use App\Models\TarifaCargoAdicional;
 use App\Support\EstadoTarifa;
 use App\Support\VisibilidadTarifa;
 use Illuminate\Http\RedirectResponse;
@@ -132,6 +133,7 @@ class TarifaController extends Controller
                     'concepto' => $cargo->concepto,
                     'monto' => $cargo->monto,
                     'moneda' => $cargo->moneda,
+                    'unidad' => $cargo->unidad,
                 ]),
             ],
             'proveedores' => $this->proveedoresOptions($tarifa->id_proveedor),
@@ -183,7 +185,7 @@ class TarifaController extends Controller
 
         $tarifa->cargosAdicionales()->delete();
         foreach ($data['cargos_adicionales'] as $cargo) {
-            $tarifa->cargosAdicionales()->create($cargo);
+            $tarifa->cargosAdicionales()->create([...$cargo, 'unidad' => $cargo['unidad'] ?? 'Flat']);
         }
     }
 
@@ -216,10 +218,29 @@ class TarifaController extends Controller
             'cargos_adicionales.*.concepto' => ['required', 'string', 'max:100'],
             'cargos_adicionales.*.monto' => ['required', 'numeric'],
             'cargos_adicionales.*.moneda' => ['required', 'string', 'max:5'],
+            'cargos_adicionales.*.unidad' => ['nullable', Rule::in(['Flat', 'Per Container', 'Per CBM', 'Per Kg'])],
         ])->after(function (Validator $validator) use ($request) {
             $modo = $request->input('modo');
             $incluyeFcl = $request->boolean('incluye_fcl');
             $incluyeLcl = $request->boolean('incluye_lcl');
+
+            // Cada cargo adicional tiene que cobrarse de una forma que aplique
+            // al modo (ej. "por contenedor" no existe en Aéreo, ni "por CBM"
+            // en una tarifa sin LCL).
+            $permitidas = TarifaCargoAdicional::UNIDADES_POR_MODO[$modo] ?? ['Flat'];
+            if (in_array($modo, ['Maritimo', 'Terrestre'], true)) {
+                $permitidas = array_values(array_filter($permitidas, fn ($unidad) => match ($unidad) {
+                    'Per Container' => $incluyeFcl,
+                    'Per CBM' => $incluyeLcl,
+                    default => true,
+                }));
+            }
+
+            foreach ($request->input('cargos_adicionales', []) as $indice => $cargo) {
+                if (! in_array($cargo['unidad'] ?? 'Flat', $permitidas, true)) {
+                    $validator->errors()->add("cargos_adicionales.{$indice}.unidad", 'Esa forma de cobro no aplica a esta tarifa.');
+                }
+            }
 
             if (in_array($modo, ['Maritimo', 'Terrestre'], true)) {
                 if (! $incluyeFcl && ! $incluyeLcl) {

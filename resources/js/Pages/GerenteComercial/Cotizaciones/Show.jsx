@@ -11,6 +11,7 @@ export default function Show({ cotizacion, contenedores, detalle, total }) {
             <CotizacionAcciones
                 cotizacion={cotizacion}
                 rutaCambiarEstado="gerente-comercial.cotizaciones.cambiar-estado"
+                rutaConvertir="gerente-comercial.cotizaciones.convertir"
                 rutaPdf="gerente-comercial.cotizaciones.pdf"
             />
 

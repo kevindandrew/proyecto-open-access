@@ -1,3 +1,4 @@
+import AsignarNumeroFile from '@/Components/Embarques/AsignarNumeroFile';
 import AsignarOperativo from '@/Components/Embarques/AsignarOperativo';
 import ActualizarTransporte from '@/Components/Embarques/ActualizarTransporte';
 import AgregarContenedor from '@/Components/Embarques/AgregarContenedor';
@@ -44,8 +45,10 @@ export default function Show({
     };
 
     return (
-        <GerenteOperativoLayout header={`Embarque ${embarque.numero_file}`}>
-            <Head title={`Embarque ${embarque.numero_file}`} />
+        <GerenteOperativoLayout header={`Embarque ${embarque.identificador ?? embarque.numero_file}`}>
+            <Head title={`Embarque ${embarque.identificador ?? embarque.numero_file}`} />
+
+            <AsignarNumeroFile embarque={embarque} />
 
             <EmbarqueDetalle
                 embarque={embarque}
@@ -55,15 +58,25 @@ export default function Show({
                 costos={costos}
                 totalesPorMoneda={totalesPorMoneda}
                 accionesPrincipal={
-                    <Link
-                        href={route(
-                            'gerente-operativo.embarques.gastos.index',
-                            embarque.id_embarque,
-                        )}
-                        className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-sm font-semibold text-[#042753] hover:opacity-90"
-                    >
-                        Liquidación de Destino
-                    </Link>
+                    <>
+                        <a
+                            href={route('gerente-operativo.embarques.hoja-principal', embarque.id_embarque)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-md border border-white/60 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/10"
+                        >
+                            Hoja del File (PDF)
+                        </a>
+                        <Link
+                            href={route(
+                                'gerente-operativo.embarques.gastos.index',
+                                embarque.id_embarque,
+                            )}
+                            className="rounded-md bg-[#71BFA6] px-3 py-1.5 text-sm font-semibold text-[#042753] hover:opacity-90"
+                        >
+                            Liquidación de Destino
+                        </Link>
+                    </>
                 }
                 onEliminarHouse={eliminarHouse}
                 onEliminarCosto={eliminarCosto}
@@ -88,6 +101,7 @@ export default function Show({
                         embarque={embarque}
                         rutaStore="gerente-operativo.embarques.costos.store"
                         proveedores={proveedores}
+                        consignees={consigneesHouse}
                     />
                 }
                 accionesContenedores={
